@@ -1,0 +1,252 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>L-grass User Guide &#8212; L-grass 1.0 documentation</title>
+    <link rel="stylesheet" href="_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Reference guide" href="ref.html" />
+    <link rel="prev" title="L-grass documentation" href="index.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="ref.html" title="Reference guide"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="L-grass documentation"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">L-grass 1.0 documentation</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="l-grass-user-guide">
+<span id="lgrass-user"></span><h1><a class="toc-backref" href="#id3">L-grass User Guide</a><a class="headerlink" href="#l-grass-user-guide" title="Permalink to this headline">¶</a></h1>
+<div class="contents topic" id="contents">
+<p class="topic-title first">Contents</p>
+<ul class="simple">
+<li><a class="reference internal" href="#l-grass-user-guide" id="id3">L-grass User Guide</a><ul>
+<li><a class="reference internal" href="#introduction" id="id4">Introduction</a></li>
+<li><a class="reference internal" href="#implementation-and-architecture" id="id5">Implementation and architecture</a><ul>
+<li><a class="reference internal" href="#software-design" id="id6">Software design</a><ul>
+<li><a class="reference internal" href="#programming-language" id="id7">Programming language</a></li>
+<li><a class="reference internal" href="#project-tree" id="id8">Project tree</a></li>
+<li><a class="reference internal" href="#package-dependencies" id="id9">Package dependencies</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#running-an-example" id="id10">Running an example</a><ul>
+<li><a class="reference internal" href="#in-one-word" id="id11">In one word</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="section" id="introduction">
+<h2><a class="toc-backref" href="#id4">Introduction</a><a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<p>A Functional Structural Plant Model of ryegrass morphogenesis of leaf and roots, based on self regulations.</p>
+<p>These researches lead to the following publications:</p>
+<p>Migault V. 2015. Insertion de la morphogenèse racinaire dans L grass, un modèle structure-fonction de graminées fourragères.
+Verdenal A. 2009. De la simulation de la morphogénèse de l’appareil aérien du ray-grass anglais (Lolium perenne L.). Exploration d’un schéma cybernétique inspiré du concept d’auto-organisation et applications.
+Verdenal A, Combes D, Escobar-Gutiérrez AJ. 2008. A study of ryegrass architecture as a self-regulated system, using functional-structural plant modelling. Functional Plant Biology 35: 911–924.</p>
+<p>For installation, testing and deployment: please see file <a class="reference download internal" href="_downloads/README.md" download=""><code class="xref download docutils literal notranslate"><span class="pre">README.md</span></code></a>.</p>
+</div>
+<div class="section" id="implementation-and-architecture">
+<h2><a class="toc-backref" href="#id5">Implementation and architecture</a><a class="headerlink" href="#implementation-and-architecture" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="software-design">
+<h3><a class="toc-backref" href="#id6">Software design</a><a class="headerlink" href="#software-design" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="programming-language">
+<h4><a class="toc-backref" href="#id7">Programming language</a><a class="headerlink" href="#programming-language" title="Permalink to this headline">¶</a></h4>
+<p>L-grass is a software implemented as a Python package, using the L-Py platform (<a class="reference external" href="http://openalea.gforge.inria.fr/dokuwiki/doku.php?id=packages:vplants:lpy:doc:install">http://openalea.gforge.inria.fr/dokuwiki/doku.php?id=packages:vplants:lpy:doc:install</a>), a programming framework for Lsystems in Python (<a class="reference external" href="http://www.python.org/">http://www.python.org/</a>).</p>
+</div>
+<div class="section" id="project-tree">
+<h4><a class="toc-backref" href="#id8">Project tree</a><a class="headerlink" href="#project-tree" title="Permalink to this headline">¶</a></h4>
+<p>The project of L-grass consists of several files and directories:</p>
+<ul class="simple">
+<li><dl class="first docutils">
+<dt><em>lgrass/</em> is the Python package, i.e. the sources of L-grass (see <a class="reference internal" href="#package-architecture"><span class="std std-ref">Package dependencies</span></a>),</dt>
+<dd><ul class="first last">
+<li><em>:mod:`lgrass.lpy`</em>: the script used to run the model,</li>
+<li><em>inputs/</em>: the inputs of L-grass,</li>
+<li><em>outputs/</em>: the outputs generated by L-grass,</li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt><em>test/</em> is for the unit test,</dt>
+<dd><ul class="first last">
+<li><em>test_lgrass.py</em>: the script to run the unit test,</li>
+<li><em>input/</em>: the inputs used for the unit test,</li>
+<li><em>outputs/</em>: the expected and actual outputs of the unit test,</li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt><em>doc/</em> contains the user and reference (i.e. API) documentations,</dt>
+<dd><ul class="first last">
+<li><em>index.rst</em>: the main page of the documentation,</li>
+<li><em>user.rst</em>: the user guide (this is what you are currently reading…),</li>
+<li><em>ref.rst</em>: the reference guide (a.k.a. API documentation),</li>
+<li><em>conf.py</em>: the configuration file used to build the documentation,</li>
+<li><dl class="first docutils">
+<dt><em>_build/</em>: directories and files generated by library <a class="reference external" href="http://www.sphinx-doc.org/">Sphinx</a> when building the documentation,</dt>
+<dd><ul class="first last">
+<li><em>pickled/</em>: caches of the source “*.rst” documents (not needed to display the HTML documentation),</li>
+<li><em>html/</em>: the HTML documentation generated by <a class="reference external" href="http://www.sphinx-doc.org/">Sphinx</a>,</li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><em>_static/</em>: custom static files (such as style sheets or script files) generated by library <a class="reference external" href="http://www.sphinx-doc.org/">Sphinx</a>,</li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><em>AUTHORS</em>: the authors of L-grass,</li>
+<li><em>LICENCE</em>: the license of L-grass,</li>
+<li><em>README.md</em>: the Read Me file,</li>
+<li><em>setup.cfg</em>: the configuration file used by <a class="reference external" href="https://setuptools.readthedocs.io/">Setuptools</a> for the deployment of L-grass,</li>
+<li><em>setup.py</em>: the setup script used for the installation of L-grass,</li>
+</ul>
+</div>
+<div class="section" id="package-dependencies">
+<span id="package-architecture"></span><h4><a class="toc-backref" href="#id9">Package dependencies</a><a class="headerlink" href="#package-dependencies" title="Permalink to this headline">¶</a></h4>
+<p>L-grass relies on several Python libraries:</p>
+<ul>
+<li><p class="first">Python (<a class="reference external" href="http://www.python.org/">http://www.python.org/</a>), Openalea Vplants (<a class="reference external" href="http://openalea.gforge.inria.fr/dokuwiki/doku.php?id=download:windows">http://openalea.gforge.inria.fr/dokuwiki/doku.php?id=download:windows</a>),
+NumPy (<a class="reference external" href="http://www.numpy.org/">http://www.numpy.org/</a>) for model installation, deployement and run</p>
+</li>
+<li><p class="first">Pandas (<a class="reference external" href="http://pandas.pydata.org/">http://pandas.pydata.org/</a>): for tests</p>
+<p>L-grass dependencies</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="section" id="running-an-example">
+<h2><a class="toc-backref" href="#id10">Running an example</a><a class="headerlink" href="#running-an-example" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="in-one-word">
+<h3><a class="toc-backref" href="#id11">In one word</a><a class="headerlink" href="#in-one-word" title="Permalink to this headline">¶</a></h3>
+<p>To run a simulation example, two options:</p>
+<ul class="simple">
+<li><ol class="first arabic">
+<li><dl class="first docutils">
+<dt>open Lpy platform,</dt>
+<dd>load lgrass.lpy file from lgrass folder,
+Use Run or animate button to launch a simulation</dd>
+</dl>
+</li>
+<li>Run lgrass from a python script (see main.py in test folder for an example)</li>
+</ol>
+</li>
+</ul>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">L-grass User Guide</a><ul>
+<li><a class="reference internal" href="#introduction">Introduction</a></li>
+<li><a class="reference internal" href="#implementation-and-architecture">Implementation and architecture</a><ul>
+<li><a class="reference internal" href="#software-design">Software design</a><ul>
+<li><a class="reference internal" href="#programming-language">Programming language</a></li>
+<li><a class="reference internal" href="#project-tree">Project tree</a></li>
+<li><a class="reference internal" href="#package-dependencies">Package dependencies</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#running-an-example">Running an example</a><ul>
+<li><a class="reference internal" href="#in-one-word">In one word</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="index.html"
+                        title="previous chapter">L-grass documentation</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="ref.html"
+                        title="next chapter">Reference guide</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/user.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="ref.html" title="Reference guide"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="L-grass documentation"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">L-grass 1.0 documentation</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright TODO.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.7.5.
+    </div>
+  </body>
+</html>
