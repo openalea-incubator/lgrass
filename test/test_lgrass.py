@@ -73,14 +73,14 @@ def test_run():
     lstring = lsys.derive(axiom, NSTEP)
 
     # convert the outputs to Pandas dataframe
-    surface_biomass = pd.read_csv(lsys.chemin_fichier.name)
-    sortie_simul_ValidCoupe = pd.read_csv(lsys.chemin_fichier3.name)
-    evol = pd.read_csv(lsys.chemin_fichier5.name)
+    surface_biomass = pd.read_csv(lsys.chemin_fichier1.name)
+    sortie_simul_ValidCoupe = pd.read_csv(lsys.chemin_fichier2.name)
+    evol = pd.read_csv(lsys.chemin_fichier3.name)
 
     # # compare outputs
-    compare_actual_to_desired(OUTPUTS_DIRPATH, surface_biomass, DESIRED_SORTIE_SURFACE_BIOMASS_FILENAME, lsys.chemin_fichier.name)
-    compare_actual_to_desired(OUTPUTS_DIRPATH, sortie_simul_ValidCoupe, DESIRED_SORTIE_SIMULVALIDCOUPE_FILENAME, lsys.chemin_fichier3.name)
-    compare_actual_to_desired(OUTPUTS_DIRPATH, evol, DESIRED_EVOL_FILENAME, lsys.chemin_fichier5.name)
+    compare_actual_to_desired(OUTPUTS_DIRPATH, surface_biomass, DESIRED_SORTIE_SURFACE_BIOMASS_FILENAME, lsys.chemin_fichier1.name)
+    compare_actual_to_desired(OUTPUTS_DIRPATH, sortie_simul_ValidCoupe, DESIRED_SORTIE_SIMULVALIDCOUPE_FILENAME, lsys.chemin_fichier2.name)
+    compare_actual_to_desired(OUTPUTS_DIRPATH, evol, DESIRED_EVOL_FILENAME, lsys.chemin_fichier3.name)
 
     print "Test passed successfully"
 
