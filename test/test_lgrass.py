@@ -34,7 +34,7 @@ import lgrass
 INPUTS_DIRPATH = 'inputs'
 OUTPUTS_DIRPATH = 'outputs'
 
-DESIRED_EVOL_FILENAME = 'desired_evol.csv'
+DESIRED_SERIE_FOLIAIRE_FILENAME = 'desired_sortie serie foliaire.csv'
 DESIRED_SORTIE_SIMULVALIDCOUPE_FILENAME = 'desired_sortie simul ValidCoupe.csv'
 DESIRED_SORTIE_SURFACE_BIOMASS_FILENAME = 'desired_surface_biomass.csv'
 
@@ -80,7 +80,7 @@ def test_run():
     # # compare outputs
     compare_actual_to_desired(OUTPUTS_DIRPATH, surface_biomass, DESIRED_SORTIE_SURFACE_BIOMASS_FILENAME, lsys.chemin_fichier1.name)
     compare_actual_to_desired(OUTPUTS_DIRPATH, sortie_simul_ValidCoupe, DESIRED_SORTIE_SIMULVALIDCOUPE_FILENAME, lsys.chemin_fichier2.name)
-    compare_actual_to_desired(OUTPUTS_DIRPATH, evol, DESIRED_EVOL_FILENAME, lsys.chemin_fichier3.name)
+    compare_actual_to_desired(OUTPUTS_DIRPATH, evol, DESIRED_SERIE_FOLIAIRE_FILENAME, lsys.chemin_fichier3.name)
 
     print "Test passed successfully"
 
