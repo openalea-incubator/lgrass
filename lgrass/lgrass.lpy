@@ -215,7 +215,7 @@ scales['Entrenoeud']=4
 parameters['Entrenoeud']=['ParamEntrenoeud']
 
 class ParamApex:
-  def __init__(self,id_plante,id_talle,id_rang=1,retard=0, day = 0, primary_induction_index = 0, secondary_induction_index = 0, phenological_state = 'vegetative'):
+  def __init__(self,id_plante,id_talle,id_rang=1,retard=0, day = 0, primary_induction_index = 0, secondary_induction_index = 0, phenological_state = 'vegetative', leaf_primodia_number = 0, spikelet_primordia_number=6):
     self.id_plante=id_plante
     self.id_talle=id_talle
     self.id_rang=id_rang
@@ -224,6 +224,8 @@ class ParamApex:
     self.primary_induction_index = primary_induction_index
     self.secondary_induction_index = secondary_induction_index
     self.phenological_state = phenological_state        # Phenological state of the apex. Values : vegetative, reproductive, dead
+    self.leaf_primodia_number = leaf_primodia_number
+    self.spikelet_primordia_number = spikelet_primordia_number
 scales['apex']=4
 parameters['apex']=['ParamApex']
 
@@ -239,6 +241,35 @@ class ParamApexTal:
     self.phenological_state = phenological_state        # Phenological state of the apex. Values : vegetative, reproductive, dead
 scales['ApexTal']=4
 parameters['ApexTal']=['ParamApexTal']
+
+
+class ParamEpi:
+  def __init__(self, id_plante, id_talle, id_rang, nb_epillets):
+    self.id_plante = id_plante
+    self.id_talle = id_talle
+    self.id_rang = id_rang
+    self.nb_epillets = nb_epillets              # Nombre d epillets a l apex
+scales['Epi']=4
+parameters['Epi']=['ParamEpi']
+
+class ParamEntrenoeudEpi:
+  def __init__(self, id_plante, id_talle, id_rang, long_entrenoeud=0):
+    self.id_plante=id_plante
+    self.id_talle=id_talle
+    self.id_rang=id_rang
+    self.long_entrenoeud = long_entrenoeud      # Longueur moyenne des entrenoeuds (entre chaque insertion d epillet)
+scales['EntrenoeudEpi']=5
+parameters['EntrenoeudEpi']=['ParamEntrenoeudEpi']
+
+class ParamEpillet:
+  def __init__(self, id_plante, id_talle, id_rang, long_epillet=0):
+    self.id_plante=id_plante
+    self.id_talle=id_talle
+    self.id_rang=id_rang
+    self.long_epillet = long_epillet            # Longueur moyenne des epillets
+scales['Epillet']=5
+parameters['Epillet']=['ParamEpillet']
+
 
 class ParambourgeonRoot:
   def __init__(self,id_plante,id_talle=0,id_rang=1,nb_prod_root=0):
@@ -334,7 +365,10 @@ module Feuille(ParamFeuille) : scale=4
 module SegFeuille(ParamSegFeuille) : scale=5
 module apex(ParamApex) : scale=4
 module ApexTal(ParamApexTal) : scale=4
-module bourgeonRoot(ParambourgeonRoot) : scale=4
+module Epi(ParamEpi) : scale=4
+module EntrenoeudEpi(ParamEntrenoeudEpi) : scale = 5
+module Epillet(ParamEpillet) : scale = 5
+module bourgeonRoot(ParambourgeonRoot, ParamEntrenoeud) : scale=4
 module racine(ParamRacine) : scale=4
 module segment(seg) : scale=5
 module tip(pte) : scale=5
@@ -1207,7 +1241,7 @@ Plante(X):
       YAT=ParamApexTal(X.id_plante,id_talle=0,id_rang=1)
       YA=ParamApex(X.id_plante,id_talle=0,id_rang=1)
       YINT=ParamEntrenoeud(X.id_plante,id_talle=0,id_rang=1)      # AJOUT SIMON
-      produce Plante(X) phytomere(Y1) RollR(95)  bourgeonRoot(Yb) ApexTal(YAT) Entrenoeud(YINT, YA) FLW SB Feuille(YF) FLW EB apex(YA)
+      produce Plante(X) phytomere(Y1) RollR(95) bourgeonRoot(Yb, YINT) ApexTal(YAT) Entrenoeud(YINT, YA) FLW SB Feuille(YF) FLW EB apex(YA)
   if groupe=='defoliation':
     produce Plante(X)
 
@@ -1595,31 +1629,35 @@ apex(X):
         X.primary_induction_index += 0.3
       if (X.primary_induction_index >= 1 or X.phenological_state == 'vernalized'):
         X.phenological_state = 'vernalized'
-        X.secondary_induction_index += 0.2
+        X.secondary_induction_index += 0.5
       if X.secondary_induction_index >= 1:
         X.phenological_state = 'reproductive'
-
+  
   if groupe=='croissance':
-    vtx_feuille=[x for x in les_feuilles if (mtg.property('ParamFeuille').get(x).id_plante==X.id_plante and mtg.property('ParamFeuille').get(x).id_talle==X.id_talle and mtg.property('ParamFeuille').get(x).id_rang==X.id_rang)][0]
-    if X.retard==2:
-      #Seuil[X.id_plante][X.id_talle]=Seuil[X.id_plante][X.id_talle] * 1.15
-      Taille_finale_gaine[X.id_plante][X.id_talle].append(5.5)
-      YP=ParamPhytomere(X.id_plante,X.id_talle,X.id_rang+1)
-      YF=ParamFeuille(age=0,Agecroiss=0,Taillefeuille=0,id_plante=X.id_plante,id_talle=X.id_talle,id_rang=X.id_rang+1,Ymax=Premiecroiss[X.id_plante],Taillefinalelimbe=0.8*Premiecroiss[X.id_plante],Taillefinalegaine=0.2*Premiecroiss[X.id_plante])
-      Yb=ParambourgeonRoot(X.id_plante,X.id_talle,X.id_rang+1)
-      YAT=ParamApexTal(X.id_plante,X.id_talle,X.id_rang+1)
-      YINT=ParamEntrenoeud(X.id_plante, X.id_talle, X.id_rang+1)      # AJOUT SIMON
-      X.id_rang += 1
-      X.retard = 0
-      produce RollR(180) phytomere(YP) bourgeonRoot(Yb) ApexTal(YAT) Entrenoeud(YINT, X) FLW SB Feuille(YF) FLW EB apex(X)
-    elif X.retard==1:
-      X.retard=2
-      print 'RETARD_1'
-      produce apex(X)
-    elif abs(Seuil[X.id_plante][X.id_talle]-mtg.property('ParamFeuille').get(vtx_feuille).Taillefeuille)<2: #Si |Seuil-Taillefeuille| <2mm
-      X.retard=1
-      print 'RETARD_0'
-      produce apex(X)
+    if X.phenological_state == 'reproductive':
+      YEPI = ParamEpi(id_plante = X.id_plante, id_talle = X.id_talle, id_rang = X.id_rang, nb_epillets = X.spikelet_primordia_number)
+      produce Epi(YEPI)
+    else:
+      vtx_feuille=[x for x in les_feuilles if (mtg.property('ParamFeuille').get(x).id_plante==X.id_plante and mtg.property('ParamFeuille').get(x).id_talle==X.id_talle and mtg.property('ParamFeuille').get(x).id_rang==X.id_rang)][0]
+      if X.retard==2:
+        #Seuil[X.id_plante][X.id_talle]=Seuil[X.id_plante][X.id_talle] * 1.15
+        Taille_finale_gaine[X.id_plante][X.id_talle].append(5.5)
+        YP=ParamPhytomere(X.id_plante,X.id_talle,X.id_rang+1)
+        YF=ParamFeuille(age=0,Agecroiss=0,Taillefeuille=0,id_plante=X.id_plante,id_talle=X.id_talle,id_rang=X.id_rang+1,Ymax=Premiecroiss[X.id_plante],Taillefinalelimbe=0.8*Premiecroiss[X.id_plante],Taillefinalegaine=0.2*Premiecroiss[X.id_plante])
+        Yb=ParambourgeonRoot(X.id_plante,X.id_talle,X.id_rang+1)
+        YAT=ParamApexTal(X.id_plante,X.id_talle,X.id_rang+1)
+        YINT=ParamEntrenoeud(X.id_plante, X.id_talle, X.id_rang+1)      # AJOUT SIMON
+        X.id_rang += 1
+        X.retard = 0
+        produce RollR(180) phytomere(YP) bourgeonRoot(Yb, YINT) ApexTal(YAT) Entrenoeud(YINT, X) FLW SB Feuille(YF) FLW EB apex(X)
+      elif X.retard==1:
+        X.retard=2
+        print 'RETARD_1'
+        produce apex(X)
+      elif abs(Seuil[X.id_plante][X.id_talle]-mtg.property('ParamFeuille').get(vtx_feuille).Taillefeuille)<2: #Si |Seuil-Taillefeuille| <2mm
+        X.retard=1
+        print 'RETARD_0'
+        produce apex(X)
   if groupe=='defoliation':
     produce apex(X)
 
@@ -1685,7 +1723,7 @@ ApexTal(X):
           YAT=ParamApexTal(X.id_plante,nb_talle[X.id_plante],id_rang=1)
           YA=ParamApex(X.id_plante,nb_talle[X.id_plante],id_rang=1)
           YINT=ParamEntrenoeud(X.id_plante,id_talle=0,id_rang=1)      # AJOUT SIMON
-          produce SB phytomere(YP) RollR(95) GetHead(0, 0, 0) bourgeonRoot(Yb) ApexTal(YAT) Entrenoeud(YINT, YA) FLW SB Feuille(YF) FLW EB apex(YA) EB
+          produce SB phytomere(YP) RollR(95) GetHead(0, 0, 0) bourgeonRoot(Yb, YINT) ApexTal(YAT) Entrenoeud(YINT, YA) FLW SB Feuille(YF) FLW EB apex(YA) EB
         
         if (rapportS9_SSol>ParamP[X.id_plante]['SENSETALLAGE']):
           deuxiemede=alea2[alea1_index[X.id_plante]-1]*5
@@ -1699,7 +1737,7 @@ ApexTal(X):
             YAT=ParamApexTal(X.id_plante,nb_talle[X.id_plante],id_rang=1)
             YA=ParamApex(X.id_plante,nb_talle[X.id_plante],id_rang=1)
             YINT=ParamEntrenoeud(X.id_plante,id_talle=0,id_rang=1)      # AJOUT SIMON
-            produce SB phytomere(YP) RollR(95) GetHead(0, 0, 0) bourgeonRoot(Yb) ApexTal(YAT) Entrenoeud(YINT, YA) FLW SB Feuille(YF) FLW EB apex(YA) EB
+            produce SB phytomere(YP) RollR(95) GetHead(0, 0, 0) bourgeonRoot(Yb, YINT) ApexTal(YAT) Entrenoeud(YINT, YA) FLW SB Feuille(YF) FLW EB apex(YA) EB
           else:
             produce
       else:
@@ -1708,6 +1746,26 @@ ApexTal(X):
       produce ApexTal(X)
   if groupe=='defoliation':
     produce ApexTal(X)
+
+
+
+Epi(X):
+  for i in xrange(X.nb_epillets):              # xrange a remplacer par range en python 3
+    YEntrenoeudEpi = ParamEntrenoeudEpi(id_plante = X.id_plante, id_talle = X.id_talle, id_rang = X.id_rang + i, long_entrenoeud = 0)      # ATTENTION il faudra donner une orientation au premier epillet
+    YEpillet = ParamEpillet(id_plante = X.id_plante, id_talle = X.id_talle, id_rang = X.id_rang + i, long_epillet = 0)
+    nproduce RollR(180) EntrenoeudEpi(YEntrenoeudEpi) SB +(20) Epillet(YEpillet) EB
+
+
+EntrenoeudEpi(X):                      # Compter les entrenoeuds de l epi et appliquer une regle de croissance differente pour le pedoncule
+  if X.long_entrenoeud < 1.5:            # PARAMETRE
+     X.long_entrenoeud += 0.3            # PARAMETRE
+  produce EntrenoeudEpi(X)
+
+
+Epillet(X):
+  if X.long_epillet < 2:                 # PARAMETRE
+    X.long_epillet += 0.2                # PARAMETRE
+  produce Epillet(X)
 
 racine(X):
   global les_racines,les_feuilles
@@ -1724,179 +1782,184 @@ racine(X):
       if feuille_test!=[] and mtg.property('ParamFeuille').get(feuille_test[0]).Phase!='cachee':
         X.lateral_arret=1
 
-bourgeonRoot(X):
-  global num_pointe,les_feuilles,Biomasse_aerienne,groupe
+bourgeonRoot(X, Y_EN):
+  global num_pointe,les_feuilles,Biomasse_aerienne,groupe 
+  
   if OptionRacine=='SansRacines':
     produce *
   
   else:
-    if groupe=='croissance':
-      feuille_du_phytomere=[x for x in les_feuilles if (mtg.property('ParamFeuille').get(x).id_plante==X.id_plante and mtg.property('ParamFeuille').get(x).id_talle==X.id_talle and mtg.property('ParamFeuille').get(x).id_rang==X.id_rang)][0]
-      ordre=Order(Complex(feuille_du_phytomere)) #ordre de la talle
-      
-      #if ordre<=1:
-      if X.nb_prod_root==0:
-        feuille_reference=[x for x in les_feuilles if (mtg.property('ParamFeuille').get(x).id_plante==X.id_plante and mtg.property('ParamFeuille').get(x).id_talle==X.id_talle and mtg.property('ParamFeuille').get(x).id_rang==X.id_rang+ordre)]
-        if feuille_reference!=[] and mtg.property('ParamFeuille').get(feuille_reference[0]).Phase!='cachee':
-          num_pointe=num_pointe+1
-          #if Biomasse_aerienne<0.1:
-          #  if les_diametres==[]:
-          #    Diameter=ParamP[X.id_plante]['P_diamMax']	#random.normalvariate(0.59,0.11)       #(2.3*Biomasse_aerienne+0.33)
-          #  else:
-          #    nb=len(les_diametres)+1  
-          #    Diameter=P_diamMax	#random.normalvariate(0.59,0.11)         #nb*(2.3*Biomasse_aerienne+0.33-(sum(les_diametres)/nb))
-          #else:
-          #  nb=len(les_diametres)+1
-          #  Diameter=P_diamMax		#random.normalvariate(0.59,0.11)             #nb*(0.56-(sum(les_diametres)/nb))
-          
-          if Biomasse_aerienne[X.id_plante]<paramManagement['SBDmax']:
-            Diameter=paramManagement['Dmax']*(1+((paramManagement['SBDmax']-Biomasse_aerienne[X.id_plante])/paramManagement['SBDmax']))*((Biomasse_aerienne[X.id_plante]+paramManagement['SBDmax'])/(2*paramManagement['SBDmax']))**2
+    if Y_EN.length > 0:
+      produce *
+  
+    else:
+      if groupe=='croissance':
+        feuille_du_phytomere=[x for x in les_feuilles if (mtg.property('ParamFeuille').get(x).id_plante==X.id_plante and mtg.property('ParamFeuille').get(x).id_talle==X.id_talle and mtg.property('ParamFeuille').get(x).id_rang==X.id_rang)][0]
+        ordre=Order(Complex(feuille_du_phytomere)) #ordre de la talle
+        
+        #if ordre<=1:
+        if X.nb_prod_root==0:
+          feuille_reference=[x for x in les_feuilles if (mtg.property('ParamFeuille').get(x).id_plante==X.id_plante and mtg.property('ParamFeuille').get(x).id_talle==X.id_talle and mtg.property('ParamFeuille').get(x).id_rang==X.id_rang+ordre)]
+          if feuille_reference!=[] and mtg.property('ParamFeuille').get(feuille_reference[0]).Phase!='cachee':
+            num_pointe=num_pointe+1
+            #if Biomasse_aerienne<0.1:
+            #  if les_diametres==[]:
+            #    Diameter=ParamP[X.id_plante]['P_diamMax']	#random.normalvariate(0.59,0.11)       #(2.3*Biomasse_aerienne+0.33)
+            #  else:
+            #    nb=len(les_diametres)+1  
+            #    Diameter=P_diamMax	#random.normalvariate(0.59,0.11)         #nb*(2.3*Biomasse_aerienne+0.33-(sum(les_diametres)/nb))
+            #else:
+            #  nb=len(les_diametres)+1
+            #  Diameter=P_diamMax		#random.normalvariate(0.59,0.11)             #nb*(0.56-(sum(les_diametres)/nb))
+            
+            if Biomasse_aerienne[X.id_plante]<paramManagement['SBDmax']:
+              Diameter=paramManagement['Dmax']*(1+((paramManagement['SBDmax']-Biomasse_aerienne[X.id_plante])/paramManagement['SBDmax']))*((Biomasse_aerienne[X.id_plante]+paramManagement['SBDmax'])/(2*paramManagement['SBDmax']))**2
+            else:
+              Diameter=paramManagement['Dmax']
+            
+            les_diametres.append(Diameter)
+            X.nb_prod_root=1
+            Y=pte(id_pointe=num_pointe,id_plante=X.id_plante,age=0,diametre=Diameter,Tortue=np.array([[0.,0.,-1],[0.,1,0],[-1.,0.,0.]]),isaxe=True)
+            Y2=ParamRacine(age=0,id_plante=X.id_plante,id_talle=X.id_talle,id_rang=X.id_rang,feuil_ref=X.id_rang+ordre)
+            produce bourgeonRoot(X) FLW SB() racine(Y2) SetHead(0.,0.,-1.,-1.,0.,0.) tip(Y) FLW EB()
           else:
-            Diameter=paramManagement['Dmax']
-          
-          les_diametres.append(Diameter)
-          X.nb_prod_root=1
-          Y=pte(id_pointe=num_pointe,id_plante=X.id_plante,age=0,diametre=Diameter,Tortue=np.array([[0.,0.,-1],[0.,1,0],[-1.,0.,0.]]),isaxe=True)
-          Y2=ParamRacine(age=0,id_plante=X.id_plante,id_talle=X.id_talle,id_rang=X.id_rang,feuil_ref=X.id_rang+ordre)
-          produce bourgeonRoot(X) FLW SB() racine(Y2) SetHead(0.,0.,-1.,-1.,0.,0.) tip(Y) FLW EB()
-        else:
-          produce bourgeonRoot(X)
-      
-      elif X.nb_prod_root==1:
-        if ordre==0:
-          feuille_reference=[x for x in les_feuilles if (mtg.property('ParamFeuille').get(x).id_plante==X.id_plante and mtg.property('ParamFeuille').get(x).id_talle==X.id_talle and mtg.property('ParamFeuille').get(x).id_rang==X.id_rang+1)]
-        else:
-          feuille_reference=[x for x in les_feuilles if (mtg.property('ParamFeuille').get(x).id_plante==X.id_plante and mtg.property('ParamFeuille').get(x).id_talle==X.id_talle and mtg.property('ParamFeuille').get(x).id_rang==X.id_rang+ordre+1)]
-        if feuille_reference!=[] and mtg.property('ParamFeuille').get(feuille_reference[0]).Phase!='cachee':
-          num_pointe=num_pointe+1
-          #if Biomasse_aerienne<0.1:
-          #  if les_diametres==[]:
-          #    Diameter=P_diamMax#random.normalvariate(0.59,0.11)          #(2.3*Biomasse_aerienne+0.33)
-          #  else:
-          #    nb=len(les_diametres)+1  
-          #    Diameter=P_diamMax#random.normalvariate(0.59,0.11)            #nb*(2.3*Biomasse_aerienne+0.33-(sum(les_diametres)/nb))
-          #else:
-          #  nb=len(les_diametres)+1
-          #  Diameter=P_diamMax#random.normalvariate(0.59,0.11)             #nb*(0.56-(sum(les_diametres)/nb))
-          
-          if Biomasse_aerienne[X.id_plante]<paramManagement['SBDmax']:
-            Diameter=paramManagement['Dmax']*(1+((paramManagement['SBDmax']-Biomasse_aerienne[X.id_plante])/paramManagement['SBDmax']))*((Biomasse_aerienne[X.id_plante]+paramManagement['SBDmax'])/(2*paramManagement['SBDmax']))**2
+            produce bourgeonRoot(X)
+        
+        elif X.nb_prod_root==1:
+          if ordre==0:
+            feuille_reference=[x for x in les_feuilles if (mtg.property('ParamFeuille').get(x).id_plante==X.id_plante and mtg.property('ParamFeuille').get(x).id_talle==X.id_talle and mtg.property('ParamFeuille').get(x).id_rang==X.id_rang+1)]
           else:
-            Diameter=paramManagement['Dmax']
-          #Diameter=0.58
-          
-          les_diametres.append(Diameter)
-          X.nb_prod_root=2
-          Y=pte(id_pointe=num_pointe,id_plante=X.id_plante,age=0,diametre=Diameter,Tortue=np.array([[0.,0.,-1],[0.,1,0],[-1.,0.,0.]]),isaxe=True)
-          Y2=ParamRacine(age=0,id_plante=X.id_plante,id_talle=X.id_talle,id_rang=X.id_rang,feuil_ref=X.id_rang+ordre+1)
-          produce FLW SB() racine(Y2)  SetHead(0.,0.,-1.,-1.,0.,0.) tip(Y) FLW EB()
-        else:
-          produce bourgeonRoot(X)
+            feuille_reference=[x for x in les_feuilles if (mtg.property('ParamFeuille').get(x).id_plante==X.id_plante and mtg.property('ParamFeuille').get(x).id_talle==X.id_talle and mtg.property('ParamFeuille').get(x).id_rang==X.id_rang+ordre+1)]
+          if feuille_reference!=[] and mtg.property('ParamFeuille').get(feuille_reference[0]).Phase!='cachee':
+            num_pointe=num_pointe+1
+            #if Biomasse_aerienne<0.1:
+            #  if les_diametres==[]:
+            #    Diameter=P_diamMax#random.normalvariate(0.59,0.11)          #(2.3*Biomasse_aerienne+0.33)
+            #  else:
+            #      nb=len(les_diametres)+1  
+            #    Diameter=P_diamMax#random.normalvariate(0.59,0.11)            #nb*(2.3*Biomasse_aerienne+0.33-(sum(les_diametres)/nb))
+            #else:
+            #  nb=len(les_diametres)+1
+            #  Diameter=P_diamMax#random.normalvariate(0.59,0.11)             #nb*(0.56-(sum(les_diametres)/nb))
+            
+            if Biomasse_aerienne[X.id_plante]<paramManagement['SBDmax']:
+              Diameter=paramManagement['Dmax']*(1+((paramManagement['SBDmax']-Biomasse_aerienne[X.id_plante])/paramManagement['SBDmax']))*((Biomasse_aerienne[X.id_plante]+paramManagement['SBDmax'])/(2*paramManagement['SBDmax']))**2
+            else:
+              Diameter=paramManagement['Dmax']
+            #Diameter=0.58
+            
+            les_diametres.append(Diameter)
+            X.nb_prod_root=2
+            Y=pte(id_pointe=num_pointe,id_plante=X.id_plante,age=0,diametre=Diameter,Tortue=np.array([[0.,0.,-1],[0.,1,0],[-1.,0.,0.]]),isaxe=True)
+            Y2=ParamRacine(age=0,id_plante=X.id_plante,id_talle=X.id_talle,id_rang=X.id_rang,feuil_ref=X.id_rang+ordre+1)
+            produce FLW SB() racine(Y2)  SetHead(0.,0.,-1.,-1.,0.,0.) tip(Y) FLW EB()
+          else:
+            produce bourgeonRoot(X)
+        
+        #else:
+        #  if X.nb_prod_root==0:
+        #    feuille_reference=[x for x in les_feuilles if (mtg.property('ParamFeuille').get(x).id_plante==X.id_plante and mtg.property('ParamFeuille').get(x).id_talle==X.id_talle and mtg.property('ParamFeuille').get(x).id_rang==X.id_rang+(ordre-1))]
+        #    if feuille_reference!=[] and mtg.property('ParamFeuille').get(feuille_reference[0]).Phase!='cachee':
+        #      num_pointe=num_pointe+1
+        #      #if Biomasse_aerienne<0.1:
+        #      #  if les_diametres==[]:
+        #      #    Diameter=P_diamMax#random.normalvariate(0.59,0.11)          #(2.3*Biomasse_aerienne+0.33)
+        #      #  else:
+        #      #    nb=len(les_diametres)+1  
+        #      #    Diameter=P_diamMax#random.normalvariate(0.59,0.11)           #nb*(2.3*Biomasse_aerienne+0.33-(sum(les_diametres)/nb))
+        #      #else:
+        #      #  nb=len(les_diametres)+1
+        #      #  Diameter=P_diamMax#random.normalvariate(0.59,0.11)            #nb*(0.56-(sum(les_diametres)/nb))
+        #      
+        #      if Biomasse_aerienne[X.id_plante]<paramManagement['SBDmax']:
+        #        Diameter=paramManagement['Dmax']*(1+((paramManagement['SBDmax']-Biomasse_aerienne[X.id_plante])/paramManagement['SBDmax']))*((Biomasse_aerienne[X.id_plante]+paramManagement['SBDmax'])/(2*paramManagement['SBDmax']))**2
+        #      else:
+        #        Diameter=paramManagement['Dmax']
+        #      
+        #      les_diametres.append(Diameter)
+        #      X.nb_prod_root=1
+        #      Y=pte(id_pointe=num_pointe,id_plante=X.id_plante,age=0,diametre=Diameter,Tortue=np.array([[0.,0.,-1],[0.,1,0],[-1.,0.,0.]]))
+        #      Y2=ParamRacine(age=0,id_plante=X.id_plante,id_talle=X.id_talle,id_rang=X.id_rang)
+        #      produce bourgeonRoot(X) FLW SB() racine(Y2)  SetHead(0.,0.,-1.,-1.,0.,0.) tip(Y)  FLW EB()
+        #    else:
+        #      produce bourgeonRoot(X)
+        #      
+        #  elif X.nb_prod_root==1:
+        #    feuille_reference=[x for x in les_feuilles if (mtg.property('ParamFeuille').get(x).id_plante==X.id_plante and mtg.property('ParamFeuille').get(x).id_talle==X.id_talle and mtg.property('ParamFeuille').get(x).id_rang==X.id_rang+ordre)]
+        #    if feuille_reference!=[] and mtg.property('ParamFeuille').get(feuille_reference[0]).Phase!='cachee':
+        #      num_pointe=num_pointe+1
+        #      #if Biomasse_aerienne<0.1:
+        #      #  if les_diametres==[]:
+        #      #    Diameter=P_diamMax#random.normalvariate(0.59,0.11)          #(2.3*Biomasse_aerienne+0.33)
+        #      #  else:
+        #      #    nb=len(les_diametres)+1  
+        #      #    Diameter=P_diamMax#random.normalvariate(0.59,0.11)            #nb*(2.3*Biomasse_aerienne+0.33-(sum(les_diametres)/nb))
+        #      #else:
+        #      #  nb=len(les_diametres)+1
+        #      #  Diameter=P_diamMax#random.normalvariate(0.59,0.11)             #nb*(0.56-(sum(les_diametres)/nb))
+        #      
+        #      if Biomasse_aerienne[X.id_plante]<paramManagement['SBDmax']:
+        #        Diameter=paramManagement['Dmax']*(1+((paramManagement['SBDmax']-Biomasse_aerienne[X.id_plante])/paramManagement['SBDmax']))*((Biomasse_aerienne[X.id_plante]+paramManagement['SBDmax'])/(2*paramManagement['SBDmax']))**2
+        #      else:
+        #        Diameter=paramManagement['Dmax']
+        #      
+        #      
+        #      les_diametres.append(Diameter)
+        #      X.nb_prod_root=2
+        #      Y=pte(id_pointe=num_pointe,id_plante=X.id_plante,age=0,diametre=Diameter,Tortue=np.array([[0.,0.,-1],[0.,1,0],[-1.,0.,0.]]))
+        #      Y2=ParamRacine(age=0,id_plante=X.id_plante,id_talle=X.id_talle,id_rang=X.id_rang)
+        #      produce FLW SB() racine(Y2)  SetHead(0.,0.,-1.,-1.,0.,0.) tip(Y) FLW EB()
+        #    else:
+        #      produce bourgeonRoot(X)
+        
+        if X.nb_prod_root==2:
+          produce
+        
+        #if ordre<=1:
+        #  feuille_reference=feuille_du_phytomere
+        #  if mtg.property('ParamFeuille').get(feuille_reference).Phase!='cachee':
+        #    num_pointe=num_pointe+1
+        #    if Biomasse_aerienne<0.1:
+        #      if les_diametres==[]:
+        #        Diameter=P_diamMax       #(2.3*Biomasse_aerienne+0.33)
+        #      else:
+        #        nb=len(les_diametres)+1
+        #        Diameter=P_diamMax         #nb*(2.3*Biomasse_aerienne+0.33-(sum(les_diametres)/nb))
+        #    else:
+        #      nb=len(les_diametres)+1
+        #      Diameter=P_diamMax          #nb*(0.56-(sum(les_diametres)/nb))
+        #    les_diametres.append(Diameter)
+        #    Y=pte(id_pointe=num_pointe,age=0,diametre=Diameter,Tortue=np.array([[0.,0.,-1],[0.,1,0],[-1.,0.,0.]]))
+        #    Y2=ParamRacine(age=0,id_plante=X.id_plante,id_talle=X.id_talle,id_rang=X.id_rang)
+        #    produce FLW SB() racine(Y2) IN SB() SetHead(0.,0.,-1.,-1.,0.,0.) tip(Y) IN EB() FLW EB()
+        #  else:
+        #    produce bourgeonRoot(X)
+        #else:
+        #  feuille_reference=[x for x in les_feuilles if (mtg.property('ParamFeuille').get(x).id_plante==X.id_plante and mtg.property('ParamFeuille').get(x).id_talle==X.id_talle and mtg.property('ParamFeuille').get(x).id_rang==X.id_rang+(ordre-1))]
+        #  if feuille_reference!=[] and mtg.property('ParamFeuille').get(feuille_reference[0]).Phase!='cachee':
+        #    num_pointe=num_pointe+1
+        #    
+        #    if Biomasse_aerienne<0.1:
+        #      nb=len(les_diametres)+1
+        #      Diameter=P_diamMax   #nb*(2.3*Biomasse_aerienne+0.33-(sum(les_diametres)/nb))#*0.9  
+        #    else:
+        #      nb=len(les_diametres)+1
+        #      Diameter=P_diamMax   #nb*(0.56-(sum(les_diametres)/nb))#*0.9  
+        #    les_diametres.append(Diameter)
+        #    Y=pte(id_pointe=num_pointe,age=0,diametre=Diameter,Tortue=np.array([[0.,0.,-1],[0.,1,0],[-1.,0.,0.]]))
+        #    Y2=ParamRacine(age=0,id_plante=X.id_plante,id_talle=X.id_talle,id_rang=X.id_rang)
+        #    produce FLW SB() racine(Y2) IN SB() SetHead(0.,0.,-1.,-1.,0.,0.) tip(Y) IN EB() FLW EB()
+        #  else:
+        #    produce bourgeonRoot(X)
+        #  produce bourgeonRoot(X)
       
-      #else:
-      #  if X.nb_prod_root==0:
-      #    feuille_reference=[x for x in les_feuilles if (mtg.property('ParamFeuille').get(x).id_plante==X.id_plante and mtg.property('ParamFeuille').get(x).id_talle==X.id_talle and mtg.property('ParamFeuille').get(x).id_rang==X.id_rang+(ordre-1))]
-      #    if feuille_reference!=[] and mtg.property('ParamFeuille').get(feuille_reference[0]).Phase!='cachee':
-      #      num_pointe=num_pointe+1
-      #      #if Biomasse_aerienne<0.1:
-      #      #  if les_diametres==[]:
-      #      #    Diameter=P_diamMax#random.normalvariate(0.59,0.11)          #(2.3*Biomasse_aerienne+0.33)
-      #      #  else:
-      #      #    nb=len(les_diametres)+1  
-      #      #    Diameter=P_diamMax#random.normalvariate(0.59,0.11)           #nb*(2.3*Biomasse_aerienne+0.33-(sum(les_diametres)/nb))
-      #      #else:
-      #      #  nb=len(les_diametres)+1
-      #      #  Diameter=P_diamMax#random.normalvariate(0.59,0.11)            #nb*(0.56-(sum(les_diametres)/nb))
-      #      
-      #      if Biomasse_aerienne[X.id_plante]<paramManagement['SBDmax']:
-      #        Diameter=paramManagement['Dmax']*(1+((paramManagement['SBDmax']-Biomasse_aerienne[X.id_plante])/paramManagement['SBDmax']))*((Biomasse_aerienne[X.id_plante]+paramManagement['SBDmax'])/(2*paramManagement['SBDmax']))**2
-      #      else:
-      #        Diameter=paramManagement['Dmax']
-      #      
-      #      les_diametres.append(Diameter)
-      #      X.nb_prod_root=1
-      #      Y=pte(id_pointe=num_pointe,id_plante=X.id_plante,age=0,diametre=Diameter,Tortue=np.array([[0.,0.,-1],[0.,1,0],[-1.,0.,0.]]))
-      #      Y2=ParamRacine(age=0,id_plante=X.id_plante,id_talle=X.id_talle,id_rang=X.id_rang)
-      #      produce bourgeonRoot(X) FLW SB() racine(Y2)  SetHead(0.,0.,-1.,-1.,0.,0.) tip(Y)  FLW EB()
-      #    else:
-      #      produce bourgeonRoot(X)
-      #      
-      #  elif X.nb_prod_root==1:
-      #    feuille_reference=[x for x in les_feuilles if (mtg.property('ParamFeuille').get(x).id_plante==X.id_plante and mtg.property('ParamFeuille').get(x).id_talle==X.id_talle and mtg.property('ParamFeuille').get(x).id_rang==X.id_rang+ordre)]
-      #    if feuille_reference!=[] and mtg.property('ParamFeuille').get(feuille_reference[0]).Phase!='cachee':
-      #      num_pointe=num_pointe+1
-      #      #if Biomasse_aerienne<0.1:
-      #      #  if les_diametres==[]:
-      #      #    Diameter=P_diamMax#random.normalvariate(0.59,0.11)          #(2.3*Biomasse_aerienne+0.33)
-      #      #  else:
-      #      #    nb=len(les_diametres)+1  
-      #      #    Diameter=P_diamMax#random.normalvariate(0.59,0.11)            #nb*(2.3*Biomasse_aerienne+0.33-(sum(les_diametres)/nb))
-      #      #else:
-      #      #  nb=len(les_diametres)+1
-      #      #  Diameter=P_diamMax#random.normalvariate(0.59,0.11)             #nb*(0.56-(sum(les_diametres)/nb))
-      #      
-      #      if Biomasse_aerienne[X.id_plante]<paramManagement['SBDmax']:
-      #        Diameter=paramManagement['Dmax']*(1+((paramManagement['SBDmax']-Biomasse_aerienne[X.id_plante])/paramManagement['SBDmax']))*((Biomasse_aerienne[X.id_plante]+paramManagement['SBDmax'])/(2*paramManagement['SBDmax']))**2
-      #      else:
-      #        Diameter=paramManagement['Dmax']
-      #      
-      #      
-      #      les_diametres.append(Diameter)
-      #      X.nb_prod_root=2
-      #      Y=pte(id_pointe=num_pointe,id_plante=X.id_plante,age=0,diametre=Diameter,Tortue=np.array([[0.,0.,-1],[0.,1,0],[-1.,0.,0.]]))
-      #      Y2=ParamRacine(age=0,id_plante=X.id_plante,id_talle=X.id_talle,id_rang=X.id_rang)
-      #      produce FLW SB() racine(Y2)  SetHead(0.,0.,-1.,-1.,0.,0.) tip(Y) FLW EB()
-      #    else:
-      #      produce bourgeonRoot(X)
-      
-      if X.nb_prod_root==2:
-        produce
-      
-      #if ordre<=1:
-      #  feuille_reference=feuille_du_phytomere
-      #  if mtg.property('ParamFeuille').get(feuille_reference).Phase!='cachee':
-      #    num_pointe=num_pointe+1
-      #    if Biomasse_aerienne<0.1:
-      #      if les_diametres==[]:
-      #        Diameter=P_diamMax       #(2.3*Biomasse_aerienne+0.33)
-      #      else:
-      #        nb=len(les_diametres)+1
-      #        Diameter=P_diamMax         #nb*(2.3*Biomasse_aerienne+0.33-(sum(les_diametres)/nb))
-      #    else:
-      #      nb=len(les_diametres)+1
-      #      Diameter=P_diamMax          #nb*(0.56-(sum(les_diametres)/nb))
-      #    les_diametres.append(Diameter)
-      #    Y=pte(id_pointe=num_pointe,age=0,diametre=Diameter,Tortue=np.array([[0.,0.,-1],[0.,1,0],[-1.,0.,0.]]))
-      #    Y2=ParamRacine(age=0,id_plante=X.id_plante,id_talle=X.id_talle,id_rang=X.id_rang)
-      #    produce FLW SB() racine(Y2) IN SB() SetHead(0.,0.,-1.,-1.,0.,0.) tip(Y) IN EB() FLW EB()
-      #  else:
-      #    produce bourgeonRoot(X)
-      #else:
-      #  feuille_reference=[x for x in les_feuilles if (mtg.property('ParamFeuille').get(x).id_plante==X.id_plante and mtg.property('ParamFeuille').get(x).id_talle==X.id_talle and mtg.property('ParamFeuille').get(x).id_rang==X.id_rang+(ordre-1))]
-      #  if feuille_reference!=[] and mtg.property('ParamFeuille').get(feuille_reference[0]).Phase!='cachee':
-      #    num_pointe=num_pointe+1
-      #    
-      #    if Biomasse_aerienne<0.1:
-      #      nb=len(les_diametres)+1
-      #      Diameter=P_diamMax   #nb*(2.3*Biomasse_aerienne+0.33-(sum(les_diametres)/nb))#*0.9  
-      #    else:
-      #      nb=len(les_diametres)+1
-      #      Diameter=P_diamMax   #nb*(0.56-(sum(les_diametres)/nb))#*0.9  
-      #    les_diametres.append(Diameter)
-      #    Y=pte(id_pointe=num_pointe,age=0,diametre=Diameter,Tortue=np.array([[0.,0.,-1],[0.,1,0],[-1.,0.,0.]]))
-      #    Y2=ParamRacine(age=0,id_plante=X.id_plante,id_talle=X.id_talle,id_rang=X.id_rang)
-      #    produce FLW SB() racine(Y2) IN SB() SetHead(0.,0.,-1.,-1.,0.,0.) tip(Y) IN EB() FLW EB()
-      #  else:
-      #    produce bourgeonRoot(X)
-      #  produce bourgeonRoot(X)
-    
-    if groupe=='defoliation':
-      produce bourgeonRoot(X)
+      if groupe=='defoliation':
+        produce bourgeonRoot(X)
 
 tip(X):
   global mtg,num_primordium,les_pointes,RootPotentialNewBiomass,PourcentageRootGrowthRealized,groupe,TPS_expe
   if OptionRacine=='SansRacines':
-    produce *
+      produce *
   else:
     if groupe=='croissance' and not X.arretee:
       X.age=X.age+dt
@@ -2194,6 +2257,16 @@ apex(X):
 
 ApexTal(X):
   nproduce StartGC() SetColor(5) F(0.2) EndGC()
+
+
+EntrenoeudEpi(X):
+  produce ;(5) F(X.long_entrenoeud)
+
+
+Epillet(X):
+  produce ;(6) F(X.long_epillet)
+
+
 
 tip(X):
   if X.longueur<=0:
