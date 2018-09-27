@@ -41,7 +41,7 @@ num_pointe=0
 num_primordium=0
 
 LSTEP=1
-DureeExp=200
+DureeExp=300
 
 ##### Parametre scene #####
 #OptionRacine='SansRacines' 
@@ -203,7 +203,7 @@ scales['SegFeuille']=5
 parameters['SegFeuille']=['ParamSegFeuille']
 
 class ParamEntrenoeud:
-  def __init__(self, id_plante,id_talle,id_rang=1, internode_type='vegetatif', length=0, width=2, final_length=10):
+  def __init__(self, id_plante, id_talle, id_rang = 1, internode_type = 'short_internode', length = 0, width = 2, final_length = 10):
     self.id_plante = id_plante                    # Id of the plant (between 0 and number of plants-1) 
     self.id_talle = id_talle                      # Id of the tiller
     self.id_rang = id_rang                        # Rank of the phytomere
@@ -663,18 +663,23 @@ def BiomassFeuille(long,coupe,geno):
 # genotype = 'genotype_A'
 
 ## faire un fichier avec les noms des genotypes et leurs proprietes
-#def vernalisation_function(apex, temperature):
-#  if apex.temp_vern_min <= temperature <= apex.temp_vern_inter :
-#    apex.primary_induction_index += apex.VAI * temperature + apex.VBEE
-#  elif apex.temp_vern_inter < temperature <= apex.temp_vern_max:
-#    apex.primary_induction_index += (apex.VAI * temperature + apex.VBEE) * (apex.temp_vern_max - temperature) / (apex.temp_vern_max - apex.temp_vern_inter)
-#
-#def photoperiod_induction_function(apex, daylength):
-#  if apex.critical_min_daylength <= daylength < apex.critical_max_daylength:
-#    apex.secondary_induction_index += apex.sll * daylength
-#  elif daylength >= apex.critical_max_daylength:
-#    apex.secondary_induction_index += 1
-#
+def vernalisation_function(temperature, temp_vern_min = 0, temp_vern_inter = 4, temp_vern_max = 8, VAI = 0.2, VBEE = 0.03):            # PARAMETRE
+  if temp_vern_min <= temperature <= temp_vern_inter :
+    primary_induction_increment = VAI * temperature + VBEE
+  elif temp_vern_inter < temperature <= temp_vern_max:
+    primary_induction_increment = (VAI * temperature + VBEE) * (temp_vern_max - temperature) / (temp_vern_max - temp_vern_inter)
+  else:
+    primary_induction_increment = 0
+  return primary_induction_increment
+
+def photoperiod_induction_function(daylength, critical_min_daylength = 10, critical_max_daylength = 13, sll = 0.2):            # PARAMETRE
+  if critical_min_daylength <= daylength < critical_max_daylength:
+    secondary_induction_increment = sll * daylength
+  elif daylength >= critical_max_daylength:
+    secondary_induction_increment = 1
+  else:
+    secondary_induction_increment = 0
+  return secondary_induction_increment
 
 
 
@@ -766,6 +771,7 @@ def Start():
 
 def StartEach():
   global RootPotentialNewBiomass,longueur_totale_feuille,Rootbiom,groupe,dt,reprise_coupe,CoupeTaille
+  global current_day, meteo
   
   RootPotentialNewBiomass=[0]*(nb_plantes)
   longueur_totale_feuille=0
@@ -814,7 +820,7 @@ def StartEach():
 
 def EndEach(lstring,lscene):
   global TPS,dt,mtg,Surfoliairetotale,les_pointes,les_primordiums,RootPotentialNewBiomass,les_feuilles,les_feuilles_emergees,les_racines, Reserve,Biomasse_aerienne,Surfoliaireencours,Biomasse_racinaire,simul_expe,fichier_test,groupe,PourcentageRootGrowthRealized,PourcentageFeuilGrowthRealized,Demande_feuille,C,reprise_coupe,Ray,BiomProd,Caribu
-  global current_day # AJOUT SIMON
+  global current_day, meteo # AJOUT SIMON
   
   TPS=TPS+dt
   print 'TPS :',TPS , 'Current day :', current_day # AJOUT SIMON
@@ -1057,12 +1063,6 @@ def EndEach(lstring,lscene):
 
   #### AJOUT SIMON ####
   if TPS >= meteo[meteo.id_day == current_day].thermal_time_cumul.iloc[0]:
-    # Recuperation des variables climatiques
-    daily_temperature = meteo[meteo.id_day == current_day].mean_temperature.iloc[0]
-    daily_daylength = meteo[meteo.id_day == current_day].daylength.iloc[0]
-    print daily_temperature
-    print daily_daylength
-    # Changement de jour
     current_day += 1    # Next_day
 
 
@@ -1600,10 +1600,11 @@ SegFeuille(X):
 
 
 Entrenoeud(X_EN, X_AP) > FLW SB Feuille(Y) FLW EB:
-  if X_AP.phenological_state == 'reproductive':
-    if Y.Phase == 'mature':
-      X_EN.length += 0.5
-      produce Entrenoeud(X_EN, X_AP)
+  if (X_AP.phenological_state == 'reproductive' and Y.Phase <> 'mature'):
+    X_EN.internode_type = 'long_internode'
+  if (Y.Phase == 'mature' and X_EN.internode_type == 'long_internode'):
+    X_EN.length += 0.5
+    produce Entrenoeud(X_EN, X_AP)
   else:
     produce Entrenoeud(X_EN, X_AP)
 
@@ -1620,16 +1621,19 @@ Entrenoeud(X_EN, X_AP) > FLW SB Feuille(Y) FLW EB:
 #    produce Entrenoeud(X)
 
 apex(X):
-  global les_feuilles, current_day
+  global les_feuilles, current_day, meteo
   if option_floraison == True:
   # Mise a jour des parametres d induction a chaque changement de journee
     if X.day < current_day:
       X.day = current_day
+      daily_temperature = meteo.mean_temperature[meteo.id_day == current_day].iloc[0]
+      daily_daylength = meteo.daylength[meteo.id_day == current_day].iloc[0]
+      print(daily_temperature)
       if X.phenological_state == 'vegetative':
-        X.primary_induction_index += 0.3
+        X.primary_induction_index += vernalisation_function(temperature = daily_temperature)
       if (X.primary_induction_index >= 1 or X.phenological_state == 'vernalized'):
         X.phenological_state = 'vernalized'
-        X.secondary_induction_index += 0.5
+        X.secondary_induction_index += photoperiod_induction_function(daylength = daily_daylength)
       if X.secondary_induction_index >= 1:
         X.phenological_state = 'reproductive'
   
