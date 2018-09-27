@@ -215,7 +215,7 @@ scales['Entrenoeud']=4
 parameters['Entrenoeud']=['ParamEntrenoeud']
 
 class ParamApex:
-  def __init__(self,id_plante,id_talle,id_rang=1,retard=0, day = 0, primary_induction_index = 0, secondary_induction_index = 0, phenological_state = 'vegetative', leaf_primodia_number = 0, spikelet_primordia_number=6):
+  def __init__(self,id_plante,id_talle,id_rang=1,retard=0, day = 0, primary_induction_index = 0, secondary_induction_index = 0, phenological_state = 'vegetative', primordia_number = 3, spikelet_primordia_number=6, potential_leaf_number = np.nan, approx_final_leaf_number = np.nan, total_emerged_leaf = 0, final_leaf_number=0):   # PARAMETRE
     self.id_plante=id_plante
     self.id_talle=id_talle
     self.id_rang=id_rang
@@ -224,8 +224,12 @@ class ParamApex:
     self.primary_induction_index = primary_induction_index
     self.secondary_induction_index = secondary_induction_index
     self.phenological_state = phenological_state        # Phenological state of the apex. Values : vegetative, reproductive, dead
-    self.leaf_primodia_number = leaf_primodia_number
+    self.primordia_number = primordia_number
     self.spikelet_primordia_number = spikelet_primordia_number
+    self.potential_leaf_number = potential_leaf_number
+    self.approx_final_leaf_number = approx_final_leaf_number
+    self.total_emerged_leaf = total_emerged_leaf
+    self.final_leaf_number = final_leaf_number
 scales['apex']=4
 parameters['apex']=['ParamApex']
 
@@ -663,7 +667,7 @@ def BiomassFeuille(long,coupe,geno):
 # genotype = 'genotype_A'
 
 ## faire un fichier avec les noms des genotypes et leurs proprietes
-def vernalisation_function(temperature, temp_vern_min = 0, temp_vern_inter = 4, temp_vern_max = 8, VAI = 0.2, VBEE = 0.03):            # PARAMETRE
+def vernalisation_function(temperature, temp_vern_min = 0, temp_vern_inter = 4, temp_vern_max = 8, VAI = 0.001, VBEE = 0.01):            # PARAMETRE
   if temp_vern_min <= temperature <= temp_vern_inter :
     primary_induction_increment = VAI * temperature + VBEE
   elif temp_vern_inter < temperature <= temp_vern_max:
@@ -672,7 +676,7 @@ def vernalisation_function(temperature, temp_vern_min = 0, temp_vern_inter = 4, 
     primary_induction_increment = 0
   return primary_induction_increment
 
-def photoperiod_induction_function(daylength, critical_min_daylength = 10, critical_max_daylength = 13, sll = 0.2):            # PARAMETRE
+def photoperiod_induction_function(daylength, critical_min_daylength = 10, critical_max_daylength = 13, sll = 0.2):                      # PARAMETRE
   if critical_min_daylength <= daylength < critical_max_daylength:
     secondary_induction_increment = sll * daylength
   elif daylength >= critical_max_daylength:
@@ -680,6 +684,11 @@ def photoperiod_induction_function(daylength, critical_min_daylength = 10, criti
   else:
     secondary_induction_increment = 0
   return secondary_induction_increment
+
+
+def approx_final_leaf_number_calculation(daylength, potential_leaf_number, SLDL = 0.15, saturation_daylength = 15):                      # PARAMETRE
+  approx_final_leaf_number = min(potential_leaf_number, potential_leaf_number + SLDL * (saturation_daylength - daylength))
+  return approx_final_leaf_number
 
 
 
@@ -1631,11 +1640,22 @@ apex(X):
       print(daily_temperature)
       if X.phenological_state == 'vegetative':
         X.primary_induction_index += vernalisation_function(temperature = daily_temperature)
-      if (X.primary_induction_index >= 1 or X.phenological_state == 'vernalized'):
+        if X.primary_induction_index > 1:
+          X.primary_induction_index = 1
+        # Nombre potentiel de feuilles
+        absolute_max_leaf_number = 10                                                            # PARAMETRE
+        absolute_min_leaf_number = 3                                                             # PARAMETRE
+        X.potential_leaf_number = absolute_max_leaf_number - (absolute_max_leaf_number - absolute_min_leaf_number) * X.primary_induction_index
+      if (X.phenological_state == 'vegetative' and (X.primary_induction_index == 1 or X.potential_leaf_number == absolute_min_leaf_number or X.potential_leaf_number <= X.primordia_number)):
         X.phenological_state = 'vernalized'
-        X.secondary_induction_index += photoperiod_induction_function(daylength = daily_daylength)
-      if X.secondary_induction_index >= 1:
+        X.approx_final_leaf_number = approx_final_leaf_number_calculation(daylength = daily_daylength, potential_leaf_number = X.potential_leaf_number)
+      if 0.5 * X.approx_final_leaf_number <= X.total_emerged_leaf:
+        X.final_leaf_number = X.approx_final_leaf_number
         X.phenological_state = 'reproductive'
+       # X.secondary_induction_index += photoperiod_induction_function(daylength = daily_daylength)
+     # if X.secondary_induction_index >= 1:
+       # X.phenological_state = 'reproductive'
+
   
   if groupe=='croissance':
     if X.phenological_state == 'reproductive':
@@ -1653,6 +1673,8 @@ apex(X):
         YINT=ParamEntrenoeud(X.id_plante, X.id_talle, X.id_rang+1)      # AJOUT SIMON
         X.id_rang += 1
         X.retard = 0
+        X.primordia_number += 1                # ICI
+        X.total_emerged_leaf += 1        # en realite, il faut que ca depende de l emergence des feuilles
         produce RollR(180) phytomere(YP) bourgeonRoot(Yb, YINT) ApexTal(YAT) Entrenoeud(YINT, X) FLW SB Feuille(YF) FLW EB apex(X)
       elif X.retard==1:
         X.retard=2
@@ -1672,7 +1694,7 @@ apex(X):
 #    ## Update of induction parameters
 #    
 #    # Creation d'un dataframe (qui est ecrase a chaque EndEach()). Il comporte l etat de tous les apex (apex et ApexTal)
-#    apex_dataframe =  pandas.DataFrame(columns=['thermal_time', 'plant_id', 'tiller_id', 'tiller_rank', 'apex_type', 'primary_induction_index', 'secondary_induction_state', 'phenological_state']) # ICI
+#    apex_dataframe =  pandas.DataFrame(columns=['thermal_time', 'plant_id', 'tiller_id', 'tiller_rank', 'apex_type', 'primary_induction_index', 'secondary_induction_state', 'phenological_state'])
 #    for shape in lscene:
 #      if (lstring[shape.id].name == "apex") or (lstring[shape.id].name == "ApexTal"):
 #        apex = lstring[shape.id][0]
