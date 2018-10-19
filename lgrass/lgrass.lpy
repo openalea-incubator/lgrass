@@ -1102,7 +1102,7 @@ Plante(X):
 phytomere(X):
   global groupe
   if groupe=='croissance':
-    X.age=X.age+1
+    X.age+=dt
     if (X.id_talle!=0 and X.id_rang==0):
       if (X.age>=120 and X.angletal<=ParamP[X.id_plante]['divergetalle']):
         X.angletal=X.angletal+(1./3.)
@@ -1114,7 +1114,7 @@ Feuille(X):
   X.surface=0
   
   if groupe=='croissance':
-    X.age=X.age+1  
+    X.age+=dt
     vtx_feuille=[x for x in les_feuilles if (mtg.property('ParamFeuille').get(x).id_plante==X.id_plante and mtg.property('ParamFeuille').get(x).id_talle==X.id_talle and mtg.property('ParamFeuille').get(x).id_rang==X.id_rang)][0]  # vertex de la feuille
     vtx_feuille_precedente=[x for x in les_feuilles if (mtg.property('ParamFeuille').get(x).id_plante==X.id_plante and mtg.property('ParamFeuille').get(x).id_talle==X.id_talle and mtg.property('ParamFeuille').get(x).id_rang==X.id_rang-1)]
     
@@ -1155,7 +1155,9 @@ Feuille(X):
           Seuil[X.id_plante][X.id_talle] *= 1.15
           LEDGAINE=((0.2*Premiecroiss[X.id_plante]*5)*2)-Premiecroiss[X.id_plante]
           X.TailleEmergence=Seuil[X.id_plante][X.id_talle]
-          TrueAge=TpourY2(X.Taillefeuille+X.coupe,Premiecroiss[X.id_plante], paramManagement['Jled']*LEDGAINE,paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)
+          TrueAge=X.age-dt #On pourrait affiner la determination de TrueAge qui en realite a eu lieu entre age-dt et age-2dt (soit on prend la moyenne soit au prorata des longueurs)
+          
+          
           
           genotype=mtg.property('ParamPlante').get(plante).id_geno
           X.Ymax=ParamP[genotype]['C']*((pow(paramManagement['T01'],(TrueAge+paramManagement['tb1'])*paramManagement['k1'])-paramManagement['Lpot'])-(pow(paramManagement['T02'],(TrueAge+paramManagement['tb2'])*paramManagement['k2']))); #Alban
@@ -1175,23 +1177,22 @@ Feuille(X):
           LED=((X.Taillefinalegaine*5)*2)-X.Ymax
           #LEDGAINE=((0.2*110*5)*2)-110
           X.Difftps=TpourY2(Seuil[X.id_plante][X.id_talle], X.Ymax,paramManagement['Jled']*LED,paramManagement['Kled']*paramManagement['Jled']*LED)-X.age#TpourY2(X.Taillefeuille+X.coupe,110, paramManagement['Jled']*LEDGAINE,paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)
-          X.AgeCroiss=X.age+X.Difftps#TpourY(X.Taillefeuille, X.Ymax ,paramManagement['Jled']*(((X.Ymax/0.2)*(0.2+((X.age/(60.*10.))-0.1))*2.)-X.Ymax),paramManagement['Kled']*paramManagement['Jled']*(((X.Ymax/0.2)*(0.2+((X.age/(60.*10.))-0.1))*2.)-X.Ymax))
       
       ###### croissance ######
       LEDGAINE=((X.Taillefinalegaine*5)*2)-X.Ymax
       Accroiss=0
       #if (X.Taillegaine< Taille_finale_gaine[X.id_plante][X.id_talle][X.id_rang-1] +13):
-      inversea=TpourY2(X.Taillefeuille+X.coupe, X.Ymax, paramManagement['Jled']*LEDGAINE,paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)
       
       if(X.Phase=='cachee'):
-        inversea=TpourY2(X.Taillefeuille+X.coupe, X.Ymax, paramManagement['Jled']*LEDGAINE,paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)
-        AccroissDemande=FoncCroiss(inversea+1, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)-FoncCroiss(inversea, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)
+        inversea=X.age-dt
+        AccroissDemande=FoncCroiss(inversea+dt, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)-FoncCroiss(inversea, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)
         #Accroiss=FoncCroiss(X.age, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)-FoncCroiss(X.age-1, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)
         X.Agecroiss=X.age
       if(X.Phase=='visible'):
         #AccroissDemande=(FoncCroiss(inversea+1, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)-FoncCroiss(inversea, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE))*PourcentageFeuilGrowthRealized[mtg.property('ParamPlante').get(plante).id_plante]
         AccroissDemande=(FoncCroiss(X.Agecroiss+1, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)-FoncCroiss(X.Agecroiss, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE))
         X.Agecroiss=X.age+X.Difftps
+        
       Pourcent=PourcentageFeuilGrowthRealized[mtg.property('ParamPlante').get(plante).id_plante]
       
       if(X.Phase=='mature'):
@@ -1240,16 +1241,13 @@ Feuille(X):
       
       if X.Phase!='mature':
         if (X.Taillegaine< Taille_finale_gaine[X.id_plante][X.id_talle][X.id_rang-1] +13):
-          inversea=TpourY2(X.Taillefeuille+X.coupe, X.Ymax, paramManagement['Jled']*LEDGAINE,paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)
-        
-        if(X.Phase=='cachee'):
-          NextAccroiss=FoncCroiss(X.age+1, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)-FoncCroiss(X.age, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)
-          #X.Agecroiss=X.age
-        
-        if(X.Phase=='visible'):
-          NextAccroiss=(FoncCroiss(X.Agecroiss+1, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)-FoncCroiss(X.Agecroiss, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE))         
-          #X.Agecroiss=X.age+X.Difftps
-        
+          if(X.Phase=='cachee'):
+            NextAccroiss=FoncCroiss(X.age+dt, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)-FoncCroiss(X.age, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)
+            #X.Agecroiss=X.age
+          
+          if(X.Phase=='visible'):
+            NextAccroiss=(FoncCroiss(X.Agecroiss+dt, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)-FoncCroiss(X.Agecroiss, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE))         
+          
         if mtg.property('ParamPlante').get(plante).id_geno==0:
           long=X.Taillefeuille+NextAccroiss
           Next_feuil=BiomassFeuille(long,X.coupe,X.geno)
@@ -2038,5 +2036,4 @@ def __initialiseContext__(context):
 	context["profilelimbe"] = profilelimbe
 	context["profilefoldlimbe"] = profilefoldlimbe
 	context["profilegaine"] = profilegaine
-__references__ = '\n'
 __references__ = '\n'
