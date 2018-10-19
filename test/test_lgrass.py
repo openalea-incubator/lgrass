@@ -34,12 +34,12 @@ import lgrass
 INPUTS_DIRPATH = 'inputs'
 OUTPUTS_DIRPATH = 'outputs'
 
-DESIRED_SERIE_FOLIAIRE_FILENAME = 'desired_sortie serie foliaire.csv'
-DESIRED_SORTIE_SIMULVALIDCOUPE_FILENAME = 'desired_sortie simul ValidCoupe.csv'
-DESIRED_SORTIE_SURFACE_BIOMASS_FILENAME = 'desired_surface_biomass.csv'
+DESIRED_SERIE_FOLIAIRE_FILENAME = 'desired_sorties_feuilles_finales_50_200_30.csv'
+DESIRED_SORTIE_SIMULVALIDCOUPE_FILENAME = 'desired_sortie_simul_ValidCoupe_50_200_30.csv'
+DESIRED_SORTIE_SURFACE_BIOMASS_FILENAME = 'desired_surface_biomass_50_200_30.csv'
 
 NSTEP = 200
-PRECISION = 6
+PRECISION = 3
 RELATIVE_TOLERANCE = 10**-PRECISION
 ABSOLUTE_TOLERANCE = RELATIVE_TOLERANCE
 
@@ -54,7 +54,7 @@ def compare_actual_to_desired(data_dirpath, actual_data_df, desired_data_filenam
         actual_data_df.to_csv(actual_data_filepath, na_rep='NA', index=False)
 
     # keep only numerical data
-    for column in ('nb_feuillemergees', 'organ', 'element'):
+    for column in ('nb_feuillemergees', 'Phase'):
         if column in desired_data_df.columns:
             del desired_data_df[column]
             del actual_data_df[column]
@@ -85,4 +85,6 @@ def test_run():
     print "Test passed successfully"
 
 if __name__ == '__main__':
+    # import timeit
+    # print(timeit.timeit("test_run()", setup="from __main__ import test_run", number=100))
     test_run()
