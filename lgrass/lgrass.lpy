@@ -14,6 +14,7 @@ from copy import *
 import os
 import pandas
 
+
 ##### Configuration du chemin #####
 INPUTS_DIRPATH = 'inputs'
 OUTPUTS_DIRPATH = 'outputs'
@@ -92,6 +93,13 @@ option_senescence = False
 ##### Activation de la floraison ##### AJOUT SIMON
 option_floraison = True        # True or False
 
+# Output for batch
+output_batch_dict = {}
+flowering_model = None
+
+if flowering_model == None:
+  from lgrass import flowering_functions
+  flowering_model = flowering_functions.FloweringFunctions()
 
 #########   Definition Plante   #########
 scales={}
@@ -671,34 +679,6 @@ def BiomassFeuille(long,coupe,geno):
   return MS
 
 
-##### AJOUT SIMON #####
-# Fonction de mise a jour des parametres phenologiques de l apex
-
-# genotype = 'genotype_A'
-
-## faire un fichier avec les noms des genotypes et leurs proprietes
-def vernalisation_function(temperature, temp_vern_min = 0, temp_vern_inter = 4, temp_vern_max = 8, VAI = 0.001, VBEE = 0.01):            # PARAMETRE   VAI = 0.001, VBEE = 0.01
-  if temp_vern_min <= temperature <= temp_vern_inter :
-    primary_induction_increment = VAI * temperature + VBEE
-  elif temp_vern_inter < temperature <= temp_vern_max:
-    primary_induction_increment = (VAI * temperature + VBEE) * (temp_vern_max - temperature) / (temp_vern_max - temp_vern_inter)
-  else:
-    primary_induction_increment = 0
-  return primary_induction_increment
-
-def photoperiod_induction_function(daylength, critical_min_daylength = 10, critical_max_daylength = 13, sll = 0.2):                      # PARAMETRE
-  if critical_min_daylength <= daylength < critical_max_daylength:
-    secondary_induction_increment = sll * daylength
-  elif daylength >= critical_max_daylength:
-    secondary_induction_increment = 1
-  else:
-    secondary_induction_increment = 0
-  return secondary_induction_increment
-
-
-def approx_final_leaf_number_calculation(daylength, potential_leaf_number, SLDL = 0.15, saturation_daylength = 15):
-  approx_final_leaf_number = min(potential_leaf_number, potential_leaf_number + SLDL * (saturation_daylength - daylength))
-  return approx_final_leaf_number
 
 
 
@@ -779,15 +759,6 @@ def Start():
   taille_finale_feuille.writerow(["TPS","Espacement","Densite","id plante","talle","rang","Phase","taille feuille","taille gaine","taille limbe"])
   
   
-  ##### AJOUT SIMON ####
-  #output_apex_path = open(os.path.join(OUTPUTS_DIRPATH, output_apex), "wb")
-  #apex_writer = csv.writer(output_apex_path)
-  #apex_writer.writerow(["thermal_time", "spacing", "density", "plant_id", "tiller_id", "tiller_rank", "primary_induction_index", "secondary_induction_state", "phenological_state"])
-#  output_organ_characteristics_path = open(os.path.join(OUTPUTS_DIRPATH, output_organ_characteristics), "wb")
-#  organ_writer = csv.writer(output_organ_characteristics_path)
-#  organ_writer.writerow(["thermal_time", "spacing", "density", "plant_id", "tiller_id", "tiller_rank", "primary_induction_index", "secondary_induction_state", "phenological_state"])
-
-
   # AJOUT SIMON
   apex_characteristics_path = open(os.path.join(OUTPUTS_DIRPATH, output_apex_characteristics), "wb")
   apex_characteristics = csv.writer(apex_characteristics_path)
@@ -796,6 +767,8 @@ def Start():
   internode_characteristics_path = open(os.path.join(OUTPUTS_DIRPATH, output_internode_characteristics), "wb")
   internode_characteristics = csv.writer(internode_characteristics_path)
   internode_characteristics.writerow(['day', 'thermal_time', 'plant_id', 'tiller_id', 'rank', 'internode_type', 'internode_length'])
+
+
 
 def StartEach():
   global RootPotentialNewBiomass,longueur_totale_feuille,Rootbiom,groupe,dt,reprise_coupe,CoupeTaille
@@ -1058,45 +1031,16 @@ def EndEach(lstring,lscene):
   #print
   #for ID in xrange(nb_plantes):
   #  print('Plante %s, surface foliaire : %.2f mm², Biomasse_aerienne : %s' % (ID+1,Surfoliairetotale[ID],Biomasse_aerienne[ID]))
-
-
-##### AJOUT SIMON #####
-#if option_floraison == True:
-#  if TPS > 100:     cad transition florale
-#    phenological_state = "reproductive"
-
-##### AJOUT SIMON ####
-# Enregistrement des valeurs de parametres interassants pour la suite
-
-#  organ_characteristics =  pandas.DataFrame(columns=['thermal_time', 'organ_type', 'plant_id', 'tiller_id', 'rank', 'limb_length', 'sheath_length', 'leaf_phase', 'internode_length', 'internode_type', 'primary_induction_index', 'phenological_state', 'day', 'approx_nb_leaf', 'total_emerged_leaf', 'final_leaf_number'])
-#  for shape in lscene:
-#      if (lstring[shape.id].name == "Entrenoeud"):
-#        internode = lstring[shape.id][0]
-#        one_internode_df = pandas.DataFrame([[TPS, 'internode', internode.id_plante, internode.id_talle, internode.id_rang, 'NA', 'NA', 'NA', internode.length, internode.internode_type, 'NA', 'NA', 'NA', 'NA', 'NA', 'NA']], columns=['thermal_time', 'organ_type', 'plant_id', 'tiller_id', 'rank', 'limb_length', 'sheath_length', 'leaf_phase', 'internode_length', 'internode_type', 'primary_induction_index', 'phenological_state', 'day', 'approx_nb_leaf', 'total_emerged_leaf', 'final_leaf_number'])
-#        organ_characteristics = organ_characteristics.append(one_internode_df, ignore_index = True)
-#      elif (lstring[shape.id].name == "Feuille"):
-#        leaf = lstring[shape.id][0]
-#        one_leaf_df = pandas.DataFrame([[TPS, 'leaf', leaf.id_plante, leaf.id_talle, leaf.id_rang, leaf.Taillelimbe, leaf.Taillegaine, leaf.Phase, 'NA', 'NA', 'NA', 'NA', 'NA', 'NA', 'NA', 'NA']], columns=['thermal_time', 'organ_type', 'plant_id', 'tiller_id', 'rank', 'limb_length', 'sheath_length', 'leaf_phase', 'internode_length', 'internode_type', 'primary_induction_index', 'phenological_state', 'day', 'approx_nb_leaf', 'total_emerged_leaf', 'final_leaf_number'])
-#        organ_characteristics = organ_characteristics.append(one_leaf_df, ignore_index = True)
-#        organ_characteristics = organ_characteristics.drop_duplicates()
-#      elif (lstring[shape.id].name == "apex"):
-#        apex = lstring[shape.id][0]
-#        one_apex_df = pandas.DataFrame([[TPS, 'apex', apex.id_plante, apex.id_talle, apex.id_rang, 'NA', 'NA', 'NA', 'NA', 'NA', apex.primary_induction_index, apex.phenological_state, apex.day, apex.approx_final_leaf_number, apex.total_emerged_leaf, apex.final_leaf_number]], columns=['thermal_time', 'organ_type', 'plant_id', 'tiller_id', 'rank', 'limb_length', 'sheath_length', 'leaf_phase', 'internode_length', 'internode_type', 'primary_induction_index', 'phenological_state', 'day', 'approx_nb_leaf', 'total_emerged_leaf', 'final_leaf_number'])
-#        organ_characteristics = organ_characteristics.append(one_apex_df, ignore_index = True)
-#        organ_characteristics = organ_characteristics.drop_duplicates()
-#  print organ_characteristics
-
-
+  
+  
+  
+  
   #### AJOUT SIMON ####
   if TPS >= meteo[meteo.id_day == current_day].thermal_time_cumul.iloc[0]:
     current_day += 1    # Next_day
-    
-#    for shape in lscene:
-#      if (lstring[shape.id].name == "apex"):
-#        apex = lstring[shape.id][0]
-#        apex_df_one_day = pandas.DataFrame([[TPS, apex.id_plante, apex.id_talle, apex.id_rang, apex.total_emerged_leaf, apex.total_created_leaves, apex.primary_induction_index, apex.phenological_state, apex.primordia_number, apex.potential_leaf_number, apex.approx_final_leaf_number]], columns=['thermal_time', 'plant_id', 'tiller_id', 'rank', 'total_emerged_leaf', 'total_created_leaves', 'primary_induction_index', 'phenological_state', 'primordia_number', 'potential_leaf_number', 'approx_final_leaf_number'])
-#        apex_characteristics.append(apex_df_one_day, ignore_index = True)
-
+  
+  
+  
   ##### Remplissage du fichier apex_characteristics #####
     for shape in lscene:
       if (lstring[shape.id].name == 'apex'):
@@ -1189,7 +1133,7 @@ def End(lstring,lscene): #Ecriture et fermeture des fichiers de sortie
   
   #print(lstring)
   print 'Execution time :',t.time()-timing
-  
+
 
 
 def FoncCroiss(t, Ymax, tend, tmax): # fonction de croissance de feuille
@@ -1243,17 +1187,25 @@ def TpourY2(Y, Ym, Te, Tm):  # retrouver le temps T auquel la taille de la feuil
       curs2=newt
   return curs1+(curs2-curs1)/2
 
+
+
+
 Axiom: CouvertVegetal(0)
+
 derivation length: DureeExp
+
+
 production:
 
 GetPos(a,b,c)<SegFeuille(X):
   X.hauteur=c
   produce SegFeuille(X)
 
+
 GetPos(a,b,c)<tip(X):
   X.profondeur=-c
   produce tip(X)
+
 
 CouvertVegetal(X):
   global groupe,NBlignes,NBcolonnes,genotype
@@ -1272,6 +1224,7 @@ CouvertVegetal(X):
       produce CouvertVegetal(X+1)
   if groupe=='defoliation':
     produce CouvertVegetal(X)
+
 
 Plante(X):
   global TPS,groupe, current_day
@@ -1299,6 +1252,7 @@ phytomere(X, X_AP):
         X.angletal=X.angletal+(1./3.)
   if groupe=='defoliation':
     produce phytomere(X, X_AP)
+
 
 Feuille(X, X_apex):
   global mtg,NewShootBiomass,longueur_totale_feuille,les_feuilles,Surfoliaireencours,groupe
@@ -1624,27 +1578,18 @@ Feuille(X, X_apex):
     else:
       produce Feuille(X, X_apex)
 
+
 GetPos(a,b,c):
   for ID in xrange(nb_plantes):
     if TPS==ParamP[ID]['DCOUP']+0.5:
       produce
 
+
 SegFeuille(X):
   if TPS==ParamP[X.id_plante]['DCOUP']+0.75:
     produce
 
-#Entrenoeud(X) FLW SB Feuille(Y) FLW EB:
-#  if Y.Phase == 'mature':
-#    X.length += 0.05
-#    produce Entrenoeud(X) FLW SB Feuille(Y) FLW EB
-#  else:
-#    produce Entrenoeud(X) FLW SB Feuille(Y) FLW EB
-#Entrenoeud(X):
-#  X.length += 0.5
-#  produce Entrenoeud(X)
 
-
-#Entrenoeud(X_EN, X_AP) > FLW SB Feuille(Y, Z) FLW EB:
 Entrenoeud(X_EN, X_AP, X_F):
   if (X_AP.phenological_state == 'reproductive' and X_F.Phase <> 'mature'):
     X_EN.internode_type = 'long_internode'
@@ -1655,8 +1600,6 @@ Entrenoeud(X_EN, X_AP, X_F):
     produce Entrenoeud(X_EN, X_AP, X_F)
 
 
-
-
 apex(X):
   global les_feuilles, current_day, meteo
   if option_floraison == True:
@@ -1665,25 +1608,25 @@ apex(X):
       X.day = current_day
       daily_temperature = meteo.mean_temperature[meteo.id_day == current_day].iloc[0]
       daily_daylength = meteo.daylength[meteo.id_day == current_day].iloc[0]
-      #print(daily_temperature)
+      
       if X.phenological_state == 'vegetative':
-        X.primary_induction_index += vernalisation_function(temperature = daily_temperature)
+        print flowering_model
+        X.primary_induction_index += flowering_model.vernalisation_function(daily_temperature)
         X.primary_induction_index = min(X.primary_induction_index, 1)
-        # Nombre potentiel de feuilles
-        absolute_max_leaf_number = 15                                                           # PARAMETRE
-        absolute_min_leaf_number = 3                                                             # PARAMETRE
-        X.potential_leaf_number = absolute_max_leaf_number - (absolute_max_leaf_number - absolute_min_leaf_number) * X.primary_induction_index
-        if (X.primary_induction_index == 1 or X.potential_leaf_number == absolute_min_leaf_number or X.potential_leaf_number <= X.primordia_number):
+        X.potential_leaf_number = flowering_model.potential_leaf_number_calculation(X.primary_induction_index)
+        if flowering_model.test_vernalisation(X.primary_induction_index, X.potential_leaf_number, X.primordia_number):
           X.phenological_state = 'vernalized'
-          X.approx_final_leaf_number = approx_final_leaf_number_calculation(daylength = daily_daylength, potential_leaf_number = X.potential_leaf_number)
+          X.approx_final_leaf_number = flowering_model.approx_final_leaf_number_calculation(daily_daylength, X.potential_leaf_number)
+          output_batch_dict['vernalisation_CDD'] = TPS
+      
       elif X.phenological_state == 'vernalized':
-        X.approx_final_leaf_number = approx_final_leaf_number_calculation(daylength = daily_daylength, potential_leaf_number = X.potential_leaf_number)
+        X.approx_final_leaf_number = flowering_model.approx_final_leaf_number_calculation(daylength = daily_daylength, potential_leaf_number = X.potential_leaf_number)
         if 0.5 * X.approx_final_leaf_number <= X.total_emerged_leaf:
           X.final_leaf_number = X.approx_final_leaf_number
           X.phenological_state = 'reproductive'
-       # X.secondary_induction_index += photoperiod_induction_function(daylength = daily_daylength)
-     # if X.secondary_induction_index >= 1:
-       # X.phenological_state = 'reproductive'
+          
+          output_batch_dict['final_leaf_number'] = X.final_leaf_number
+          output_batch_dict['floral_transition_CDD'] = TPS
   
   
   if groupe=='croissance':
@@ -1694,6 +1637,7 @@ apex(X):
         YEntrenoeudEpi = ParamEntrenoeudEpi(id_plante = X.id_plante, id_talle = X.id_talle, id_rang = X.id_rang + i, long_entrenoeud = 0)      # ATTENTION il faudra donner une orientation au premier epillet
         YEpillet = ParamEpillet(id_plante = X.id_plante, id_talle = X.id_talle, id_rang = X.id_rang + i, long_epillet = 0)
         nproduce RollR(180) EntrenoeudEpi(YEntrenoeudEpi) SB +(20) Epillet(YEpillet) EB
+        output_batch_dict['spike_creation_CDD'] = TPS
     else:
       vtx_feuille=[x for x in les_feuilles if (mtg.property('ParamFeuille').get(x).id_plante==X.id_plante and mtg.property('ParamFeuille').get(x).id_talle==X.id_talle and mtg.property('ParamFeuille').get(x).id_rang==X.id_rang)][0]
       if X.retard==2:
@@ -1719,39 +1663,6 @@ apex(X):
         produce apex(X)
   if groupe=='defoliation':
     produce apex(X)
-
-
-
-
-#    
-#    ## Update of induction parameters
-#    
-#    # Creation d'un dataframe (qui est ecrase a chaque EndEach()). Il comporte l etat de tous les apex (apex et ApexTal)
-#    apex_dataframe =  pandas.DataFrame(columns=['thermal_time', 'plant_id', 'tiller_id', 'tiller_rank', 'apex_type', 'primary_induction_index', 'secondary_induction_state', 'phenological_state'])
-#    for shape in lscene:
-#      if (lstring[shape.id].name == "apex") or (lstring[shape.id].name == "ApexTal"):
-#        apex = lstring[shape.id][0]
-#        # avec cette methode, l induction secondaire ne peut pas avoir lieu le meme jour que l induction primaire
-#        if apex.phenological_state == 'vegetative':
-#          vernalisation_function(apex, daily_temperature)
-#        elif apex.phenological_state== 'vernalised':
-#          if apex.secondary_induction_index < 1:
-#            photoperiod_induction_function(apex, daily_daylength)
-#          else:
-#            apex.phenological_state = 'reproductive'        
-#        
-#        apex.primary_induction_index = 10
-#        apex.secondary_induction_index = 100
-#        
-#        
-#        one_apex_df = pandas.DataFrame([[TPS, apex.id_plante, apex.id_talle, apex.id_rang, lstring[shape.id].name, apex.primary_induction_index, apex.secondary_induction_index, apex.phenological_state]], columns=['thermal_time', 'plant_id', 'tiller_id', 'tiller_rank', 'apex_type', 'primary_induction_index', 'secondary_induction_state', 'phenological_state'])
-#        apex_dataframe = apex_dataframe.append(one_apex_df, ignore_index = True)
-#        print apex_dataframe
-#    
-
-
-
-
 
 
 ApexTal(X):
@@ -1829,6 +1740,7 @@ Epillet(X):
     X.long_epillet += 0.2                # PARAMETRE
   produce Epillet(X)
 
+
 racine(X):
   global les_racines,les_feuilles
   if OptionRacine=='SansRacines':
@@ -1843,6 +1755,7 @@ racine(X):
       feuille_test=[x for x in les_feuilles if (mtg.property('ParamFeuille').get(x).id_plante==X.id_plante and mtg.property('ParamFeuille').get(x).id_talle==X.id_talle and mtg.property('ParamFeuille').get(x).id_rang==X.feuil_ref+7)]
       if feuille_test!=[] and mtg.property('ParamFeuille').get(feuille_test[0]).Phase!='cachee':
         X.lateral_arret=1
+
 
 bourgeonRoot(X, Y_EN):
   global num_pointe,les_feuilles,Biomasse_aerienne,groupe 
@@ -2018,6 +1931,7 @@ bourgeonRoot(X, Y_EN):
       if groupe=='defoliation':
         produce bourgeonRoot(X, Y_EN)
 
+
 tip(X):
   global mtg,num_primordium,les_pointes,RootPotentialNewBiomass,PourcentageRootGrowthRealized,groupe,TPS_expe
   if OptionRacine=='SansRacines':
@@ -2107,6 +2021,7 @@ tip(X):
           nproduce GetPos(0,0,0)
       produce tip(X)
 
+
 Site(X):
   global mtg,num_pointe,les_pointes,groupe
   if OptionRacine=='SansRacines':
@@ -2139,12 +2054,19 @@ Site(X):
 #    nproduce segment(X)
 #  produce
 
+
+
+
 interpretation:
+
+
 phytomere(X, Y):
   produce Right(X.angletal)
 
+
 Entrenoeud(X, Y, Z):
   produce SetWidth(1)SetColor(3)F(X.length)
+
 
 Feuille(X, Y):
   global Surfoliairetotale,Surfoliaireencours,les_feuilles
@@ -2311,11 +2233,14 @@ Feuille(X, Y):
               nproduce StartGC() SetContour(limbo) SetWidth(large)Left(curve)SetColor(2)F(LSTEP)EndGC()
       produce
 
+
 SegFeuille(X):
   produce SetColor(10)F(1)
 
+
 apex(X):
   nproduce StartGC() SetColor(3) F(0.2) EndGC()
+
 
 ApexTal(X):
   nproduce StartGC() SetColor(5) F(0.2) EndGC()
@@ -2327,7 +2252,6 @@ EntrenoeudEpi(X):
 
 Epillet(X):
   produce ;(6) F(X.long_epillet)
-
 
 
 tip(X):
