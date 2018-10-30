@@ -34,14 +34,14 @@ import lgrass
 INPUTS_DIRPATH = 'inputs'
 OUTPUTS_DIRPATH = 'outputs'
 
-DESIRED_SERIE_FOLIAIRE_FILENAME = 'desired_sorties_feuilles_finales_50_200_30.csv'
-DESIRED_SORTIE_SIMULVALIDCOUPE_FILENAME = 'desired_sortie_simul_ValidCoupe_50_200_30.csv'
-DESIRED_SORTIE_SURFACE_BIOMASS_FILENAME = 'desired_surface_biomass_50_200_30.csv'
-
-NSTEP = 200
+NSTEP = 500
 PRECISION = 3
 RELATIVE_TOLERANCE = 10**-PRECISION
 ABSOLUTE_TOLERANCE = RELATIVE_TOLERANCE
+
+DESIRED_SERIE_FOLIAIRE_FILENAME = 'desired_sorties_feuilles_finales_50_{}_30.csv'.format(NSTEP)
+DESIRED_SORTIE_SIMULVALIDCOUPE_FILENAME = 'desired_sortie_simul_ValidCoupe_50_{}_30.csv'.format(NSTEP)
+DESIRED_SORTIE_SURFACE_BIOMASS_FILENAME = 'desired_surface_biomass_50_{}_30.csv'.format(NSTEP)
 
 
 def compare_actual_to_desired(data_dirpath, actual_data_df, desired_data_filename, actual_data_filename=None):

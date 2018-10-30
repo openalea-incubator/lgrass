@@ -41,7 +41,7 @@ num_pointe=0
 num_primordium=0
 
 LSTEP=1
-DureeExp=200
+DureeExp=500
 
 ##### Parametre scene #####
 OptionRacine='SansRacines' 
@@ -1243,15 +1243,16 @@ Feuille(X):
         if (X.Taillegaine< Taille_finale_gaine[X.id_plante][X.id_talle][X.id_rang-1] +13):
           if(X.Phase=='cachee'):
             NextAccroiss=FoncCroiss(X.age+dt, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)-FoncCroiss(X.age, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)
-            #X.Agecroiss=X.age
-          
-          if(X.Phase=='visible'):
+          else: # X.Phase=='visible'
             NextAccroiss=(FoncCroiss(X.Agecroiss+dt, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)-FoncCroiss(X.Agecroiss, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE))         
+        if (X.Taillegaine>0.98*X.Taillefinalegaine and X.Taillegaine<=Taille_finale_gaine[X.id_plante][X.id_talle][X.id_rang-1] -5 and X.Phase=='visible'):
+          NextAccroiss=1        
+        if (X.Taillegaine>=Taille_finale_gaine[X.id_plante][X.id_talle][X.id_rang-1] +13 and X.Phase=='visible'):
+          NextAccroiss=0          
           
         if mtg.property('ParamPlante').get(plante).id_geno==0:
           long=X.Taillefeuille+NextAccroiss
           Next_feuil=BiomassFeuille(long,X.coupe,X.geno)
-        
         else:
           long=X.Taillefeuille+NextAccroiss
           Next_feuil=BiomassFeuille(long,X.coupe,X.geno)
