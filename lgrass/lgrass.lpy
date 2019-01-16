@@ -34,14 +34,15 @@ paramP2=dict(zip(TableParamP2['name'],TableParamP2['value']))
 TableManagement=pandas.read_excel(path_param,sheetname='Management')
 paramManagement=dict(zip(TableManagement['name'],TableManagement['value']))
 
-ParamP=[paramP2] #liste des parametres plante
+ParamP=[paramP1] #liste des parametres plante
 nb_plantes=len(ParamP) 
 
 num_pointe=0
 num_primordium=0
 
 LSTEP=1
-DureeExp=500
+DureeExp=200
+DebExp=0
 
 ##### Parametre scene #####
 OptionRacine='SansRacines' 
@@ -606,7 +607,8 @@ def Start():
   timing=t.time()
   growth_realized=1
   dt=1
-  TPS=0.
+  #TPS=0.
+  TPS=DebExp
   TPS_expe=range(1000)
   
   ##### Creation de parametres vides #####
