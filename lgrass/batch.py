@@ -37,9 +37,9 @@ def test_run2():
         print 'iter ',i
 
         lstring = lsys.derive(lstring,i,1)
-        #s_leg = runL[1].sceneInterpretation(runL[0]).deepcopy()
+        s_leg = lsys.sceneInterpretation(lstring)
 
-    #s_leg.save("mysave2.bgeom")
+    s_leg.save("mysave2.bgeom")
     #Viewer.display(s_leg)
     #return s_leg
 
