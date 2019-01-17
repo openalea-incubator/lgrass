@@ -43,6 +43,7 @@ num_primordium=0
 LSTEP=1
 DureeExp=200
 DebExp=0
+TPS=DebExp
 
 ##### Parametre scene #####
 OptionRacine='SansRacines' 
@@ -608,7 +609,7 @@ def Start():
   growth_realized=1
   dt=1
   #TPS=0.
-  TPS=DebExp
+  #TPS=DebExp
   TPS_expe=range(1000)
   
   ##### Creation de parametres vides #####

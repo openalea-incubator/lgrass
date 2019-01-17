@@ -3,7 +3,7 @@ import os
 import lgrass
 
 from openalea.lpy import *
-from generateScene import run
+from generateScene import *
 from openalea.plantgl.all import *
 
 NSTEP = 200
@@ -25,24 +25,21 @@ def test_run():
 
 def test_run2():
     lpy_filename = os.path.join(lgrass.__path__[0], "lgrass.lpy")
-    lsys = Lsystem(lpy_filename)
-    axiom = lsys.axiom
+    lsys = lsystem(lpy_filename)
+    print ' Lsystem'
+    lstring = lsys.axiom
+    print lsys.TPS
 
-    for i in range(NSTEP):
 
-        #lsys.TPS = TPS
 
-        lsys.DebExp=i+1
-        print(lsys.DureeExp)
-        runL = run(lsys, axiom = axiom , nbstep = 1)
+    for i in xrange(NSTEP):
+        print lstring
+        print 'iter ',i
 
-        #lstring = lsys.derive(axiom, NSTEP)
+        lstring = lsys.derive(lstring,i,1)
+        #s_leg = runL[1].sceneInterpretation(runL[0]).deepcopy()
 
-        s_leg = runL[1].sceneInterpretation(runL[0]).deepcopy()
-
-        lsys = runL[1]
-        axiom = runL[0]
-    s_leg.save("mysave2.bgeom")
+    #s_leg.save("mysave2.bgeom")
     #Viewer.display(s_leg)
     #return s_leg
 
