@@ -28,7 +28,7 @@ def test_run2():
     lsys = lsystem(lpy_filename)
     print ' Lsystem'
     lstring = lsys.axiom
-    print lsys.TPS
+    #print lsys.TPS
 
 
 

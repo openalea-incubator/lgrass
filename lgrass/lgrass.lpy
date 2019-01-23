@@ -41,9 +41,7 @@ num_pointe=0
 num_primordium=0
 
 LSTEP=1
-DureeExp=200
-DebExp=0
-TPS=DebExp
+DureeExp=500
 
 ##### Parametre scene #####
 OptionRacine='SansRacines' 
@@ -161,7 +159,7 @@ scales['Entrenoeud']=4
 parameters['Entrenoeud']=[]
 
 class ParamFeuille:
-  def __init__(self,age=0, Agecroiss=0, Taillefeuille=0, id_plante=0, id_talle=0, id_rang=1, Ymax= 0, Difftps=0,  Taillefinalelimbe=0, Taillefinalegaine=0., Taillelimbe=0, Taillegaine=0, Phase='cachee', rapportK=0.2, coupe=0.,Cutstatus='intact', angleinsert=0,angletal=0., geno=0, surface=0, biomass=0., Besoinencroiss=0,TailleEmergence=0.,R=0.973):
+  def __init__(self,age=0, Agecroiss=0, Taillefeuille=0, id_plante=0, id_talle=0, id_rang=1, Ymax= 0, Difftps=0,  Taillefinalelimbe=0, Taillefinalegaine=0., Taillelimbe=0, Taillegaine=0, Phase='cachee', rapportK=0.2, coupe=0.,Cutstatus='intact', angleinsert=0,angletal=0., geno=0, surface=0, biomass=0., Besoinencroiss=0,TailleEmergence=0.,R=0.973,DigMS=0.,NDFMS=0.,DigNDF=0.):
     self.age=age                             # Age de la feuille
     self.Agecroiss=Agecroiss                 # 
     self.Taillefeuille=Taillefeuille         # Taille de la feuille au temps t
@@ -186,6 +184,9 @@ class ParamFeuille:
     self.Besoinencroiss=Besoinencroiss
     self.TailleEmergence=TailleEmergence
     self.R=R
+    self.DigMS=DigMS                         # Digestibilité de la matière sèche
+    self.NDFMS=NDFMS                         # Taux de fibres dans la matière sèche
+    self.DigNDF=DigNDF                       # Digestibilité des fibres
 scales['Feuille']=4
 parameters['Feuille']=['ParamFeuille']
 
@@ -608,8 +609,7 @@ def Start():
   timing=t.time()
   growth_realized=1
   dt=1
-  #TPS=0.
-  #TPS=DebExp
+  TPS=0.
   TPS_expe=range(1000)
   
   ##### Creation de parametres vides #####
