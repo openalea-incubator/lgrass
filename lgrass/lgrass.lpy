@@ -13,7 +13,7 @@ from copy import *
 #import IOxls
 import os
 import pandas
-#
+
 ##### Configuration du chemin #####
 INPUTS_DIRPATH = 'inputs'
 OUTPUTS_DIRPATH = 'outputs'
