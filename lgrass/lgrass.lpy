@@ -1094,7 +1094,7 @@ Plante(X):
       Seuil.append([5.5])
       Taille_finale_gaine.append([[5.5,5.5]])
       Y1=ParamPhytomere(id_plante=X.id_plante)
-      YF=ParamFeuille(age=0,Agecroiss=0,Taillefeuille=0,id_plante=X.id_plante,id_rang=1,Ymax=Premiecroiss[X.id_plante],Taillefinalelimbe=0.8*Premiecroiss[X.id_plante],Taillefinalegaine=0.2*Premiecroiss[X.id_plante])
+      YF=ParamFeuille(age=0,Agecroiss=0,Taillefeuille=0,id_plante=X.id_plante,id_rang=1,Ymax=Premiecroiss[X.id_plante],Taillefinalelimbe=0.8*Premiecroiss[X.id_plante],Taillefinalegaine=0.2*Premiecroiss[X.id_plante],DigMS=0,NDFMS=0,DigNDF=0)
       Yb=ParambourgeonRoot(X.id_plante,id_talle=0,id_rang=1)
       YAT=ParamApexTal(X.id_plante,id_talle=0,id_rang=1)
       YA=ParamApex(X.id_plante,id_talle=0,id_rang=1)
