@@ -13,7 +13,7 @@ from copy import *
 #import IOxls
 import os
 import pandas
-
+#
 ##### Configuration du chemin #####
 INPUTS_DIRPATH = 'inputs'
 OUTPUTS_DIRPATH = 'outputs'
@@ -2014,30 +2014,6 @@ segment(X):
 endlsystem
 ###### INITIALISATION ######
 
-__lpy_code_version__ = 1.1
-
 def __initialiseContext__(context):
 	context.options.setSelection('Module declaration',1)
-	import openalea.plantgl.all as pgl
-	profilelimbe = pgl.NurbsCurve2D(	
-	    ctrlPointList = pgl.Point3Array([(-0.0864873, -1.28825, 1),(0.138172, -0.154037, 1),(0.134849, -0.160444, 1),(0.302985, -0.00246132, 1),(0.176901, 0.144132, 1),(0.149559, 0.150022, 1),(-0.0742404, 1.49117, 1)]) , 
-	    )
-	profilelimbe.name = "profilelimbe"
-	profilefoldlimbe = pgl.NurbsCurve2D(	
-	    ctrlPointList = pgl.Point3Array([(-0.202006, 0.250293, 1),(-0.262712, 0.243403, 1),(-0.285408, 0.179588, 1),(-0.166833, -0.0558834, 1),(0.238723, -0.168115, 1),(0.348058, 0.171371, 1),(0.33338, 0.337654, 1),(0.0711467, 0.435274, 1),(0.085187, 0.149124, 1),(0.0123227, 0.175151, 1)]) , 
-	    )
-	profilefoldlimbe.name = "profilefoldlimbe"
-	profilegaine = pgl.NurbsCurve2D(	
-	    ctrlPointList = pgl.Point3Array([(-0.407478, -0.0511938, 1),(-0.390245, -0.17963, 1),(-0.355, -0.3575, 1),(-0.0025, -0.4925, 1),(0.363333, -0.355, 1),(0.47, -5.58794e-009, 1),(0.349167, 0.3425, 1),(0.005, 0.455, 1),(-0.3275, 0.3625, 1),(-0.380592, 0.203264, 1),(-0.402904, 0.0550844, 1)]) , 
-	    )
-	profilegaine.name = "profilegaine"
-	panel_0 = ({'active': True, 'visible': False, 'name': 'Curve2D'},[('Curve2D',profilelimbe),('Curve2D',profilefoldlimbe),('Curve2D',profilegaine)])
-	panel_1 = ({'active': True, 'visible': False, 'name': 'Panel 2'},[])
-	parameterset = [panel_0,panel_1,]
-	context["__functions__"] = []
-	context["__curves__"] = [('profilelimbe',profilelimbe),('profilefoldlimbe',profilefoldlimbe),('profilegaine',profilegaine),]
-	context["__parameterset__"] = parameterset
-	context["profilelimbe"] = profilelimbe
-	context["profilefoldlimbe"] = profilefoldlimbe
-	context["profilegaine"] = profilegaine
 __references__ = '\n'
