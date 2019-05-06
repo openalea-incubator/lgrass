@@ -67,15 +67,14 @@ reprise_coupe=False
 #CoupeTaille=600000.
 
 ##### Sorties #####
-outvarfile='surface_biomass_%s_%s_%s.csv'%(int(Espacement),DureeExp,ParamP[0]['HCOUP'])
-outvarfile2='sortie_simul_ValidCoupe_%s_%s_%s.csv'%(int(Espacement),DureeExp,ParamP[0]['HCOUP'])
-outvarfile3='sorties_feuilles_finales_%s_%s_%s.csv'%(int(Espacement),DureeExp,ParamP[0]['HCOUP'])
-#output_apex = 'output_apex_%s_%s_%s.csv'%(int(Espacement),DureeExp,ParamP[0]['HCOUP'])                  # Ajout SIMON
-output_organ_characteristics = 'output_organ_characteristics%s_%s_%s.csv'%(int(Espacement),DureeExp,ParamP[0]['HCOUP'])    
-outimage='Scene\scene_'+str(int(Espacement))+'_'+t.strftime('%d-%m-%y_%Hh%M',t.localtime())+'.bmp'
-
-output_apex_characteristics = 'output_apex_characteristics%s_%s_%s.csv'%(int(Espacement),DureeExp,ParamP[0]['HCOUP'])
-output_internode_characteristics = 'output_internode_characteristics%s_%s_%s.csv'%(int(Espacement),DureeExp,ParamP[0]['HCOUP'])
+#outvarfile='surface_biomass_%s_%s_%s.csv'%(int(Espacement),DureeExp,ParamP[0]['HCOUP'])
+#outvarfile2='sortie_simul_ValidCoupe_%s_%s_%s.csv'%(int(Espacement),DureeExp,ParamP[0]['HCOUP'])
+#outvarfile3='sorties_feuilles_finales_%s_%s_%s.csv'%(int(Espacement),DureeExp,ParamP[0]['HCOUP'])
+##output_apex = 'output_apex_%s_%s_%s.csv'%(int(Espacement),DureeExp,ParamP[0]['HCOUP'])                  # Ajout SIMON
+#output_organ_characteristics = 'output_organ_characteristics%s_%s_%s.csv'%(int(Espacement),DureeExp,ParamP[0]['HCOUP'])    
+#outimage='Scene\scene_'+str(int(Espacement))+'_'+t.strftime('%d-%m-%y_%Hh%M',t.localtime())+'.bmp'
+#output_apex_characteristics = 'output_apex_characteristics%s_%s_%s.csv'%(int(Espacement),DureeExp,ParamP[0]['HCOUP'])
+#output_internode_characteristics = 'output_internode_characteristics%s_%s_%s.csv'%(int(Espacement),DureeExp,ParamP[0]['HCOUP'])
 
 ##### Maitrise de l'aleatoire #####
 seed=0
@@ -93,13 +92,21 @@ option_senescence = False
 ##### Activation de la floraison ##### AJOUT SIMON
 option_floraison = True        # True or False
 
-# Output for batch
-output_batch_dict = {}
+
+
+#### Pour lancer L-grass hors du batch
 flowering_model = None
 
 if flowering_model == None:
   from lgrass import flowering_functions
   flowering_model = flowering_functions.FloweringFunctions()
+
+
+#### Output L-grass #####
+output_dict = {}
+
+
+
 
 #########   Definition Plante   #########
 scales={}
@@ -167,6 +174,7 @@ FonctionParamPlante=ParamPlante()
 scales['Plante']=2
 parameters['Plante']=['ParamPlante']
 
+
 class ParamPhytomere:
   def __init__(self, id_plante=0, id_talle=0, id_rang=0,age=0,  angletal=0):#, Carbdescend=0, Carbmonte=0):
     self.id_plante=id_plante
@@ -181,6 +189,8 @@ parameters['phytomere']=['ParamPhytomere']
 
 scales['Entrenoeud']=4
 parameters['Entrenoeud']=[]
+
+
 
 class ParamFeuille:
   def __init__(self,age=0, Agecroiss=0, Taillefeuille=0, id_plante=0, id_talle=0, id_rang=1, Ymax= 0, Difftps=0,  Taillefinalelimbe=0, Taillefinalegaine=0., Taillelimbe=0, Taillegaine=0, Phase='cachee', rapportK=0.2, coupe=0.,Cutstatus='intact', angleinsert=0,angletal=0., geno=0, surface=0, biomass=0., Besoinencroiss=0,TailleEmergence=0.,R=0.973):
@@ -232,7 +242,7 @@ scales['Entrenoeud']=4
 parameters['Entrenoeud']=['ParamEntrenoeud']
 
 class ParamApex:
-  def __init__(self, id_plante, id_talle, id_rang = 1,retard = 0, total_emerged_leaf = 0, total_created_leaves = 0, day = 0, primary_induction_index = 0, phenological_state = 'vegetative', primordia_number = 3, spikelet_primordia_number=6, potential_leaf_number = np.nan, approx_final_leaf_number = np.nan, final_leaf_number = 0, nb_epillets=10):   # PARAMETRE
+  def __init__(self, id_plante, id_talle, id_rang = 1,retard = 0, total_emerged_leaf = 0, total_created_leaves = 0, day = 0, primary_induction_index = 0, phenological_state = 'vegetative', primordia_number = 3, spikelet_primordia_number=6, potential_leaf_number = np.nan, approx_final_leaf_number = np.nan, final_leaf_number = 0, nb_epillets=10, organ_heights_dict={}):   # PARAMETRE
     self.id_plante = id_plante
     self.id_talle = id_talle
     self.id_rang = id_rang
@@ -248,6 +258,7 @@ class ParamApex:
     self.approx_final_leaf_number = approx_final_leaf_number
     self.final_leaf_number = final_leaf_number
     self.nb_epillets = nb_epillets
+    self.organ_heights_dict = organ_heights_dict
 scales['apex']=4
 parameters['apex']=['ParamApex']
 
@@ -266,11 +277,12 @@ parameters['ApexTal']=['ParamApexTal']
 
 
 class ParamEpi:
-  def __init__(self, id_plante, id_talle, id_rang, nb_epillets):
+  def __init__(self, id_plante, id_talle, id_rang, nb_epillets, organ_heights_dict={}):
     self.id_plante = id_plante
     self.id_talle = id_talle
     self.id_rang = id_rang
     self.nb_epillets = nb_epillets              # Nombre d epillets a l apex
+    self.organ_heights_dict = organ_heights_dict
 scales['Epi']=4
 parameters['Epi']=['ParamEpi']
 
@@ -388,8 +400,8 @@ module SegFeuille(ParamSegFeuille) : scale=5
 module apex(ParamApex) : scale=4
 module ApexTal(ParamApexTal) : scale=4
 module Epi(ParamEpi) : scale=4
-module EntrenoeudEpi(ParamEntrenoeudEpi) : scale = 5
-module Epillet(ParamEpillet) : scale = 5
+module EntrenoeudEpi(ParamEntrenoeudEpi, ParamEpi) : scale = 5
+module Epillet(ParamEpillet, ParamEpi) : scale = 5
 module bourgeonRoot(ParambourgeonRoot, ParamEntrenoeud) : scale=4
 module racine(ParamRacine) : scale=4
 module segment(seg) : scale=5
@@ -686,12 +698,14 @@ def BiomassFeuille(long,coupe,geno):
 
 def Start():
   global alea1_index,timing,growth_realized,dt,TPS,TPS_expe #Parametres de temps
-  global surface_biomass,chemin_fichier1,chemin_fichier2,chemin_fichier3,long_root,simul_expe,taille_finale_feuille #Fichiers de sortie
+  global output_dict
+#  global surface_biomass,chemin_fichier1,chemin_fichier2,chemin_fichier3,long_root,simul_expe,taille_finale_feuille #Fichiers de sortie
   global Biomasse_aerienne,Biomasse_racinaire,BiomProd,Ray,PourcentageRootGrowthRealized,PourcentageRootGrowthRealized,Reserve,Demande_feuille,Demande_feuille_dans_gaine,Demande_feuille_hors_gaine,PourcentageFeuilGrowthRealized,les_diametres,Seuil,Taille_finale_gaine,nb_talle #Parametres vides
   global NBlignes,NBcolonnes,posPlante,Espacement #Parametres scene
   global Surfoliairetotale,Surfoliaireencours,Premiecroiss #Definition des groupes de production
   global Alpha,Beta,t1,t2,t3,Caribu #Relation allometrique
-  global current_day, meteo, apex_characteristics, internode_characteristics # AJOUT SIMON
+  global current_day, meteo
+#  global apex_characteristics, internode_characteristics # AJOUT SIMON
   
   alea1_index=[0]*nb_plantes
   
@@ -725,6 +739,7 @@ def Start():
   Seuil=[] # Taille a partir de laquelle la plante est consideree comme hors de la gaine
   Taille_finale_gaine=[]
   nb_talle=[]  # nombre_de_talle-1 pour chaque plante afin d'identifier les talles
+  ligule_height_dict = {}
   
   ##### Parametres scene #####
   NBlignes=int(ceil(sqrt(nb_plantes)))
@@ -746,33 +761,35 @@ def Start():
   Caribu="Off"
   
   ##### Ecriture des fichiers de sortie #####
-  chemin_fichier1=open(os.path.join(OUTPUTS_DIRPATH,outvarfile),"wb")
-  surface_biomass=csv.writer(chemin_fichier1)
-  surface_biomass.writerow(["TPS","Espacement","Densite","id plante","X.coupe","id talle","ordre","nb_feuillemergees","MS_feuille","Surface foliaire"])
-  
-  chemin_fichier2=open(os.path.join(OUTPUTS_DIRPATH,outvarfile2),"wb")
-  simul_expe=csv.writer(chemin_fichier2)
-  simul_expe.writerow(["TPS","Espacement","Densite","C","id_plante","nb_feuille","nb_talle_emergees","nb_feuilles_talle1","nb_feuilles_talle2","nb_feuilles_talle3"])
-  
-  chemin_fichier3=open(os.path.join(OUTPUTS_DIRPATH,outvarfile3),"wb")
-  taille_finale_feuille=csv.writer(chemin_fichier3)
-  taille_finale_feuille.writerow(["TPS","Espacement","Densite","id plante","talle","rang","Phase","taille feuille","taille gaine","taille limbe"])
-  
-  
-  # AJOUT SIMON
-  apex_characteristics_path = open(os.path.join(OUTPUTS_DIRPATH, output_apex_characteristics), "wb")
-  apex_characteristics = csv.writer(apex_characteristics_path)
-  apex_characteristics.writerow(['day', 'thermal_time', 'plant_id', 'tiller_id', 'rank', 'total_emerged_leaf', 'total_created_leaves', 'primary_induction_index', 'phenological_state', 'primordia_number', 'potential_leaf_number', 'approx_final_leaf_number', 'final_leaf_number'])
-  
-  internode_characteristics_path = open(os.path.join(OUTPUTS_DIRPATH, output_internode_characteristics), "wb")
-  internode_characteristics = csv.writer(internode_characteristics_path)
-  internode_characteristics.writerow(['day', 'thermal_time', 'plant_id', 'tiller_id', 'rank', 'internode_type', 'internode_length'])
+#  chemin_fichier1=open(os.path.join(OUTPUTS_DIRPATH,outvarfile),"wb")
+#  surface_biomass=csv.writer(chemin_fichier1)
+#  surface_biomass.writerow(["TPS","Espacement","Densite","id plante","X.coupe","id talle","ordre","nb_feuillemergees","MS_feuille","Surface foliaire"])
+#  
+#  chemin_fichier2=open(os.path.join(OUTPUTS_DIRPATH,outvarfile2),"wb")
+#  simul_expe=csv.writer(chemin_fichier2)
+#  simul_expe.writerow(["TPS","Espacement","Densite","C","id_plante","nb_feuille","nb_talle_emergees","nb_feuilles_talle1","nb_feuilles_talle2","nb_feuilles_talle3"])
+#  
+#  chemin_fichier3=open(os.path.join(OUTPUTS_DIRPATH,outvarfile3),"wb")
+#  taille_finale_feuille=csv.writer(chemin_fichier3)
+#  taille_finale_feuille.writerow(["TPS","Espacement","Densite","id plante","talle","rang","Phase","taille feuille","taille gaine","taille limbe"])
+#  
+#  
+#  # AJOUT SIMON
+#  apex_characteristics_path = open(os.path.join(OUTPUTS_DIRPATH, output_apex_characteristics), "wb")
+#  apex_characteristics = csv.writer(apex_characteristics_path)
+#  apex_characteristics.writerow(['day', 'thermal_time', 'plant_id', 'tiller_id', 'rank', 'total_emerged_leaf', 'total_created_leaves', 'primary_induction_index', 'phenological_state', 'primordia_number', 'potential_leaf_number', 'approx_final_leaf_number', 'final_leaf_number'])
+#  
+#  internode_characteristics_path = open(os.path.join(OUTPUTS_DIRPATH, output_internode_characteristics), "wb")
+#  internode_characteristics = csv.writer(internode_characteristics_path)
+#  internode_characteristics.writerow(['day', 'thermal_time', 'plant_id', 'tiller_id', 'rank', 'internode_type', 'internode_length'])
 
 
 
 def StartEach():
   global RootPotentialNewBiomass,longueur_totale_feuille,Rootbiom,groupe,dt,reprise_coupe,CoupeTaille
-  global current_day, meteo, apex_characteristics, internode_characteristics
+  global output_dict
+  global current_day, meteo
+#  global apex_characteristics, internode_characteristics
   
   RootPotentialNewBiomass=[0]*(nb_plantes)
   longueur_totale_feuille=0
@@ -820,8 +837,11 @@ def StartEach():
 
 
 def EndEach(lstring,lscene):
-  global TPS,dt,mtg,Surfoliairetotale,les_pointes,les_primordiums,RootPotentialNewBiomass,les_feuilles,les_feuilles_emergees,les_racines, Reserve,Biomasse_aerienne,Surfoliaireencours,Biomasse_racinaire,simul_expe,fichier_test,groupe,PourcentageRootGrowthRealized,PourcentageFeuilGrowthRealized,Demande_feuille,C,reprise_coupe,Ray,BiomProd,Caribu
-  global current_day, meteo, apex_characteristics, internode_characteristics # AJOUT SIMON
+  #global simul_expe
+  global TPS,dt,mtg,Surfoliairetotale,les_pointes,les_primordiums,RootPotentialNewBiomass,les_feuilles,les_feuilles_emergees,les_racines, Reserve,Biomasse_aerienne,Surfoliaireencours,Biomasse_racinaire,fichier_test,groupe,PourcentageRootGrowthRealized,PourcentageFeuilGrowthRealized,Demande_feuille,C,reprise_coupe,Ray,BiomProd,Caribu
+  global current_day, meteo
+  global output_dict
+#  global apex_characteristics, internode_characteristics # AJOUT SIMON
   
   TPS=TPS+dt
   print 'TPS :',TPS , 'Current day :', current_day # AJOUT SIMON
@@ -964,13 +984,13 @@ def EndEach(lstring,lscene):
   nb_feuilles=[0]*nb_plantes
   nb_talles_emergees=[0]*nb_plantes
   
-  ##### Remplissage du fichier surface_biomass #####
-  for x in les_feuilles_emergees:
-    if mtg.property('ParamFeuille').get(x).id_rang==1:
-      nb_talles_emergees[mtg.property('ParamFeuille').get(x).id_plante]+=1
-      ordre=Order(Complex(x)) 
-      les_feuilles_dans_talle=[y for y in les_feuilles_emergees if mtg.property('ParamFeuille').get(y).id_plante==mtg.property('ParamFeuille').get(x).id_plante and mtg.property('ParamFeuille').get(y).id_talle==mtg.property('ParamFeuille').get(x).id_talle]
-      surface_biomass.writerow([TPS,Espacement,Densite,mtg.property('ParamFeuille').get(x).id_plante+1,mtg.property('ParamFeuille').get(x).coupe,mtg.property('ParamFeuille').get(x).id_talle+1,ordre+1,len(les_feuilles_dans_talle),Biomasse_aerienne[ID],Surfoliairetotale[ID]])
+#  ##### Remplissage du fichier surface_biomass #####
+#  for x in les_feuilles_emergees:
+#    if mtg.property('ParamFeuille').get(x).id_rang==1:
+#      nb_talles_emergees[mtg.property('ParamFeuille').get(x).id_plante]+=1
+#      ordre=Order(Complex(x)) 
+#      les_feuilles_dans_talle=[y for y in les_feuilles_emergees if mtg.property('ParamFeuille').get(y).id_plante==mtg.property('ParamFeuille').get(x).id_plante and mtg.property('ParamFeuille').get(y).id_talle==mtg.property('ParamFeuille').get(x).id_talle]
+#      surface_biomass.writerow([TPS,Espacement,Densite,mtg.property('ParamFeuille').get(x).id_plante+1,mtg.property('ParamFeuille').get(x).coupe,mtg.property('ParamFeuille').get(x).id_talle+1,ordre+1,len(les_feuilles_dans_talle),Biomasse_aerienne[ID],Surfoliairetotale[ID]])
 
     
     #for x in les_racines:
@@ -1041,46 +1061,48 @@ def EndEach(lstring,lscene):
   
   
   
-  ##### Remplissage du fichier apex_characteristics #####
-    for shape in lscene:
-      if (lstring[shape.id].name == 'apex'):
-        apex = lstring[shape.id][0]
-        apex_characteristics.writerow([current_day, TPS, apex.id_plante, apex.id_talle, apex.id_rang, apex.total_emerged_leaf, apex.total_created_leaves, apex.primary_induction_index, apex.phenological_state, apex.primordia_number, apex.potential_leaf_number, apex.approx_final_leaf_number, apex.final_leaf_number])
-      elif (lstring[shape.id].name == 'Entrenoeud'):
-        internode = lstring[shape.id][0]
-        internode_characteristics.writerow([current_day, TPS, internode.id_plante, internode.id_talle, internode.id_rang, internode.internode_type, internode.length])
+#  ##### Remplissage du fichier apex_characteristics #####
+#    for shape in lscene:
+#      if (lstring[shape.id].name == 'apex'):
+#        apex = lstring[shape.id][0]
+#        apex_characteristics.writerow([current_day, TPS, apex.id_plante, apex.id_talle, apex.id_rang, apex.total_emerged_leaf, apex.total_created_leaves, apex.primary_induction_index, apex.phenological_state, apex.primordia_number, apex.potential_leaf_number, apex.approx_final_leaf_number, apex.final_leaf_number])
+#      elif (lstring[shape.id].name == 'Entrenoeud'):
+#        internode = lstring[shape.id][0]
+#        internode_characteristics.writerow([current_day, TPS, internode.id_plante, internode.id_talle, internode.id_rang, internode.internode_type, internode.length])
 
 
 
 
 def End(lstring,lscene): #Ecriture et fermeture des fichiers de sortie
-  global TPS,timing,chemin_fichier1,chemin_fichier2,chemin_fichier3,mtg,long_root,taille_finale_feuille, les_racines, apex_characteristics, internode_characteristics
+  #global taille_finale_feuille
+  global TPS,timing,chemin_fichier1,chemin_fichier2,chemin_fichier3,mtg,long_root, les_racines, apex_characteristics, internode_characteristics
+  global output_dict
   
-  ### Remplissage du fichier taille_finale_feuille ###
-  for ID in xrange(nb_plantes):
-    for x in les_feuilles_emergees:
-      if mtg.property('ParamFeuille').get(x).id_plante==ID and mtg.property('ParamFeuille').get(x).Phase=='mature':
-        taille_finale_feuille.writerow([TPS,Espacement,Densite,ID+1,mtg.property('ParamFeuille').get(x).id_talle+1,mtg.property('ParamFeuille').get(x).id_rang+1, mtg.property('ParamFeuille').get(x).Phase,mtg.property('ParamFeuille').get(x).Taillefeuille,mtg.property('ParamFeuille').get(x).Taillegaine,mtg.property('ParamFeuille').get(x).Taillelimbe])
+#  ### Remplissage du fichier taille_finale_feuille ###
+#  for ID in xrange(nb_plantes):
+#    for x in les_feuilles_emergees:
+#      if mtg.property('ParamFeuille').get(x).id_plante==ID and mtg.property('ParamFeuille').get(x).Phase=='mature':
+#        taille_finale_feuille.writerow([TPS,Espacement,Densite,ID+1,mtg.property('ParamFeuille').get(x).id_talle+1,mtg.property('ParamFeuille').get(x).id_rang+1, mtg.property('ParamFeuille').get(x).Phase,mtg.property('ParamFeuille').get(x).Taillefeuille,mtg.property('ParamFeuille').get(x).Taillegaine,mtg.property('ParamFeuille').get(x).Taillelimbe])
   
-  ##### Remplissage du fichier sortie_simul_ValidCoupe #####  
-  nb_feuilles=[0]*nb_plantes
-  nb_talles_emergees=[0.]*nb_plantes
-  nb_feuilles_talle1=[0.]*nb_plantes
-  nb_feuilles_talle2=[0.]*nb_plantes
-  nb_feuilles_talle3=[0.]*nb_plantes
-  
-  for x in les_feuilles_emergees:
-    nb_feuilles[mtg.property('ParamFeuille').get(x).id_plante]+=1
-    #Nombre de talles emmergees
-    if mtg.property('ParamFeuille').get(x).id_rang==1:
-      nb_talles_emergees[mtg.property('ParamFeuille').get(x).id_plante]+=1
-    #Nombre de feuille presente sur chacun des 3 premiers talles
-    if mtg.property('ParamFeuille').get(x).id_talle==0:
-      nb_feuilles_talle1[mtg.property('ParamFeuille').get(x).id_plante]+=1
-    if mtg.property('ParamFeuille').get(x).id_talle==1:
-      nb_feuilles_talle2[mtg.property('ParamFeuille').get(x).id_plante]+=1
-    if mtg.property('ParamFeuille').get(x).id_talle==2:
-      nb_feuilles_talle3[mtg.property('ParamFeuille').get(x).id_plante]+=1
+#  ##### Remplissage du fichier sortie_simul_ValidCoupe #####  
+#  nb_feuilles=[0]*nb_plantes
+#  nb_talles_emergees=[0.]*nb_plantes
+#  nb_feuilles_talle1=[0.]*nb_plantes
+#  nb_feuilles_talle2=[0.]*nb_plantes
+#  nb_feuilles_talle3=[0.]*nb_plantes
+#  
+#  for x in les_feuilles_emergees:
+#    nb_feuilles[mtg.property('ParamFeuille').get(x).id_plante]+=1
+#    #Nombre de talles emmergees
+#    if mtg.property('ParamFeuille').get(x).id_rang==1:
+#      nb_talles_emergees[mtg.property('ParamFeuille').get(x).id_plante]+=1
+#    #Nombre de feuille presente sur chacun des 3 premiers talles
+#    if mtg.property('ParamFeuille').get(x).id_talle==0:
+#      nb_feuilles_talle1[mtg.property('ParamFeuille').get(x).id_plante]+=1
+#    if mtg.property('ParamFeuille').get(x).id_talle==1:
+#      nb_feuilles_talle2[mtg.property('ParamFeuille').get(x).id_plante]+=1
+#    if mtg.property('ParamFeuille').get(x).id_talle==2:
+#      nb_feuilles_talle3[mtg.property('ParamFeuille').get(x).id_plante]+=1
   
   nb_racines=[0]*nb_plantes
   nb_racines_visible=[0]*nb_plantes
@@ -1114,22 +1136,22 @@ def End(lstring,lscene): #Ecriture et fermeture des fichiers de sortie
       pointe=axe[len(axe)-2]
       profond[mtg.property('ParamRacine').get(x).id_plante]=max(profond[mtg.property('ParamRacine').get(x).id_plante],mtg.property('pte').get(pointe).profondeur)
   
-  for ID in xrange(nb_plantes):
-    simul_expe.writerow([TPS,Espacement,Densite,ParamP[ID]['C'],ID+1,nb_feuilles[ID],nb_talles_emergees[ID],nb_feuilles_talle1[ID],nb_feuilles_talle2[ID],nb_feuilles_talle3[ID]])
+#  for ID in xrange(nb_plantes):
+#    simul_expe.writerow([TPS,Espacement,Densite,ParamP[ID]['C'],ID+1,nb_feuilles[ID],nb_talles_emergees[ID],nb_feuilles_talle1[ID],nb_feuilles_talle2[ID],nb_feuilles_talle3[ID]])
   
-  ### Fermeture des fichiers ###
-  chemin_fichier1.close()
-  chemin_fichier2.close()
-  chemin_fichier3.close()
+#  ### Fermeture des fichiers ###
+#  chemin_fichier1.close()
+#  chemin_fichier2.close()
+#  chemin_fichier3.close()
   
-  ### Sauvegarde d'une image de la scene
-  outimagepath = os.path.join(OUTPUTS_DIRPATH, outimage)
-  frameDisplay(True)
-  Viewer.display(lscene)
-  Viewer.camera.lookAt((800,400,100),(0,0,0)) #Pas la meme capture si pris avec lpy ou avec batch
-  Viewer.frameGL.setSize(1200,800) #Taille de la fenetre
-  Viewer.frameGL.saveImage(outimagepath)
-  Viewer.stop()
+#  ### Sauvegarde d'une image de la scene
+#  outimagepath = os.path.join(OUTPUTS_DIRPATH, outimage)
+#  frameDisplay(True)
+#  Viewer.display(lscene)
+#  Viewer.camera.lookAt((800,400,100),(0,0,0)) #Pas la meme capture si pris avec lpy ou avec batch
+#  Viewer.frameGL.setSize(1200,800) #Taille de la fenetre
+#  Viewer.frameGL.saveImage(outimagepath)
+#  Viewer.stop()
   
   #print(lstring)
   print 'Execution time :',t.time()-timing
@@ -1209,6 +1231,7 @@ GetPos(a,b,c)<tip(X):
 
 CouvertVegetal(X):
   global groupe,NBlignes,NBcolonnes,genotype
+  global output_dict
   if groupe=='croissance':
     if X==1:
       nproduce CouvertVegetal(2)
@@ -1228,6 +1251,7 @@ CouvertVegetal(X):
 
 Plante(X):
   global TPS,groupe, current_day
+  global output_dict
   if groupe=='croissance':
     if TPS ==2:
       Seuil.append([5.5])
@@ -1238,7 +1262,21 @@ Plante(X):
       YAT=ParamApexTal(X.id_plante,id_talle=0,id_rang=1)
       YA=ParamApex(X.id_plante,id_talle=0,id_rang=1)
       YINT=ParamEntrenoeud(X.id_plante,id_talle=0,id_rang=1)      # AJOUT SIMON
+      
+      # Remplissage des hauteurs d organes
+      #Y1.organ_lengths['internode'] = YINT.length
+      #Y1.organ_lengths['sheath'] = YINT.Taillegaine
+      #YAT.organ_lengths_dict[Y1.rang] = Y1.organ_lengths
+      
+      # Ajout des nouveaux apex dans le dictionnaire
+      apex_id = '{}_{}_{}'.format(YA.id_plante, YA.id_talle, YA.id_rang)
+      apex_dict = {'id_plante' : YA.id_plante,'id_talle' : YA.id_talle, 'id_rang' : YA.id_rang}
+      output_dict[apex_id] = (apex_dict)
+      apex_id = str(YAT.id_plante) + '_' + str(YAT.id_talle) + '_' + str(YAT.id_rang)
+      apex_dict = {'id_plante' : YAT.id_plante,'id_talle' : YAT.id_talle, 'id_rang' : YAT.id_rang}
+      output_dict[apex_id] = (apex_dict)
       produce Plante(X) phytomere(Y1, YA) RollR(95) bourgeonRoot(Yb, YINT) ApexTal(YAT) Entrenoeud(YINT, YA, YF) FLW SB Feuille(YF, YA) FLW EB apex(YA)
+      
   if groupe=='defoliation':
     produce Plante(X)
 
@@ -1458,6 +1496,10 @@ Feuille(X, X_apex):
       
       largegaine=max((2/pi)*(paramManagement['CoefDirLonLarAjust']*log(max(X.Taillegaine*5,1))-paramManagement['OrdOriLonLarAjust']),0.1)
       X.surface+=largegaine*pi*X.Taillegaine
+      
+      # Remplissage des hauteurs d organes 
+      #X_apex.organ_lengths_dict[X.rang]['sheath'] = X.Taillegaine  
+      
       produce Feuille(X, X_apex)
   
   ##### Coupe des feuilles #####
@@ -1559,6 +1601,10 @@ Feuille(X, X_apex):
           else:
             X.Taillelimbe=X.Taillefeuille-X.Taillegaine
             X.Cutstatus='partiellementcoupee'
+        
+        # Remplissage des hauteurs d organes 
+        #X_apex.organ_lengths_dict[X.rang]['sheath'] = X.Taillegaine  
+        
         produce Feuille(X, X_apex)
     
     ### Recalcul de la biomasse foliaire ###
@@ -1576,6 +1622,8 @@ Feuille(X, X_apex):
         Seuil[X.id_plante][X.id_talle]=max(Seuil[X.id_plante][X.id_talle],mtg.property('ParamFeuille').get(feuille_ref).Taillegaine)
       X.biomass=BiomassFeuille(X.Taillefeuille,X.coupe,X.geno)
     else:
+      # Remplissage des hauteurs d organes 
+      #X_apex.organ_lengths_dict[X.rang]['sheath'] = X.Taillegaine 
       produce Feuille(X, X_apex)
 
 
@@ -1595,13 +1643,15 @@ Entrenoeud(X_EN, X_AP, X_F):
     X_EN.internode_type = 'long_internode'
   if (X_F.Phase == 'mature' and X_EN.internode_type == 'long_internode' and X_EN.length < X_F.Taillefinalegaine + 5):              # condition pour arreter la croissance des entrenoeuds
     X_EN.length += 0.5
+    # Remplissage des hauteurs d organes
+    #X_AP.organ_lengths_dict[X_EN.rang]['internode'] = X_EN.length
     produce Entrenoeud(X_EN, X_AP, X_F)
   elif (X_F.Phase == 'mature' and X_EN.internode_type == 'long_internode' and X_EN.length >= X_F.Taillefinalegaine + 5):
     produce Entrenoeud(X_EN, X_AP, X_F)
 
 
 apex(X):
-  global les_feuilles, current_day, meteo
+  global les_feuilles, current_day, meteo, output_dict
   if option_floraison == True:
   # Mise a jour des parametres d induction a chaque changement de journee
     if X.day < current_day:
@@ -1617,27 +1667,32 @@ apex(X):
         if flowering_model.test_vernalisation(X.primary_induction_index, X.potential_leaf_number, X.primordia_number):
           X.phenological_state = 'vernalized'
           X.approx_final_leaf_number = flowering_model.approx_final_leaf_number_calculation(daily_daylength, X.potential_leaf_number)
-          output_batch_dict['vernalisation_CDD'] = TPS
+          apex_id = str(X.id_plante) + '_' + str(X.id_talle) + '_' + str(X.id_rang)
+          output_dict[apex_id]['vernalisation_time'] = TPS          # Sortie_Simon
       
       elif X.phenological_state == 'vernalized':
         X.approx_final_leaf_number = flowering_model.approx_final_leaf_number_calculation(daylength = daily_daylength, potential_leaf_number = X.potential_leaf_number)
         if 0.5 * X.approx_final_leaf_number <= X.total_emerged_leaf:
           X.final_leaf_number = X.approx_final_leaf_number
           X.phenological_state = 'reproductive'
+          apex_id = str(X.id_plante) + '_' + str(X.id_talle) + '_' + str(X.id_rang)      # Sortie_Simon
+          output_dict[apex_id]['floral_transition_time'] = TPS
+          output_dict[apex_id]['final_leaf_number'] = X.final_leaf_number
           
-          output_batch_dict['final_leaf_number'] = X.final_leaf_number
-          output_batch_dict['floral_transition_CDD'] = TPS
+          #output_batch_dict['final_leaf_number'] = X.final_leaf_number
+          #output_batch_dict['floral_transition_CDD'] = TPS
   
   
   if groupe=='croissance':
     if (X.phenological_state == 'reproductive' and X.total_created_leaves >= X.final_leaf_number):
       YEPI = ParamEpi(id_plante = X.id_plante, id_talle = X.id_talle, id_rang = X.id_rang, nb_epillets = X.spikelet_primordia_number)
-      #produce Epi(YEPI)
-      for i in xrange(X.nb_epillets):              # xrange a remplacer par range en python 3
-        YEntrenoeudEpi = ParamEntrenoeudEpi(id_plante = X.id_plante, id_talle = X.id_talle, id_rang = X.id_rang + i, long_entrenoeud = 0)      # ATTENTION il faudra donner une orientation au premier epillet
-        YEpillet = ParamEpillet(id_plante = X.id_plante, id_talle = X.id_talle, id_rang = X.id_rang + i, long_epillet = 0)
-        nproduce RollR(180) EntrenoeudEpi(YEntrenoeudEpi) SB +(20) Epillet(YEpillet) EB
-        output_batch_dict['spike_creation_CDD'] = TPS
+      YEPI.organ_heights_dict = X.organ_heights_dict
+      produce Epi(YEPI)
+      #for i in xrange(X.nb_epillets):              # xrange a remplacer par range en python 3
+        #YEntrenoeudEpi = ParamEntrenoeudEpi(id_plante = X.id_plante, id_talle = X.id_talle, id_rang = X.id_rang + i, long_entrenoeud = 0)      # ATTENTION il faudra donner une orientation au premier epillet
+        #YEpillet = ParamEpillet(id_plante = X.id_plante, id_talle = X.id_talle, id_rang = X.id_rang + i, long_epillet = 0)
+        #nproduce RollR(180) EntrenoeudEpi(YEntrenoeudEpi) SB +(20) Epillet(YEpillet) EB
+        #output_batch_dict['spike_creation_CDD'] = TPS
     else:
       vtx_feuille=[x for x in les_feuilles if (mtg.property('ParamFeuille').get(x).id_plante==X.id_plante and mtg.property('ParamFeuille').get(x).id_talle==X.id_talle and mtg.property('ParamFeuille').get(x).id_rang==X.id_rang)][0]
       if X.retard==2:
@@ -1652,7 +1707,12 @@ apex(X):
         X.retard = 0
         X.primordia_number = 2 * X.total_emerged_leaf + 4               # ICI
         X.total_created_leaves += 1
+        # Ajout d un nouvel apex dans le dictionnaire
+        apex_id = str(YAT.id_plante) + '_' + str(YAT.id_talle) + '_' + str(YAT.id_rang)
+        apex_dict = {'id_plante' : YAT.id_plante,'id_talle' : YAT.id_talle, 'id_rang' : YAT.id_rang}
+        output_dict[apex_id] = (apex_dict)
         produce RollR(180) phytomere(YP, X) bourgeonRoot(Yb, YINT) ApexTal(YAT) Entrenoeud(YINT, X, YF) FLW SB Feuille(YF, X) FLW EB apex(X)
+        
       elif X.retard==1:
         X.retard=2
         print 'RETARD_1'
@@ -1666,7 +1726,7 @@ apex(X):
 
 
 ApexTal(X):
-  global les_feuilles,Surfoliairetotale,alea1,alea1_index,alea2
+  global les_feuilles,Surfoliairetotale,alea1,alea1_index,alea2, output_dict
   if option_tallage == True:
     if groupe=='croissance':
       vtx_feuille_ref=[x for x in les_feuilles if (mtg.property('ParamFeuille').get(x).id_plante==X.id_plante and mtg.property('ParamFeuille').get(x).id_talle==X.id_talle and mtg.property('ParamFeuille').get(x).id_rang==X.id_rang+2)]
@@ -1694,6 +1754,10 @@ ApexTal(X):
             YAT=ParamApexTal(X.id_plante,nb_talle[X.id_plante],id_rang=1)
             YA=ParamApex(X.id_plante,nb_talle[X.id_plante],id_rang=1)
             YINT=ParamEntrenoeud(X.id_plante,id_talle=0,id_rang=1)      # AJOUT SIMON
+            # Ajout d un nouvel apex dans le dictionnaire
+            apex_id = str(YAT.id_plante) + '_' + str(YAT.id_talle) + '_' + str(YAT.id_rang)
+            apex_dict = {'id_plante' : YAT.id_plante,'id_talle' : YAT.id_talle, 'id_rang' : YAT.id_rang}
+            output_dict[apex_id] = (apex_dict)
             produce SB phytomere(YP, YA) RollR(95) GetHead(0, 0, 0) bourgeonRoot(Yb, YINT) ApexTal(YAT) Entrenoeud(YINT, YA, YF) FLW SB Feuille(YF, YA) FLW EB apex(YA) EB
           
           if (rapportS9_SSol>ParamP[X.id_plante]['SENSETALLAGE']):
@@ -1708,6 +1772,10 @@ ApexTal(X):
               YAT=ParamApexTal(X.id_plante,nb_talle[X.id_plante],id_rang=1)
               YA=ParamApex(X.id_plante,nb_talle[X.id_plante],id_rang=1)
               YINT=ParamEntrenoeud(X.id_plante,id_talle=0,id_rang=1)      # AJOUT SIMON
+              # Ajout d un nouvel apex dans le dictionnaire
+              apex_id = str(YAT.id_plante) + '_' + str(YAT.id_talle) + '_' + str(YAT.id_rang)
+              apex_dict = {'id_plante' : YAT.id_plante,'id_talle' : YAT.id_talle, 'id_rang' : YAT.id_rang}
+              output_dict[apex_id] = (apex_dict)
               produce SB phytomere(YP, YA) RollR(95) GetHead(0, 0, 0) bourgeonRoot(Yb, YINT) ApexTal(YAT) Entrenoeud(YINT, YA, YF) FLW SB Feuille(YF, YA) FLW EB apex(YA) EB
             else:
               produce
@@ -1726,19 +1794,26 @@ Epi(X):
   for i in xrange(X.nb_epillets):              # xrange a remplacer par range en python 3
     YEntrenoeudEpi = ParamEntrenoeudEpi(id_plante = X.id_plante, id_talle = X.id_talle, id_rang = X.id_rang + i, long_entrenoeud = 0)      # ATTENTION il faudra donner une orientation au premier epillet
     YEpillet = ParamEpillet(id_plante = X.id_plante, id_talle = X.id_talle, id_rang = X.id_rang + i, long_epillet = 0)
-    nproduce RollR(180) EntrenoeudEpi(YEntrenoeudEpi) SB +(20) Epillet(YEpillet) EB
+    
+    # Remplissage des longueurs d organes
+    #YAT.organ_lengths_dict[X.id_rang + i] = {'spike_internode' : YEntrenoeudEpi.long_entrenoeud, 'spikelet' : YEpillet.long_epillet}
+    nproduce RollR(180) EntrenoeudEpi(YEntrenoeudEpi, X) SB +(20) Epillet(YEpillet, X) EB
 
 
-EntrenoeudEpi(X):                      # Compter les entrenoeuds de l epi et appliquer une regle de croissance differente pour le pedoncule
+EntrenoeudEpi(X, XEpi):                      # Compter les entrenoeuds de l epi et appliquer une regle de croissance differente pour le pedoncule
   if X.long_entrenoeud < 15:            # PARAMETRE
      X.long_entrenoeud += 0.3            # PARAMETRE
-  produce EntrenoeudEpi(X)
+     # Remplissage des longueurs d organes
+     #XEpi.organ_lengths_dict[X.rang]['spike_internode'] = X.long_entrenoeud
+  produce EntrenoeudEpi(X, XEpi)
 
 
-Epillet(X):
+Epillet(X, XEpi):
   if X.long_epillet < 5:                 # PARAMETRE
     X.long_epillet += 0.2                # PARAMETRE
-  produce Epillet(X)
+    # Remplissage des longueurs d organes
+    #XEpi.organ_lengths_dict[X.rang]['spikelet'] = X.long_epillet
+  produce Epillet(X, XEpi)
 
 
 racine(X):
