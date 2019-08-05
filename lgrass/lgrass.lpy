@@ -101,7 +101,6 @@ if flowering_model == None:
   from lgrass import flowering_functions
   flowering_model = flowering_functions.FloweringFunctions()
 
-
 #### Output L-grass #####
 output_dict = {}
 
@@ -176,12 +175,13 @@ parameters['Plante']=['ParamPlante']
 
 
 class ParamPhytomere:
-  def __init__(self, id_plante=0, id_talle=0, id_rang=0,age=0,  angletal=0):#, Carbdescend=0, Carbmonte=0):
+  def __init__(self, id_plante=0, id_talle=0, id_rang=1, age=0, angletal=0, organ_lengths={}):#, Carbdescend=0, Carbmonte=0):
     self.id_plante=id_plante
     self.id_talle=id_talle
     self.id_rang=id_rang
     self.age=age
     self.angletal=angletal
+    self.organ_lengths=organ_lengths
 #    self.Carbdescend=Carbdescend
 #    self.Carbmonte=Carbmonte
 scales['phytomere']=3
@@ -242,7 +242,7 @@ scales['Entrenoeud']=4
 parameters['Entrenoeud']=['ParamEntrenoeud']
 
 class ParamApex:
-  def __init__(self, id_plante, id_talle, id_rang = 1,retard = 0, total_emerged_leaf = 0, total_created_leaves = 0, day = 0, primary_induction_index = 0, phenological_state = 'vegetative', primordia_number = 3, spikelet_primordia_number=6, potential_leaf_number = np.nan, approx_final_leaf_number = np.nan, final_leaf_number = 0, nb_epillets=10, organ_heights_dict={}):   # PARAMETRE
+  def __init__(self, id_plante, id_talle, id_rang = 1,retard = 0, total_emerged_leaf = 0, total_created_leaves = 0, day = 0, primary_induction_index = 0, secondary_induction_index = 0, phenological_state = 'vegetative', primordia_number = 3, spikelet_created = 0, final_leaf_number = None, final_spikelet_number = None, organ_lengths_dict = {}, terminal_spikelet_height = 0, heading_date = None):   # PARAMETRE
     self.id_plante = id_plante
     self.id_talle = id_talle
     self.id_rang = id_rang
@@ -251,14 +251,16 @@ class ParamApex:
     self.total_created_leaves = total_created_leaves                         # number of leaves produced by the apex
     self.day = day
     self.primary_induction_index = primary_induction_index
+    self.secondary_induction_index = secondary_induction_index
     self.phenological_state = phenological_state        # Phenological state of the apex. Values : vegetative, reproductive, dead
     self.primordia_number = primordia_number
-    self.spikelet_primordia_number = spikelet_primordia_number
-    self.potential_leaf_number = potential_leaf_number
-    self.approx_final_leaf_number = approx_final_leaf_number
+    self.spikelet_created = spikelet_created
     self.final_leaf_number = final_leaf_number
-    self.nb_epillets = nb_epillets
-    self.organ_heights_dict = organ_heights_dict
+    self.final_spikelet_number = final_spikelet_number
+    self.organ_lengths_dict = organ_lengths_dict
+    self.terminal_spikelet_height = terminal_spikelet_height
+    self.heading_date = heading_date
+    
 scales['apex']=4
 parameters['apex']=['ParamApex']
 
@@ -274,17 +276,6 @@ class ParamApexTal:
     self.phenological_state = phenological_state        # Phenological state of the apex. Values : vegetative, reproductive, dead
 scales['ApexTal']=4
 parameters['ApexTal']=['ParamApexTal']
-
-
-class ParamEpi:
-  def __init__(self, id_plante, id_talle, id_rang, nb_epillets, organ_heights_dict={}):
-    self.id_plante = id_plante
-    self.id_talle = id_talle
-    self.id_rang = id_rang
-    self.nb_epillets = nb_epillets              # Nombre d epillets a l apex
-    self.organ_heights_dict = organ_heights_dict
-scales['Epi']=4
-parameters['Epi']=['ParamEpi']
 
 class ParamEntrenoeudEpi:
   def __init__(self, id_plante, id_talle, id_rang, long_entrenoeud=0):
@@ -303,7 +294,6 @@ class ParamEpillet:
     self.long_epillet = long_epillet            # Longueur moyenne des epillets
 scales['Epillet']=5
 parameters['Epillet']=['ParamEpillet']
-
 
 class ParambourgeonRoot:
   def __init__(self,id_plante,id_talle=0,id_rang=1,nb_prod_root=0):
@@ -394,14 +384,13 @@ class Horizon:# Horizon de sol
 module CouvertVegetal : scale=1
 module Plante(ParamPlante) : scale=2
 module phytomere(ParamPhytomere, ParamApex) : scale=3
-module Entrenoeud(ParamEntrenoeud, ParamApex, ParamFeuille) : scale=4
-module Feuille(ParamFeuille, ParamApex) : scale=4
+module Entrenoeud(ParamEntrenoeud, ParamApex, ParamFeuille, ParamPhytomere) : scale=4
+module Feuille(ParamFeuille, ParamApex, ParamPhytomere) : scale=4
 module SegFeuille(ParamSegFeuille) : scale=5
 module apex(ParamApex) : scale=4
 module ApexTal(ParamApexTal) : scale=4
-module Epi(ParamEpi) : scale=4
-module EntrenoeudEpi(ParamEntrenoeudEpi, ParamEpi) : scale = 5
-module Epillet(ParamEpillet, ParamEpi) : scale = 5
+module EntrenoeudEpi(ParamEntrenoeudEpi, ParamApex) : scale = 5
+module Epillet(ParamEpillet, ParamApex) : scale = 5
 module bourgeonRoot(ParambourgeonRoot, ParamEntrenoeud) : scale=4
 module racine(ParamRacine) : scale=4
 module segment(seg) : scale=5
@@ -1055,20 +1044,15 @@ def EndEach(lstring,lscene):
   
   
   
-  #### AJOUT SIMON ####
+  # ------------------------------------------------------------------------------------------------
+  # -------------------------------- Date change management ----------------------------------------
+  # ------------------------------------------------------------------------------------------------
+  # Date change occurs when the global time flow in growing degree day (GDD) reachs the GDD cumul of
+  # the current day (from the start of the meteorological data)
+  # ------------------------------------------------------------------------------------------------
   if TPS >= meteo[meteo.id_day == current_day].thermal_time_cumul.iloc[0]:
-    current_day += 1    # Next_day
-  
-  
-  
-#  ##### Remplissage du fichier apex_characteristics #####
-#    for shape in lscene:
-#      if (lstring[shape.id].name == 'apex'):
-#        apex = lstring[shape.id][0]
-#        apex_characteristics.writerow([current_day, TPS, apex.id_plante, apex.id_talle, apex.id_rang, apex.total_emerged_leaf, apex.total_created_leaves, apex.primary_induction_index, apex.phenological_state, apex.primordia_number, apex.potential_leaf_number, apex.approx_final_leaf_number, apex.final_leaf_number])
-#      elif (lstring[shape.id].name == 'Entrenoeud'):
-#        internode = lstring[shape.id][0]
-#        internode_characteristics.writerow([current_day, TPS, internode.id_plante, internode.id_talle, internode.id_rang, internode.internode_type, internode.length])
+    current_day += 1
+
 
 
 
@@ -1256,17 +1240,15 @@ Plante(X):
     if TPS ==2:
       Seuil.append([5.5])
       Taille_finale_gaine.append([[5.5,5.5]])
-      Y1=ParamPhytomere(id_plante=X.id_plante)
-      YF=ParamFeuille(age=0,Agecroiss=0,Taillefeuille=0,id_plante=X.id_plante,id_rang=1,Ymax=Premiecroiss[X.id_plante],Taillefinalelimbe=0.8*Premiecroiss[X.id_plante],Taillefinalegaine=0.2*Premiecroiss[X.id_plante])
+      Y1=ParamPhytomere(id_plante=X.id_plante, id_talle = 0)
+      YF=ParamFeuille(age=0, Agecroiss=0, Taillefeuille=0, id_plante=X.id_plante ,id_rang=1, Ymax=Premiecroiss[X.id_plante], Taillefinalelimbe=0.8*Premiecroiss[X.id_plante], Taillefinalegaine=0.2*Premiecroiss[X.id_plante])
       Yb=ParambourgeonRoot(X.id_plante,id_talle=0,id_rang=1)
       YAT=ParamApexTal(X.id_plante,id_talle=0,id_rang=1)
       YA=ParamApex(X.id_plante,id_talle=0,id_rang=1)
       YINT=ParamEntrenoeud(X.id_plante,id_talle=0,id_rang=1)      # AJOUT SIMON
       
       # Remplissage des hauteurs d organes
-      #Y1.organ_lengths['internode'] = YINT.length
-      #Y1.organ_lengths['sheath'] = YINT.Taillegaine
-      #YAT.organ_lengths_dict[Y1.rang] = Y1.organ_lengths
+      YA.organ_lengths_dict[Y1.id_rang] = {'limb': YF.Taillelimbe, 'sheath': YF.Taillegaine, 'internode': YINT.length}
       
       # Ajout des nouveaux apex dans le dictionnaire
       apex_id = '{}_{}_{}'.format(YA.id_plante, YA.id_talle, YA.id_rang)
@@ -1275,7 +1257,7 @@ Plante(X):
       apex_id = str(YAT.id_plante) + '_' + str(YAT.id_talle) + '_' + str(YAT.id_rang)
       apex_dict = {'id_plante' : YAT.id_plante,'id_talle' : YAT.id_talle, 'id_rang' : YAT.id_rang}
       output_dict[apex_id] = (apex_dict)
-      produce Plante(X) phytomere(Y1, YA) RollR(95) bourgeonRoot(Yb, YINT) ApexTal(YAT) Entrenoeud(YINT, YA, YF) FLW SB Feuille(YF, YA) FLW EB apex(YA)
+      produce Plante(X) phytomere(Y1, YA) RollR(95) bourgeonRoot(Yb, YINT) ApexTal(YAT) Entrenoeud(YINT, YA, YF, Y1) FLW SB Feuille(YF, YA, Y1) FLW EB apex(YA)
       
   if groupe=='defoliation':
     produce Plante(X)
@@ -1292,7 +1274,7 @@ phytomere(X, X_AP):
     produce phytomere(X, X_AP)
 
 
-Feuille(X, X_apex):
+Feuille(X, X_apex, X_phytomere):
   global mtg,NewShootBiomass,longueur_totale_feuille,les_feuilles,Surfoliaireencours,groupe
   X.surface=0
   
@@ -1498,9 +1480,10 @@ Feuille(X, X_apex):
       X.surface+=largegaine*pi*X.Taillegaine
       
       # Remplissage des hauteurs d organes 
-      #X_apex.organ_lengths_dict[X.rang]['sheath'] = X.Taillegaine  
+      X_apex.organ_lengths_dict[X.id_rang]['sheath'] = X.Taillegaine
+      X_apex.organ_lengths_dict[X.id_rang]['limb'] = X.Taillelimbe
       
-      produce Feuille(X, X_apex)
+      produce Feuille(X, X_apex, X_phytomere)
   
   ##### Coupe des feuilles #####
   if groupe=='defoliation':
@@ -1509,7 +1492,7 @@ Feuille(X, X_apex):
     
     ### Creation de la doublure de la plante ###
     if TPS==ParamP[X.id_plante]['DCOUP']:
-      nproduce Feuille(X, X_apex) IN SB
+      nproduce Feuille(X, X_apex, X_phytomere) IN SB
       
       if (X.Phase=='cachee'):
         numsteps=(X.Taillefeuille-X.coupe)/LSTEP
@@ -1603,9 +1586,10 @@ Feuille(X, X_apex):
             X.Cutstatus='partiellementcoupee'
         
         # Remplissage des hauteurs d organes 
-        #X_apex.organ_lengths_dict[X.rang]['sheath'] = X.Taillegaine  
+        X_apex.organ_lengths_dict[X.id_rang]['sheath'] = X.Taillegaine
+        X_apex.organ_lengths_dict[X.id_rang]['limb'] = X.Taillelimbe
         
-        produce Feuille(X, X_apex)
+        produce Feuille(X, X_apex, X_phytomere)
     
     ### Recalcul de la biomasse foliaire ###
     elif TPS==ParamP[X.id_plante]['DCOUP']+0.75:
@@ -1623,8 +1607,9 @@ Feuille(X, X_apex):
       X.biomass=BiomassFeuille(X.Taillefeuille,X.coupe,X.geno)
     else:
       # Remplissage des hauteurs d organes 
-      #X_apex.organ_lengths_dict[X.rang]['sheath'] = X.Taillegaine 
-      produce Feuille(X, X_apex)
+      X_apex.organ_lengths_dict[X.id_rang]['sheath'] = X.Taillegaine
+      X_apex.organ_lengths_dict[X.id_rang]['limb'] = X.Taillelimbe
+      produce Feuille(X, X_apex, X_phytomere)
 
 
 GetPos(a,b,c):
@@ -1638,62 +1623,71 @@ SegFeuille(X):
     produce
 
 
-Entrenoeud(X_EN, X_AP, X_F):
+Entrenoeud(X_EN, X_AP, X_F, X_phytomere):
   if (X_AP.phenological_state == 'reproductive' and X_F.Phase <> 'mature'):
     X_EN.internode_type = 'long_internode'
   if (X_F.Phase == 'mature' and X_EN.internode_type == 'long_internode' and X_EN.length < X_F.Taillefinalegaine + 5):              # condition pour arreter la croissance des entrenoeuds
-    X_EN.length += 0.5
+    X_EN.length += 0.01    # Remplissage des hauteurs d organes
+    X_AP.organ_lengths_dict[X_EN.id_rang]['internode'] = X_EN.length
+    produce Entrenoeud(X_EN, X_AP, X_F, X_phytomere)
+  elif (X_F.Phase == 'mature' and ((X_EN.internode_type == 'long_internode' and X_EN.length >= X_F.Taillefinalegaine + 5) or X_EN.internode_type == 'short_internode')):
     # Remplissage des hauteurs d organes
-    #X_AP.organ_lengths_dict[X_EN.rang]['internode'] = X_EN.length
-    produce Entrenoeud(X_EN, X_AP, X_F)
-  elif (X_F.Phase == 'mature' and X_EN.internode_type == 'long_internode' and X_EN.length >= X_F.Taillefinalegaine + 5):
-    produce Entrenoeud(X_EN, X_AP, X_F)
+    X_AP.organ_lengths_dict[X_EN.id_rang]['internode'] = X_EN.length
+    produce Entrenoeud(X_EN, X_AP, X_F, X_phytomere)
 
 
 apex(X):
   global les_feuilles, current_day, meteo, output_dict
+  print 'Etat phenologique : ' + str(X.phenological_state)
+  print 'Induction primaire : ' + str(X.primary_induction_index * 100) + ' %'
+  print 'Induction primaire : ' + str(X.secondary_induction_index * 100) + ' %'
+  print 'Nombre de feuilles crees : ' + str(X.total_created_leaves)
+  print 'Nombre final de feuilles : ' + str(X.final_leaf_number)
+  print 'Nombre de primordia : ' + str(X.primordia_number)
+  print 'Nombre d epillets crees : ' + str(X.spikelet_created)
+  print 'La talle epie le : ' + str(X.heading_date)
+  
+  
+  # ------------------------------------------------------------------------------------------------
+  # ------------------------- Management of the flowering state of the apex ------------------------
+  # ------------------------------------------------------------------------------------------------
+  # The apex parameters are updated at the end of each day.
+  # A unique temperature and a daylength are associated to each day
+  # 'primary_induction_index' is a cumulated sum of a daily 'primary_induction_increment' calculated
+  #                     by 'flowering_functions.py' using daily mean temperature
+  # 'secondary_induction_index' is a cumulated sum of a daily 'secondary_induction_increment'        
+  #                     calculated by 'flowering_functions.py' using daily mean temperature
+  # When the primary induction is completed (index>1), the apex become competent to the secondary   
+  # induction on the next day.
+  # When the secondary induction is completed (index>1), the apex become reproductive.
+  # The two inductions are irreversible.
+  # ------------------------------------------------------------------------------------------------
   if option_floraison == True:
-  # Mise a jour des parametres d induction a chaque changement de journee
     if X.day < current_day:
       X.day = current_day
       daily_temperature = meteo.mean_temperature[meteo.id_day == current_day].iloc[0]
       daily_daylength = meteo.daylength[meteo.id_day == current_day].iloc[0]
+      print 'Temperature : ' + str(daily_temperature)  + 'Duree du jour : ' + str(daily_daylength)
+      print X.organ_lengths_dict
       
       if X.phenological_state == 'vegetative':
-        print flowering_model
+        apex_id = str(X.id_plante) + '_' + str(X.id_talle) + '_' + str(X.id_rang)
         X.primary_induction_index += flowering_model.vernalisation_function(daily_temperature)
-        X.primary_induction_index = min(X.primary_induction_index, 1)
-        X.potential_leaf_number = flowering_model.potential_leaf_number_calculation(X.primary_induction_index)
-        if flowering_model.test_vernalisation(X.primary_induction_index, X.potential_leaf_number, X.primordia_number):
-          X.phenological_state = 'vernalized'
-          X.approx_final_leaf_number = flowering_model.approx_final_leaf_number_calculation(daily_daylength, X.potential_leaf_number)
-          apex_id = str(X.id_plante) + '_' + str(X.id_talle) + '_' + str(X.id_rang)
+        output_dict[apex_id]['primary_induction_index'] = X.primary_induction_index          # Sortie_Simon
+        if X.primary_induction_index >= 1:
+          X.phenological_state = 'vernalized'          
           output_dict[apex_id]['vernalisation_time'] = TPS          # Sortie_Simon
       
       elif X.phenological_state == 'vernalized':
-        X.approx_final_leaf_number = flowering_model.approx_final_leaf_number_calculation(daylength = daily_daylength, potential_leaf_number = X.potential_leaf_number)
-        if 0.5 * X.approx_final_leaf_number <= X.total_emerged_leaf:
-          X.final_leaf_number = X.approx_final_leaf_number
+        X.secondary_induction_index += flowering_model.photoperiod_induction_function(daily_daylength)
+        apex_id = str(X.id_plante) + '_' + str(X.id_talle) + '_' + str(X.id_rang)
+        output_dict[apex_id]['secondary_induction_index'] = X.secondary_induction_index          # Sortie_Simon
+        if X.secondary_induction_index >= 1:
           X.phenological_state = 'reproductive'
-          apex_id = str(X.id_plante) + '_' + str(X.id_talle) + '_' + str(X.id_rang)      # Sortie_Simon
-          output_dict[apex_id]['floral_transition_time'] = TPS
-          output_dict[apex_id]['final_leaf_number'] = X.final_leaf_number
-          
-          #output_batch_dict['final_leaf_number'] = X.final_leaf_number
-          #output_batch_dict['floral_transition_CDD'] = TPS
+          output_dict[apex_id]['floral_transition_time'] = TPS          # Sortie_Simon
   
-  
-  if groupe=='croissance':
-    if (X.phenological_state == 'reproductive' and X.total_created_leaves >= X.final_leaf_number):
-      YEPI = ParamEpi(id_plante = X.id_plante, id_talle = X.id_talle, id_rang = X.id_rang, nb_epillets = X.spikelet_primordia_number)
-      YEPI.organ_heights_dict = X.organ_heights_dict
-      produce Epi(YEPI)
-      #for i in xrange(X.nb_epillets):              # xrange a remplacer par range en python 3
-        #YEntrenoeudEpi = ParamEntrenoeudEpi(id_plante = X.id_plante, id_talle = X.id_talle, id_rang = X.id_rang + i, long_entrenoeud = 0)      # ATTENTION il faudra donner une orientation au premier epillet
-        #YEpillet = ParamEpillet(id_plante = X.id_plante, id_talle = X.id_talle, id_rang = X.id_rang + i, long_epillet = 0)
-        #nproduce RollR(180) EntrenoeudEpi(YEntrenoeudEpi) SB +(20) Epillet(YEpillet) EB
-        #output_batch_dict['spike_creation_CDD'] = TPS
-    else:
+  if groupe=='croissance':     
+    if (X.phenological_state == 'vegetative' or X.phenological_state == 'vernalized' or (X.phenological_state == 'reproductive' and (X.total_created_leaves < X.final_leaf_number or X.final_leaf_number is None))):
       vtx_feuille=[x for x in les_feuilles if (mtg.property('ParamFeuille').get(x).id_plante==X.id_plante and mtg.property('ParamFeuille').get(x).id_talle==X.id_talle and mtg.property('ParamFeuille').get(x).id_rang==X.id_rang)][0]
       if X.retard==2:
         #Seuil[X.id_plante][X.id_talle]=Seuil[X.id_plante][X.id_talle] * 1.15
@@ -1705,13 +1699,35 @@ apex(X):
         YINT=ParamEntrenoeud(X.id_plante, X.id_talle, X.id_rang+1)      # AJOUT SIMON
         X.id_rang += 1
         X.retard = 0
-        X.primordia_number = 2 * X.total_emerged_leaf + 4               # ICI
         X.total_created_leaves += 1
+        X.organ_lengths_dict[YP.id_rang] = {'limb': YF.Taillelimbe, 'sheath': YF.Taillegaine, 'internode': YINT.length}
+        
         # Ajout d un nouvel apex dans le dictionnaire
         apex_id = str(YAT.id_plante) + '_' + str(YAT.id_talle) + '_' + str(YAT.id_rang)
         apex_dict = {'id_plante' : YAT.id_plante,'id_talle' : YAT.id_talle, 'id_rang' : YAT.id_rang}
         output_dict[apex_id] = (apex_dict)
-        produce RollR(180) phytomere(YP, X) bourgeonRoot(Yb, YINT) ApexTal(YAT) Entrenoeud(YINT, X, YF) FLW SB Feuille(YF, X) FLW EB apex(X)
+        
+        # -------------------------------------------------------------------------------------------------
+        # ------------------------------------ Number of primodia -----------------------------------------
+        # -------------------------------------------------------------------------------------------------
+        # Description :
+        # Two relations exist between primordia emission and leaf appearance 
+        # - 'coeff_primordia_emission_vegetative' before secondary induction
+        # - 'coeff_primordia_emission_reproductive' during and after secondary induction
+        # When secondary induction is completed, all existing primodia will become leaves
+        # When flag leaf is produced (emergence of the penultimate leaf), apex stop to produce spikelets
+        # -------------------------------------------------------------------------------------------------
+        if X.secondary_induction_index == 0:
+          X.primordia_number += flowering_model.param.coeff_primordia_emission_vegetative - 1
+        elif (X.phenological_state == 'vernalized' and 0 < X.secondary_induction_index):
+          X.primordia_number += flowering_model.param.coeff_primordia_emission_reproductive - 1
+        elif X.phenological_state == 'reproductive':
+          X.primordia_number += flowering_model.param.coeff_primordia_emission_reproductive - 1
+          if X.final_leaf_number is None:
+            X.final_leaf_number = X.total_created_leaves + X.primordia_number
+            output_dict[apex_id]['final_leaf_number'] = X.final_leaf_number
+            
+        produce RollR(180) phytomere(YP, X) bourgeonRoot(Yb, YINT) ApexTal(YAT) Entrenoeud(YINT, X, YF, YP) FLW SB Feuille(YF, X, YP) FLW EB apex(X)
         
       elif X.retard==1:
         X.retard=2
@@ -1721,6 +1737,51 @@ apex(X):
         X.retard=1
         print 'RETARD_0'
         produce apex(X)
+        
+    if (X.phenological_state == 'reproductive' and X.total_created_leaves == X.final_leaf_number):
+      if (X.final_spikelet_number is None):
+        X.final_spikelet_number = X.primordia_number
+        
+      if (X.spikelet_created < X.final_spikelet_number):
+        YEntrenoeudEpi = ParamEntrenoeudEpi(id_plante = X.id_plante, id_talle = X.id_talle, id_rang = X.id_rang, long_entrenoeud = 0)      # ATTENTION il faudra donner une orientation au premier epillet
+        YEpillet = ParamEpillet(id_plante = X.id_plante, id_talle = X.id_talle, id_rang = X.id_rang, long_epillet = 0)
+        X.spikelet_created += 1
+        X.organ_lengths_dict[X.id_rang] = {'internode' : YEntrenoeudEpi.long_entrenoeud, 'spikelet' : YEpillet.long_epillet}
+        X.id_rang += 1
+        produce RollR(180) EntrenoeudEpi(YEntrenoeudEpi, X) SB +(20) Epillet(YEpillet, X) EB apex(X)   
+        
+      elif (X.phenological_state == 'reproductive' and X.spikelet_created == X.final_spikelet_number):
+        # -------------------------------------------------------------------------------------------------
+        # ------------------------------- Determination of heading date -----------------------------------
+        # -------------------------------------------------------------------------------------------------
+        # Description :
+        # Heading occurs when the terminal spikelet of the spike emerge out of the highest ligule of its   
+        # tiller. Height of the last spikelet is the sum of the spike length and the lengths of all the 
+        # internodes of the tiller. Height of the highest ligule is the sum of the length of the sheath 
+        # of the associted leaf and the lengths of all internodes located under that leaf.
+        # The values used for the calculation are stored in 'organ_lengths_dict'
+        # -------------------------------------------------------------------------------------------------
+        
+        highest_ligule = {'id_rang': 999, 'height': 0}
+        for phytomere_rank in [t for t in X.organ_lengths_dict.keys() if t <= X.final_leaf_number]:
+          height = X.organ_lengths_dict[phytomere_rank]['sheath']
+          for i in [t for t in X.organ_lengths_dict.keys() if t <= phytomere_rank]:
+            height += X.organ_lengths_dict[i]['internode']
+          if height >= highest_ligule['height']:
+            highest_ligule = {'id_rang': phytomere_rank, 'height': height}
+        print 'La plus haute ligule est a : ' + str(highest_ligule['height'])
+            
+        X.terminal_spikelet_height = X.organ_lengths_dict[max(X.organ_lengths_dict.keys())]['spikelet']
+        for phytomere_rank in X.organ_lengths_dict.keys():
+          X.terminal_spikelet_height += X.organ_lengths_dict[phytomere_rank]['internode']
+        print 'Le dernier epillet est a : ' + str(X.terminal_spikelet_height)
+        print X.organ_lengths_dict
+          
+        if (X.heading_date is None and X.terminal_spikelet_height > highest_ligule['height']):
+          X.heading_date = current_day
+          
+        produce apex(X)
+      
   if groupe=='defoliation':
     produce apex(X)
 
@@ -1758,7 +1819,7 @@ ApexTal(X):
             apex_id = str(YAT.id_plante) + '_' + str(YAT.id_talle) + '_' + str(YAT.id_rang)
             apex_dict = {'id_plante' : YAT.id_plante,'id_talle' : YAT.id_talle, 'id_rang' : YAT.id_rang}
             output_dict[apex_id] = (apex_dict)
-            produce SB phytomere(YP, YA) RollR(95) GetHead(0, 0, 0) bourgeonRoot(Yb, YINT) ApexTal(YAT) Entrenoeud(YINT, YA, YF) FLW SB Feuille(YF, YA) FLW EB apex(YA) EB
+            produce SB phytomere(YP, YA) RollR(95) GetHead(0, 0, 0) bourgeonRoot(Yb, YINT) ApexTal(YAT) Entrenoeud(YINT, YA, YF, YP) FLW SB Feuille(YF, YA, YP) FLW EB apex(YA) EB
           
           if (rapportS9_SSol>ParamP[X.id_plante]['SENSETALLAGE']):
             deuxiemede=alea2[alea1_index[X.id_plante]-1]*5
@@ -1776,7 +1837,7 @@ ApexTal(X):
               apex_id = str(YAT.id_plante) + '_' + str(YAT.id_talle) + '_' + str(YAT.id_rang)
               apex_dict = {'id_plante' : YAT.id_plante,'id_talle' : YAT.id_talle, 'id_rang' : YAT.id_rang}
               output_dict[apex_id] = (apex_dict)
-              produce SB phytomere(YP, YA) RollR(95) GetHead(0, 0, 0) bourgeonRoot(Yb, YINT) ApexTal(YAT) Entrenoeud(YINT, YA, YF) FLW SB Feuille(YF, YA) FLW EB apex(YA) EB
+              produce SB phytomere(YP, YA) RollR(95) GetHead(0, 0, 0) bourgeonRoot(Yb, YINT) ApexTal(YAT) Entrenoeud(YINT, YA, YF, YP) FLW SB Feuille(YF, YA, YP) FLW EB apex(YA) EB
             else:
               produce
         else:
@@ -1790,30 +1851,20 @@ ApexTal(X):
     produce ApexTal(X)
 
 
-Epi(X):
-  for i in xrange(X.nb_epillets):              # xrange a remplacer par range en python 3
-    YEntrenoeudEpi = ParamEntrenoeudEpi(id_plante = X.id_plante, id_talle = X.id_talle, id_rang = X.id_rang + i, long_entrenoeud = 0)      # ATTENTION il faudra donner une orientation au premier epillet
-    YEpillet = ParamEpillet(id_plante = X.id_plante, id_talle = X.id_talle, id_rang = X.id_rang + i, long_epillet = 0)
-    
-    # Remplissage des longueurs d organes
-    #YAT.organ_lengths_dict[X.id_rang + i] = {'spike_internode' : YEntrenoeudEpi.long_entrenoeud, 'spikelet' : YEpillet.long_epillet}
-    nproduce RollR(180) EntrenoeudEpi(YEntrenoeudEpi, X) SB +(20) Epillet(YEpillet, X) EB
+EntrenoeudEpi(X, X_apex):                      # Compter les entrenoeuds de l epi et appliquer une regle de croissance differente pour le pedoncule
+  if X.long_entrenoeud < 5:            # PARAMETRE
+     X.long_entrenoeud += 0.1            # PARAMETRE
+  # Remplissage des longueurs d organes
+  X_apex.organ_lengths_dict[X.id_rang]['internode'] = X.long_entrenoeud
+  produce EntrenoeudEpi(X, X_apex)
 
 
-EntrenoeudEpi(X, XEpi):                      # Compter les entrenoeuds de l epi et appliquer une regle de croissance differente pour le pedoncule
-  if X.long_entrenoeud < 15:            # PARAMETRE
-     X.long_entrenoeud += 0.3            # PARAMETRE
-     # Remplissage des longueurs d organes
-     #XEpi.organ_lengths_dict[X.rang]['spike_internode'] = X.long_entrenoeud
-  produce EntrenoeudEpi(X, XEpi)
-
-
-Epillet(X, XEpi):
+Epillet(X, X_apex):
   if X.long_epillet < 5:                 # PARAMETRE
     X.long_epillet += 0.2                # PARAMETRE
-    # Remplissage des longueurs d organes
-    #XEpi.organ_lengths_dict[X.rang]['spikelet'] = X.long_epillet
-  produce Epillet(X, XEpi)
+  # Remplissage des longueurs d organes
+  X_apex.organ_lengths_dict[X.id_rang]['spikelet'] = X.long_epillet
+  produce Epillet(X, X_apex)
 
 
 racine(X):
@@ -2139,11 +2190,11 @@ phytomere(X, Y):
   produce Right(X.angletal)
 
 
-Entrenoeud(X, Y, Z):
+Entrenoeud(X, Y, Z, U):
   produce SetWidth(1)SetColor(3)F(X.length)
 
 
-Feuille(X, Y):
+Feuille(X, Y, Z):
   global Surfoliairetotale,Surfoliaireencours,les_feuilles
   if groupe=='croissance':
     surfacefeuille=0
@@ -2321,11 +2372,11 @@ ApexTal(X):
   nproduce StartGC() SetColor(5) F(0.2) EndGC()
 
 
-EntrenoeudEpi(X):
+EntrenoeudEpi(X, Y):
   produce ;(5) F(X.long_entrenoeud)
 
 
-Epillet(X):
+Epillet(X, Y):
   produce ;(6) F(X.long_epillet)
 
 
