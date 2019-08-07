@@ -83,7 +83,7 @@ alea1=[random.random() for x in xrange(4000)]
 alea2=[random.random() for x in xrange(4000)]
 
 ##### Activation du tallage
-option_tallage = False
+option_tallage = True
 
 ##### Activation de la senescence
 option_senescence = False
@@ -771,6 +771,19 @@ def Start():
 #  internode_characteristics_path = open(os.path.join(OUTPUTS_DIRPATH, output_internode_characteristics), "wb")
 #  internode_characteristics = csv.writer(internode_characteristics_path)
 #  internode_characteristics.writerow(['day', 'thermal_time', 'plant_id', 'tiller_id', 'rank', 'internode_type', 'internode_length'])
+
+
+#output_induction = open(os.path.join(OUTPUTS_DIRPATH,'output_induction.csv'), 'wb')
+#colnames_induction = ['GDD', 'Day' , 'Id_plante', 'Id_talle', 'Id_rang', 'Leaf_produced', 'Primordia_on_apex', 'Spikelet_number', 'Vernalisation_rate', 'Secondary_induction_rate', 'Heading_date']
+#writer_induction = csv.writer(output_induction)
+#writer_induction.writerow(colnames_induction)
+
+
+#output_organ_length = open(os.path.join(OUTPUTS_DIRPATH,'output_organ_length.csv'), 'wb')
+#colnames_organ_length = ['GDD', 'Day', 'Id_plante', 'Id_talle', 'Id_rang', 'Organ', 'Length']
+#writer_length = csv.writer(output_organ_length)
+#writer_length.writerow(colnames_organ_length)
+
 
 
 
@@ -1648,6 +1661,15 @@ apex(X):
   print 'La talle epie le : ' + str(X.heading_date)
   
   
+  #newline_indution = [TPS, current_day, X.id_plante, X.id_talle, X.id_rang, X.total_created_leaves, X.primordia_number, X.spikelet_created, X.primary_induction_index * 100, X.secondary_induction_index * 100, X.heading_date]
+  #writer_induction.writerow(newline_indution)
+  
+  #for phytomere_rank in X.organ_lengths_dict.keys():
+  #  for organ in X.organ_lengths_dict[phytomere_rank].keys():
+  #    newline_length = [TPS, current_day, X.id_plante, X.id_talle, phytomere_rank, organ, X.organ_lengths_dict[phytomere_rank][organ]]
+  #    writer_length.writerow(newline_length)
+  
+  
   # ------------------------------------------------------------------------------------------------
   # ------------------------- Management of the flowering state of the apex ------------------------
   # ------------------------------------------------------------------------------------------------
@@ -1657,7 +1679,7 @@ apex(X):
   #                     by 'flowering_functions.py' using daily mean temperature
   # 'secondary_induction_index' is a cumulated sum of a daily 'secondary_induction_increment'        
   #                     calculated by 'flowering_functions.py' using daily mean temperature
-  # When the primary induction is completed (index>1), the apex become competent to the secondary   
+  # When the primary induction is completed (index>1) and the apex has created 2 leaves (1 emerged) it become competent to the secondary   
   # induction on the next day.
   # When the secondary induction is completed (index>1), the apex become reproductive.
   # The two inductions are irreversible.
@@ -1678,7 +1700,7 @@ apex(X):
           X.phenological_state = 'vernalized'          
           output_dict[apex_id]['vernalisation_time'] = TPS          # Sortie_Simon
       
-      elif X.phenological_state == 'vernalized':
+      elif (X.phenological_state == 'vernalized' and X.total_created_leaves > 1):
         X.secondary_induction_index += flowering_model.photoperiod_induction_function(daily_daylength)
         apex_id = str(X.id_plante) + '_' + str(X.id_talle) + '_' + str(X.id_rang)
         output_dict[apex_id]['secondary_induction_index'] = X.secondary_induction_index          # Sortie_Simon

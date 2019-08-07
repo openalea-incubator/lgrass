@@ -42,35 +42,32 @@ names = []
 
 
 nb_simul = 0
-vai_list = np.arange(0.001, 0.002, 1)
-vbee_list = np.arange(0.01, 0.2, 1)
-sldl_list = np.arange(0.15, 0.2, 1)
-absolute_max_leaf_number_list = np.arange(5, 50, 20)
-absolute_min_leaf_number_list = np.arange(1, 11, 5)
+daily_vern_rate_list = np.arange(0.001, 0.010, 1)
+basic_vern_rate_list = np.arange(0.01, 0.20, 1)
+photoperiod_min_list = np.arange(10, 12, 10)
+photoperiod_max_list = np.arange(14, 16, 10)
 
-for x in itertools.product(vai_list, vbee_list, sldl_list, absolute_max_leaf_number_list, absolute_min_leaf_number_list):
+
+for x in itertools.product(daily_vern_rate_list, basic_vern_rate_list, photoperiod_min_list, photoperiod_max_list):
     print(x)
     nb_simul += 1
     flowering_param = flowering_functions.FloweringFunctions()
-    flowering_param.param.vai = x[0]
-    flowering_param.param.vbee = x[1]
-    flowering_param.param.sldl = x[2]
-    flowering_param.param.absolute_max_leaf_number = x[3]
-    flowering_param.param.absolute_min_leaf_number = x[4]
-    name = 'min_leaf_' + str(x[3]) + '_' + 'max_leaf_' + str(x[4])
+    flowering_param.param.daily_vern_rate = x[0]
+    flowering_param.param.basic_vern_rate = x[1]
+    flowering_param.param.photoperiod_min = x[2]
+    flowering_param.param.photoperiod_max = x[3]
+    name = str(x[0]) + '_' + str(x[1]) + '_' + str(x[2]) + '_' + str(x[3])
     names.append(name)
     lpy_filename = os.path.join('lgrass.lpy')
     testsim[name] = Lsystem(lpy_filename)
 
     testsim[name].flowering_model = flowering_param
 
+# function to run an L-system from the 'testsim' dictionnary
 
 
-
-
-#function to run an L-system from the 'testsim' dictionnary
 def runlsystem(n):
-    testsim[names[n]].derive() #permet le declenchement de la fonction "End" du script lpy
+    testsim[names[n]].derive() # permet le declenchement de la fonction "End" du script lpy
     print(testsim[names[n]].output_dict)
     with open(os.path.join(OUTPUTS_DIRPATH, 'sortie_test_path', str(n) + '.csv'), 'wb') as sortie_test_path:
         sortie_test = csv.writer(sortie_test_path)
@@ -78,7 +75,7 @@ def runlsystem(n):
     testsim[names[n]].clear()
     print(''.join((names[n]," - done")))
 
-    #print(testsim[names[n]].output_dict)
+    # print(testsim[names[n]].output_dict)
 
 
 runlsystem(2)
