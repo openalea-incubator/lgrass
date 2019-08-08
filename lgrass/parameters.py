@@ -1,4 +1,4 @@
-# coding=utf-8
+# coding: utf8
 class ParametersValues:
     def __init__(self):
         self.temp_vern_min = 0  # minimal vernalisation temperature (°C)

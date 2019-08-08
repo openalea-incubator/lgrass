@@ -12,7 +12,7 @@ import csv
 from copy import *
 #import IOxls
 import os
-import pandas
+import pandas as pd
 
 
 ##### Configuration du chemin #####
@@ -27,12 +27,12 @@ onglet2='FC'
 #paramP2=IOxls.read_plant_param(path_param, onglet2)
 #paramManagement=IOxls.read_plant_param(path_param, 'Management')
 
-TableParamP1=pandas.read_excel(path_param, sheetname=onglet1)
-TableParamP2=pandas.read_excel(path_param, sheetname=onglet2)
+TableParamP1=pd.read_excel(path_param, sheetname=onglet1)
+TableParamP2=pd.read_excel(path_param, sheetname=onglet2)
 paramP1=dict(zip(TableParamP1['name'],TableParamP1['value']))
 paramP2=dict(zip(TableParamP2['name'],TableParamP2['value']))
 
-TableManagement=pandas.read_excel(path_param,sheetname='Management')
+TableManagement=pd.read_excel(path_param,sheetname='Management')
 paramManagement=dict(zip(TableManagement['name'],TableManagement['value']))
 
 ParamP=[paramP2] #liste des parametres plante
@@ -42,7 +42,7 @@ num_pointe=0
 num_primordium=0
 
 LSTEP=1
-DureeExp=2800
+DureeExp = 200
 
 ##### Parametre scene #####
 OptionRacine='SansRacines' 
@@ -73,8 +73,12 @@ reprise_coupe=False
 ##output_apex = 'output_apex_%s_%s_%s.csv'%(int(Espacement),DureeExp,ParamP[0]['HCOUP'])                  # Ajout SIMON
 #output_organ_characteristics = 'output_organ_characteristics%s_%s_%s.csv'%(int(Espacement),DureeExp,ParamP[0]['HCOUP'])    
 #outimage='Scene\scene_'+str(int(Espacement))+'_'+t.strftime('%d-%m-%y_%Hh%M',t.localtime())+'.bmp'
-#output_apex_characteristics = 'output_apex_characteristics%s_%s_%s.csv'%(int(Espacement),DureeExp,ParamP[0]['HCOUP'])
-#output_internode_characteristics = 'output_internode_characteristics%s_%s_%s.csv'%(int(Espacement),DureeExp,ParamP[0]['HCOUP'])
+
+# Default name of the output
+output_induction_file_name = 'output_induction'
+output_organ_lengths_file_name = 'output_organ_lengths'
+
+
 
 ##### Maitrise de l'aleatoire #####
 seed=0
@@ -93,6 +97,9 @@ option_senescence = False
 option_floraison = True        # True or False
 
 
+##### Activation sorties graphiques
+option_graphic_outputs = True
+
 
 #### Pour lancer L-grass hors du batch
 flowering_model = None
@@ -100,10 +107,6 @@ flowering_model = None
 if flowering_model == None:
   from lgrass import flowering_functions
   flowering_model = flowering_functions.FloweringFunctions()
-
-#### Output L-grass #####
-output_dict = {}
-
 
 
 
@@ -175,7 +178,7 @@ parameters['Plante']=['ParamPlante']
 
 
 class ParamPhytomere:
-  def __init__(self, id_plante=0, id_talle=0, id_rang=1, age=0, angletal=0, organ_lengths={}):#, Carbdescend=0, Carbmonte=0):
+  def __init__(self, id_plante, id_talle, id_rang, age=0, angletal=0, organ_lengths={}):#, Carbdescend=0, Carbmonte=0):
     self.id_plante=id_plante
     self.id_talle=id_talle
     self.id_rang=id_rang
@@ -265,7 +268,7 @@ scales['apex']=4
 parameters['apex']=['ParamApex']
 
 class ParamApexTal:
-  def __init__(self,id_plante,id_talle=0,id_rang=1,retard=0, day = 0, primary_induction_index = 0, secondary_induction_index = 0, phenological_state = 'vegetative'):
+  def __init__(self,id_plante,id_talle,id_rang=1,retard=0, day = 0, primary_induction_index = 0, secondary_induction_index = 0, phenological_state = 'vegetative'):
     self.id_plante=id_plante
     self.id_talle=id_talle
     self.id_rang=id_rang
@@ -687,7 +690,7 @@ def BiomassFeuille(long,coupe,geno):
 
 def Start():
   global alea1_index,timing,growth_realized,dt,TPS,TPS_expe #Parametres de temps
-  global output_dict
+  global df_induction, df_organ_lengths
 #  global surface_biomass,chemin_fichier1,chemin_fichier2,chemin_fichier3,long_root,simul_expe,taille_finale_feuille #Fichiers de sortie
   global Biomasse_aerienne,Biomasse_racinaire,BiomProd,Ray,PourcentageRootGrowthRealized,PourcentageRootGrowthRealized,Reserve,Demande_feuille,Demande_feuille_dans_gaine,Demande_feuille_hors_gaine,PourcentageFeuilGrowthRealized,les_diametres,Seuil,Taille_finale_gaine,nb_talle #Parametres vides
   global NBlignes,NBcolonnes,posPlante,Espacement #Parametres scene
@@ -708,7 +711,7 @@ def Start():
   ###### AJOUT SIMON METEO ########
   # Importation de la meteo et adaptation a l incrementation en temps thermique
   meteo_path = os.path.join(INPUTS_DIRPATH,'meteo_file.csv')
-  meteo = pandas.read_csv(meteo_path, sep=';')
+  meteo = pd.read_csv(meteo_path, sep=';')
   meteo['thermal_time_cumul'] = meteo.mean_temperature.cumsum()
   current_day = min(meteo.id_day)
   
@@ -749,6 +752,11 @@ def Start():
   #t3=[ParamP[i]['t3'] for i in xrange(nb_plantes)]
   Caribu="Off"
   
+  df_induction = pd.DataFrame(columns = ['GDD', 'Day' , 'Daily_mean_temperature', 'Daily_daylength', 'Id_plante', 'Id_talle', 'Leaf_produced', 'Primordia_on_apex', 'Spikelet_number', 'Vernalisation_rate', 'Secondary_induction_rate', 'Heading_date'])
+  
+  df_organ_lengths = pd.DataFrame(columns = ['GDD', 'Day', 'Id_plante', 'Id_talle', 'Id_rang', 'Organ', 'Length'])
+  
+  
   ##### Ecriture des fichiers de sortie #####
 #  chemin_fichier1=open(os.path.join(OUTPUTS_DIRPATH,outvarfile),"wb")
 #  surface_biomass=csv.writer(chemin_fichier1)
@@ -761,35 +769,12 @@ def Start():
 #  chemin_fichier3=open(os.path.join(OUTPUTS_DIRPATH,outvarfile3),"wb")
 #  taille_finale_feuille=csv.writer(chemin_fichier3)
 #  taille_finale_feuille.writerow(["TPS","Espacement","Densite","id plante","talle","rang","Phase","taille feuille","taille gaine","taille limbe"])
-#  
-#  
-#  # AJOUT SIMON
-#  apex_characteristics_path = open(os.path.join(OUTPUTS_DIRPATH, output_apex_characteristics), "wb")
-#  apex_characteristics = csv.writer(apex_characteristics_path)
-#  apex_characteristics.writerow(['day', 'thermal_time', 'plant_id', 'tiller_id', 'rank', 'total_emerged_leaf', 'total_created_leaves', 'primary_induction_index', 'phenological_state', 'primordia_number', 'potential_leaf_number', 'approx_final_leaf_number', 'final_leaf_number'])
-#  
-#  internode_characteristics_path = open(os.path.join(OUTPUTS_DIRPATH, output_internode_characteristics), "wb")
-#  internode_characteristics = csv.writer(internode_characteristics_path)
-#  internode_characteristics.writerow(['day', 'thermal_time', 'plant_id', 'tiller_id', 'rank', 'internode_type', 'internode_length'])
-
-
-#output_induction = open(os.path.join(OUTPUTS_DIRPATH,'output_induction.csv'), 'wb')
-#colnames_induction = ['GDD', 'Day' , 'Id_plante', 'Id_talle', 'Id_rang', 'Leaf_produced', 'Primordia_on_apex', 'Spikelet_number', 'Vernalisation_rate', 'Secondary_induction_rate', 'Heading_date']
-#writer_induction = csv.writer(output_induction)
-#writer_induction.writerow(colnames_induction)
-
-
-#output_organ_length = open(os.path.join(OUTPUTS_DIRPATH,'output_organ_length.csv'), 'wb')
-#colnames_organ_length = ['GDD', 'Day', 'Id_plante', 'Id_talle', 'Id_rang', 'Organ', 'Length']
-#writer_length = csv.writer(output_organ_length)
-#writer_length.writerow(colnames_organ_length)
-
 
 
 
 def StartEach():
   global RootPotentialNewBiomass,longueur_totale_feuille,Rootbiom,groupe,dt,reprise_coupe,CoupeTaille
-  global output_dict
+  global df_induction, df_organ_lengths
   global current_day, meteo
 #  global apex_characteristics, internode_characteristics
   
@@ -842,7 +827,7 @@ def EndEach(lstring,lscene):
   #global simul_expe
   global TPS,dt,mtg,Surfoliairetotale,les_pointes,les_primordiums,RootPotentialNewBiomass,les_feuilles,les_feuilles_emergees,les_racines, Reserve,Biomasse_aerienne,Surfoliaireencours,Biomasse_racinaire,fichier_test,groupe,PourcentageRootGrowthRealized,PourcentageFeuilGrowthRealized,Demande_feuille,C,reprise_coupe,Ray,BiomProd,Caribu
   global current_day, meteo
-  global output_dict
+  global df_induction, df_organ_lengths
 #  global apex_characteristics, internode_characteristics # AJOUT SIMON
   
   TPS=TPS+dt
@@ -1073,7 +1058,7 @@ def EndEach(lstring,lscene):
 def End(lstring,lscene): #Ecriture et fermeture des fichiers de sortie
   #global taille_finale_feuille
   global TPS,timing,chemin_fichier1,chemin_fichier2,chemin_fichier3,mtg,long_root, les_racines, apex_characteristics, internode_characteristics
-  global output_dict
+  global df_induction, df_organ_lengths
   
 #  ### Remplissage du fichier taille_finale_feuille ###
 #  for ID in xrange(nb_plantes):
@@ -1151,6 +1136,17 @@ def End(lstring,lscene): #Ecriture et fermeture des fichiers de sortie
 #  Viewer.stop()
   
   #print(lstring)
+  
+  df_induction.to_csv(os.path.join(OUTPUTS_DIRPATH, output_induction_file_name + '.csv'), index = False)
+  df_organ_lengths.to_csv(os.path.join(OUTPUTS_DIRPATH, output_organ_lengths_file_name + '.csv'), index = False)
+  
+  if option_graphic_outputs == True:
+    from lgrass import Lgrass_plot_functions
+    graphic = Lgrass_plot_functions.GraphicOutputs()
+    graphic.graph_induction(os.path.join(OUTPUTS_DIRPATH) + '/', output_induction_file_name)
+    graphic.graph_length(os.path.join(OUTPUTS_DIRPATH) + '/', output_organ_lengths_file_name)
+  
+  
   print 'Execution time :',t.time()-timing
 
 
@@ -1228,7 +1224,6 @@ GetPos(a,b,c)<tip(X):
 
 CouvertVegetal(X):
   global groupe,NBlignes,NBcolonnes,genotype
-  global output_dict
   if groupe=='croissance':
     if X==1:
       nproduce CouvertVegetal(2)
@@ -1248,12 +1243,11 @@ CouvertVegetal(X):
 
 Plante(X):
   global TPS,groupe, current_day
-  global output_dict
   if groupe=='croissance':
     if TPS ==2:
       Seuil.append([5.5])
       Taille_finale_gaine.append([[5.5,5.5]])
-      Y1=ParamPhytomere(id_plante=X.id_plante, id_talle = 0)
+      Y1=ParamPhytomere(id_plante = X.id_plante, id_talle = 0, id_rang = 1)
       YF=ParamFeuille(age=0, Agecroiss=0, Taillefeuille=0, id_plante=X.id_plante ,id_rang=1, Ymax=Premiecroiss[X.id_plante], Taillefinalelimbe=0.8*Premiecroiss[X.id_plante], Taillefinalegaine=0.2*Premiecroiss[X.id_plante])
       Yb=ParambourgeonRoot(X.id_plante,id_talle=0,id_rang=1)
       YAT=ParamApexTal(X.id_plante,id_talle=0,id_rang=1)
@@ -1261,15 +1255,8 @@ Plante(X):
       YINT=ParamEntrenoeud(X.id_plante,id_talle=0,id_rang=1)      # AJOUT SIMON
       
       # Remplissage des hauteurs d organes
-      YA.organ_lengths_dict[Y1.id_rang] = {'limb': YF.Taillelimbe, 'sheath': YF.Taillegaine, 'internode': YINT.length}
+      YA.organ_lengths_dict = {Y1.id_rang: {'limb': YF.Taillelimbe, 'sheath': YF.Taillegaine, 'internode': YINT.length}}
       
-      # Ajout des nouveaux apex dans le dictionnaire
-      apex_id = '{}_{}_{}'.format(YA.id_plante, YA.id_talle, YA.id_rang)
-      apex_dict = {'id_plante' : YA.id_plante,'id_talle' : YA.id_talle, 'id_rang' : YA.id_rang}
-      output_dict[apex_id] = (apex_dict)
-      apex_id = str(YAT.id_plante) + '_' + str(YAT.id_talle) + '_' + str(YAT.id_rang)
-      apex_dict = {'id_plante' : YAT.id_plante,'id_talle' : YAT.id_talle, 'id_rang' : YAT.id_rang}
-      output_dict[apex_id] = (apex_dict)
       produce Plante(X) phytomere(Y1, YA) RollR(95) bourgeonRoot(Yb, YINT) ApexTal(YAT) Entrenoeud(YINT, YA, YF, Y1) FLW SB Feuille(YF, YA, Y1) FLW EB apex(YA)
       
   if groupe=='defoliation':
@@ -1650,25 +1637,15 @@ Entrenoeud(X_EN, X_AP, X_F, X_phytomere):
 
 
 apex(X):
-  global les_feuilles, current_day, meteo, output_dict
-  print 'Etat phenologique : ' + str(X.phenological_state)
-  print 'Induction primaire : ' + str(X.primary_induction_index * 100) + ' %'
-  print 'Induction primaire : ' + str(X.secondary_induction_index * 100) + ' %'
-  print 'Nombre de feuilles crees : ' + str(X.total_created_leaves)
-  print 'Nombre final de feuilles : ' + str(X.final_leaf_number)
-  print 'Nombre de primordia : ' + str(X.primordia_number)
-  print 'Nombre d epillets crees : ' + str(X.spikelet_created)
-  print 'La talle epie le : ' + str(X.heading_date)
-  
-  
-  #newline_indution = [TPS, current_day, X.id_plante, X.id_talle, X.id_rang, X.total_created_leaves, X.primordia_number, X.spikelet_created, X.primary_induction_index * 100, X.secondary_induction_index * 100, X.heading_date]
-  #writer_induction.writerow(newline_indution)
-  
-  #for phytomere_rank in X.organ_lengths_dict.keys():
-  #  for organ in X.organ_lengths_dict[phytomere_rank].keys():
-  #    newline_length = [TPS, current_day, X.id_plante, X.id_talle, phytomere_rank, organ, X.organ_lengths_dict[phytomere_rank][organ]]
-  #    writer_length.writerow(newline_length)
-  
+  global les_feuilles, current_day, meteo, df_induction, df_organ_lengths
+  #print 'Etat phenologique : ' + str(X.phenological_state)
+  #print 'Induction primaire : ' + str(X.primary_induction_index * 100) + ' %'
+  #print 'Induction primaire : ' + str(X.secondary_induction_index * 100) + ' %'
+  #print 'Nombre de feuilles crees : ' + str(X.total_created_leaves)
+  #print 'Nombre final de feuilles : ' + str(X.final_leaf_number)
+  #print 'Nombre de primordia : ' + str(X.primordia_number)
+  #print 'Nombre d epillets crees : ' + str(X.spikelet_created)
+  #print 'La talle epie le : ' + str(X.heading_date)
   
   # ------------------------------------------------------------------------------------------------
   # ------------------------- Management of the flowering state of the apex ------------------------
@@ -1689,24 +1666,26 @@ apex(X):
       X.day = current_day
       daily_temperature = meteo.mean_temperature[meteo.id_day == current_day].iloc[0]
       daily_daylength = meteo.daylength[meteo.id_day == current_day].iloc[0]
-      print 'Temperature : ' + str(daily_temperature)  + 'Duree du jour : ' + str(daily_daylength)
+      
+      df_induction = df_induction.append({'GDD': TPS, 'Day': current_day, 'Daily_mean_temperature': daily_temperature, 'Daily_daylength': daily_daylength, 'Id_plante': X.id_plante, 'Id_talle': X.id_talle, 'Leaf_produced': X.total_created_leaves, 'Primordia_on_apex': X.primordia_number, 'Spikelet_number': X.spikelet_created, 'Vernalisation_rate': X.primary_induction_index*100, 'Secondary_induction_rate': X.secondary_induction_index*100, 'Heading_date': X.heading_date}, ignore_index = True)
+      
+      for phytomere_rank in X.organ_lengths_dict.keys():
+        for organ in X.organ_lengths_dict[phytomere_rank].keys():
+          df_organ_lengths = df_organ_lengths.append({'GDD': TPS, 'Day': current_day, 'Id_plante': X.id_plante, 'Id_talle': X.id_talle, 'Id_rang': phytomere_rank, 'Organ': organ, 'Length': X.organ_lengths_dict[phytomere_rank][organ]}, ignore_index = True)
+      
+      print 'Talle' + str(X.id_talle)
       print X.organ_lengths_dict
       
       if X.phenological_state == 'vegetative':
-        apex_id = str(X.id_plante) + '_' + str(X.id_talle) + '_' + str(X.id_rang)
         X.primary_induction_index += flowering_model.vernalisation_function(daily_temperature)
-        output_dict[apex_id]['primary_induction_index'] = X.primary_induction_index          # Sortie_Simon
+        
         if X.primary_induction_index >= 1:
           X.phenological_state = 'vernalized'          
-          output_dict[apex_id]['vernalisation_time'] = TPS          # Sortie_Simon
       
       elif (X.phenological_state == 'vernalized' and X.total_created_leaves > 1):
         X.secondary_induction_index += flowering_model.photoperiod_induction_function(daily_daylength)
-        apex_id = str(X.id_plante) + '_' + str(X.id_talle) + '_' + str(X.id_rang)
-        output_dict[apex_id]['secondary_induction_index'] = X.secondary_induction_index          # Sortie_Simon
         if X.secondary_induction_index >= 1:
           X.phenological_state = 'reproductive'
-          output_dict[apex_id]['floral_transition_time'] = TPS          # Sortie_Simon
   
   if groupe=='croissance':     
     if (X.phenological_state == 'vegetative' or X.phenological_state == 'vernalized' or (X.phenological_state == 'reproductive' and (X.total_created_leaves < X.final_leaf_number or X.final_leaf_number is None))):
@@ -1717,17 +1696,13 @@ apex(X):
         YP=ParamPhytomere(X.id_plante,X.id_talle,X.id_rang+1)
         YF=ParamFeuille(age=0,Agecroiss=0,Taillefeuille=0,id_plante=X.id_plante,id_talle=X.id_talle,id_rang=X.id_rang+1,Ymax=Premiecroiss[X.id_plante],Taillefinalelimbe=0.8*Premiecroiss[X.id_plante],Taillefinalegaine=0.2*Premiecroiss[X.id_plante])
         Yb=ParambourgeonRoot(X.id_plante,X.id_talle,X.id_rang+1)
-        YAT=ParamApexTal(X.id_plante,X.id_talle,X.id_rang+1)
+        YAT=ParamApexTal(id_plante = X.id_plante, id_talle = X.id_talle, id_rang = X.id_rang+1) # ICI MODIF ID_TALLE
         YINT=ParamEntrenoeud(X.id_plante, X.id_talle, X.id_rang+1)      # AJOUT SIMON
         X.id_rang += 1
         X.retard = 0
         X.total_created_leaves += 1
         X.organ_lengths_dict[YP.id_rang] = {'limb': YF.Taillelimbe, 'sheath': YF.Taillegaine, 'internode': YINT.length}
         
-        # Ajout d un nouvel apex dans le dictionnaire
-        apex_id = str(YAT.id_plante) + '_' + str(YAT.id_talle) + '_' + str(YAT.id_rang)
-        apex_dict = {'id_plante' : YAT.id_plante,'id_talle' : YAT.id_talle, 'id_rang' : YAT.id_rang}
-        output_dict[apex_id] = (apex_dict)
         
         # -------------------------------------------------------------------------------------------------
         # ------------------------------------ Number of primodia -----------------------------------------
@@ -1747,7 +1722,6 @@ apex(X):
           X.primordia_number += flowering_model.param.coeff_primordia_emission_reproductive - 1
           if X.final_leaf_number is None:
             X.final_leaf_number = X.total_created_leaves + X.primordia_number
-            output_dict[apex_id]['final_leaf_number'] = X.final_leaf_number
             
         produce RollR(180) phytomere(YP, X) bourgeonRoot(Yb, YINT) ApexTal(YAT) Entrenoeud(YINT, X, YF, YP) FLW SB Feuille(YF, X, YP) FLW EB apex(X)
         
@@ -1809,7 +1783,7 @@ apex(X):
 
 
 ApexTal(X):
-  global les_feuilles,Surfoliairetotale,alea1,alea1_index,alea2, output_dict
+  global les_feuilles,Surfoliairetotale,alea1,alea1_index,alea2
   if option_tallage == True:
     if groupe=='croissance':
       vtx_feuille_ref=[x for x in les_feuilles if (mtg.property('ParamFeuille').get(x).id_plante==X.id_plante and mtg.property('ParamFeuille').get(x).id_talle==X.id_talle and mtg.property('ParamFeuille').get(x).id_rang==X.id_rang+2)]
@@ -1831,16 +1805,16 @@ ApexTal(X):
             nb_talle[X.id_plante]=nb_talle[X.id_plante]+1
             Seuil[X.id_plante].append(seuil)
             Taille_finale_gaine[X.id_plante].append([5.5,5.5])
-            YP=ParamPhytomere(X.id_plante,nb_talle[X.id_plante],id_rang=0)
+            YP=ParamPhytomere(X.id_plante,nb_talle[X.id_plante],id_rang=1)
             YF=ParamFeuille(age=0,Agecroiss=0,Taillefeuille=0,id_plante=X.id_plante,id_talle=nb_talle[X.id_plante],id_rang=1,Ymax=Premiecroiss[X.id_plante],Taillefinalelimbe=0.8*Premiecroiss[X.id_plante],Taillefinalegaine=0.2*Premiecroiss[X.id_plante])
             Yb=ParambourgeonRoot(X.id_plante,nb_talle[X.id_plante],id_rang=1)
             YAT=ParamApexTal(X.id_plante,nb_talle[X.id_plante],id_rang=1)
             YA=ParamApex(X.id_plante,nb_talle[X.id_plante],id_rang=1)
             YINT=ParamEntrenoeud(X.id_plante,id_talle=0,id_rang=1)      # AJOUT SIMON
-            # Ajout d un nouvel apex dans le dictionnaire
-            apex_id = str(YAT.id_plante) + '_' + str(YAT.id_talle) + '_' + str(YAT.id_rang)
-            apex_dict = {'id_plante' : YAT.id_plante,'id_talle' : YAT.id_talle, 'id_rang' : YAT.id_rang}
-            output_dict[apex_id] = (apex_dict)
+            
+            YA.organ_lengths_dict = {YP.id_rang: {'limb': YF.Taillelimbe, 'sheath': YF.Taillegaine, 'internode': YINT.length}}
+            print 'longueur du limbe ' + str(YF.Taillelimbe)
+            
             produce SB phytomere(YP, YA) RollR(95) GetHead(0, 0, 0) bourgeonRoot(Yb, YINT) ApexTal(YAT) Entrenoeud(YINT, YA, YF, YP) FLW SB Feuille(YF, YA, YP) FLW EB apex(YA) EB
           
           if (rapportS9_SSol>ParamP[X.id_plante]['SENSETALLAGE']):
@@ -1849,16 +1823,15 @@ ApexTal(X):
               nb_talle[X.id_plante]=nb_talle[X.id_plante]+1
               Seuil[X.id_plante].append(seuil)
               Taille_finale_gaine[X.id_plante].append([5.5,5.5])
-              YP=ParamPhytomere(X.id_plante,nb_talle[X.id_plante],id_rang=0)
+              YP=ParamPhytomere(X.id_plante,nb_talle[X.id_plante],id_rang=1)
               YF=ParamFeuille(age=0,Agecroiss=0,Taillefeuille=0,id_plante=X.id_plante,id_talle=nb_talle[X.id_plante],id_rang=1,Ymax=Premiecroiss[X.id_plante],Taillefinalelimbe=0.8*Premiecroiss[X.id_plante],Taillefinalegaine=0.2*Premiecroiss[X.id_plante])
               Yb=ParambourgeonRoot(X.id_plante,nb_talle[X.id_plante],id_rang=1)
               YAT=ParamApexTal(X.id_plante,nb_talle[X.id_plante],id_rang=1)
               YA=ParamApex(X.id_plante,nb_talle[X.id_plante],id_rang=1)
               YINT=ParamEntrenoeud(X.id_plante,id_talle=0,id_rang=1)      # AJOUT SIMON
-              # Ajout d un nouvel apex dans le dictionnaire
-              apex_id = str(YAT.id_plante) + '_' + str(YAT.id_talle) + '_' + str(YAT.id_rang)
-              apex_dict = {'id_plante' : YAT.id_plante,'id_talle' : YAT.id_talle, 'id_rang' : YAT.id_rang}
-              output_dict[apex_id] = (apex_dict)
+              
+              YA.organ_lengths_dict = {YP.id_rang: {'limb': YF.Taillelimbe, 'sheath': YF.Taillegaine, 'internode': YINT.length}}
+              
               produce SB phytomere(YP, YA) RollR(95) GetHead(0, 0, 0) bourgeonRoot(Yb, YINT) ApexTal(YAT) Entrenoeud(YINT, YA, YF, YP) FLW SB Feuille(YF, YA, YP) FLW EB apex(YA) EB
             else:
               produce
