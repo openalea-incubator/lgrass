@@ -42,7 +42,7 @@ num_pointe=0
 num_primordium=0
 
 LSTEP=1
-DureeExp = 200
+DureeExp = 600
 
 ##### Parametre scene #####
 OptionRacine='SansRacines' 
@@ -87,7 +87,7 @@ alea1=[random.random() for x in xrange(4000)]
 alea2=[random.random() for x in xrange(4000)]
 
 ##### Activation du tallage
-option_tallage = True
+option_tallage = False
 
 ##### Activation de la senescence
 option_senescence = False
@@ -178,7 +178,7 @@ parameters['Plante']=['ParamPlante']
 
 
 class ParamPhytomere:
-  def __init__(self, id_plante, id_talle, id_rang, age=0, angletal=0, organ_lengths={}):#, Carbdescend=0, Carbmonte=0):
+  def __init__(self, id_plante=0, id_talle=0, id_rang=1, age=0, angletal=0, organ_lengths={}):#, Carbdescend=0, Carbmonte=0):
     self.id_plante=id_plante
     self.id_talle=id_talle
     self.id_rang=id_rang
@@ -268,7 +268,7 @@ scales['apex']=4
 parameters['apex']=['ParamApex']
 
 class ParamApexTal:
-  def __init__(self,id_plante,id_talle,id_rang=1,retard=0, day = 0, primary_induction_index = 0, secondary_induction_index = 0, phenological_state = 'vegetative'):
+  def __init__(self,id_plante,id_talle=0,id_rang=1,retard=0, day = 0, primary_induction_index = 0, secondary_induction_index = 0, phenological_state = 'vegetative'):
     self.id_plante=id_plante
     self.id_talle=id_talle
     self.id_rang=id_rang
@@ -1247,7 +1247,7 @@ Plante(X):
     if TPS ==2:
       Seuil.append([5.5])
       Taille_finale_gaine.append([[5.5,5.5]])
-      Y1=ParamPhytomere(id_plante = X.id_plante, id_talle = 0, id_rang = 1)
+      Y1=ParamPhytomere(id_plante = X.id_plante, id_talle = 0)
       YF=ParamFeuille(age=0, Agecroiss=0, Taillefeuille=0, id_plante=X.id_plante ,id_rang=1, Ymax=Premiecroiss[X.id_plante], Taillefinalelimbe=0.8*Premiecroiss[X.id_plante], Taillefinalegaine=0.2*Premiecroiss[X.id_plante])
       Yb=ParambourgeonRoot(X.id_plante,id_talle=0,id_rang=1)
       YAT=ParamApexTal(X.id_plante,id_talle=0,id_rang=1)
@@ -1479,7 +1479,11 @@ Feuille(X, X_apex, X_phytomere):
       largegaine=max((2/pi)*(paramManagement['CoefDirLonLarAjust']*log(max(X.Taillegaine*5,1))-paramManagement['OrdOriLonLarAjust']),0.1)
       X.surface+=largegaine*pi*X.Taillegaine
       
-      # Remplissage des hauteurs d organes 
+      # Remplissage des hauteurs d organes
+      print X.id_rang
+      print 'talle ' +str(X.id_talle)
+      print X_apex.organ_lengths_dict
+      
       X_apex.organ_lengths_dict[X.id_rang]['sheath'] = X.Taillegaine
       X_apex.organ_lengths_dict[X.id_rang]['limb'] = X.Taillelimbe
       
@@ -1645,7 +1649,7 @@ apex(X):
   #print 'Nombre final de feuilles : ' + str(X.final_leaf_number)
   #print 'Nombre de primordia : ' + str(X.primordia_number)
   #print 'Nombre d epillets crees : ' + str(X.spikelet_created)
-  #print 'La talle epie le : ' + str(X.heading_date)
+  print 'La talle epie le : ' + str(X.heading_date)
   
   # ------------------------------------------------------------------------------------------------
   # ------------------------- Management of the flowering state of the apex ------------------------
@@ -1665,16 +1669,10 @@ apex(X):
     if X.day < current_day:
       X.day = current_day
       daily_temperature = meteo.mean_temperature[meteo.id_day == current_day].iloc[0]
-      daily_daylength = meteo.daylength[meteo.id_day == current_day].iloc[0]
+      daily_daylength = meteo.daylength[meteo.id_day == current_day].iloc[0]      
       
-      df_induction = df_induction.append({'GDD': TPS, 'Day': current_day, 'Daily_mean_temperature': daily_temperature, 'Daily_daylength': daily_daylength, 'Id_plante': X.id_plante, 'Id_talle': X.id_talle, 'Leaf_produced': X.total_created_leaves, 'Primordia_on_apex': X.primordia_number, 'Spikelet_number': X.spikelet_created, 'Vernalisation_rate': X.primary_induction_index*100, 'Secondary_induction_rate': X.secondary_induction_index*100, 'Heading_date': X.heading_date}, ignore_index = True)
-      
-      for phytomere_rank in X.organ_lengths_dict.keys():
-        for organ in X.organ_lengths_dict[phytomere_rank].keys():
-          df_organ_lengths = df_organ_lengths.append({'GDD': TPS, 'Day': current_day, 'Id_plante': X.id_plante, 'Id_talle': X.id_talle, 'Id_rang': phytomere_rank, 'Organ': organ, 'Length': X.organ_lengths_dict[phytomere_rank][organ]}, ignore_index = True)
-      
-      print 'Talle' + str(X.id_talle)
-      print X.organ_lengths_dict
+      #print 'Talle' + str(X.id_talle)
+      #print X.organ_lengths_dict
       
       if X.phenological_state == 'vegetative':
         X.primary_induction_index += flowering_model.vernalisation_function(daily_temperature)
@@ -1686,6 +1684,13 @@ apex(X):
         X.secondary_induction_index += flowering_model.photoperiod_induction_function(daily_daylength)
         if X.secondary_induction_index >= 1:
           X.phenological_state = 'reproductive'
+          
+      print 'Apex: ' + str(X.id_talle) + ' Vern: ' + str(X.primary_induction_index) + ' Photo: ' + str(X.secondary_induction_index)
+      df_induction = df_induction.append({'GDD': TPS, 'Day': current_day, 'Daily_mean_temperature': daily_temperature, 'Daily_daylength': daily_daylength, 'Id_plante': X.id_plante, 'Id_talle': X.id_talle, 'Leaf_produced': X.total_created_leaves, 'Primordia_on_apex': X.primordia_number, 'Spikelet_number': X.spikelet_created, 'Vernalisation_rate': X.primary_induction_index, 'Secondary_induction_rate': X.secondary_induction_index, 'Heading_date': X.heading_date}, ignore_index = True)
+      
+      for phytomere_rank in X.organ_lengths_dict.keys():
+        for organ in X.organ_lengths_dict[phytomere_rank].keys():
+          df_organ_lengths = df_organ_lengths.append({'GDD': TPS, 'Day': current_day, 'Id_plante': X.id_plante, 'Id_talle': X.id_talle, 'Id_rang': phytomere_rank, 'Organ': organ, 'Length': X.organ_lengths_dict[phytomere_rank][organ]}, ignore_index = True)
   
   if groupe=='croissance':     
     if (X.phenological_state == 'vegetative' or X.phenological_state == 'vernalized' or (X.phenological_state == 'reproductive' and (X.total_created_leaves < X.final_leaf_number or X.final_leaf_number is None))):
@@ -1696,7 +1701,7 @@ apex(X):
         YP=ParamPhytomere(X.id_plante,X.id_talle,X.id_rang+1)
         YF=ParamFeuille(age=0,Agecroiss=0,Taillefeuille=0,id_plante=X.id_plante,id_talle=X.id_talle,id_rang=X.id_rang+1,Ymax=Premiecroiss[X.id_plante],Taillefinalelimbe=0.8*Premiecroiss[X.id_plante],Taillefinalegaine=0.2*Premiecroiss[X.id_plante])
         Yb=ParambourgeonRoot(X.id_plante,X.id_talle,X.id_rang+1)
-        YAT=ParamApexTal(id_plante = X.id_plante, id_talle = X.id_talle, id_rang = X.id_rang+1) # ICI MODIF ID_TALLE
+        YAT=ParamApexTal(id_plante = X.id_plante, id_talle = X.id_talle, id_rang = X.id_rang) # ICI MODIF ID_TALLE
         YINT=ParamEntrenoeud(X.id_plante, X.id_talle, X.id_rang+1)      # AJOUT SIMON
         X.id_rang += 1
         X.retard = 0
@@ -2390,6 +2395,7 @@ endlsystem
 __lpy_code_version__ = 1.1
 
 def __initialiseContext__(context):
+	context.animation_timestep = 0.032
 	context.options.setSelection('Module declaration',1)
 	import openalea.plantgl.all as pgl
 	profilelimbe = pgl.NurbsCurve2D(	
