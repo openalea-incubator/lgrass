@@ -42,7 +42,7 @@ num_pointe=0
 num_primordium=0
 
 LSTEP=1
-DureeExp = 1000
+DureeExp = 500
 
 ##### Parametre scene #####
 OptionRacine='SansRacines' 
@@ -87,7 +87,7 @@ alea1=[random.random() for x in xrange(4000)]
 alea2=[random.random() for x in xrange(4000)]
 
 ##### Activation du tallage
-option_tallage = False
+option_tallage = True
 
 ##### Activation de la senescence
 option_senescence = False
@@ -111,30 +111,30 @@ if flowering_model == None:
 # ------------------------------------------------------------------------------------------------
 # -------------------------------- Radiations, Caribu ----------------------------------------
 # ------------------------------------------------------------------------------------------------
-# - option_caribu: Caribu activation
+# - option_caribu: Caribu activation ('On'/'Off')
 #        par_incident:
-#        azimuts
-#        zenits
-#        diffuse_model
-#        scene_unit
+#        azimuths: number of light sources depending on azimuth
+#        zeniths: number of light sources depending on zenith
+#        diffuse_model: sky type
+#        scene_unit: unit used in the lscene
 # - option_tiller_regression: allow tiller regression if it does not intercept enough radiation
 # - option_mophogenetic_regulation_by_carbon: activate limitation of of growth in radiation 
 #   interception is to low
 # ------------------------------------------------------------------------------------------------
 
-option_caribu = 'Off'
+option_caribu = 'On'
 
 par_incident = 1
-azimuts = 4
-zenits = 5
+azimuths = 4
+zeniths = 5
 diffuse_model = 'soc'
 scene_unit = 'mm'
 
-option_tiller_regression = False
+option_tiller_regression = True
 if option_tiller_regression == True:
   option_caribu = 'On'
   period_considered_tiller_regression = 10 # days
-  radiation_threshold = 100 # rayonnement
+  radiation_threshold = 100000 # rayonnement
 
 option_mophogenetic_regulation_by_carbone = False
 if option_mophogenetic_regulation_by_carbone == True:
@@ -231,7 +231,7 @@ parameters['Entrenoeud']=[]
 
 
 class ParamFeuille:
-  def __init__(self,age=0, Agecroiss=0, Taillefeuille=0, id_plante=0, id_talle=0, id_rang=1, Ymax= 0, Difftps=0,  Taillefinalelimbe=0, Taillefinalegaine=0., Taillelimbe=0, Taillegaine=0, Phase='cachee', rapportK=0.2, coupe=0.,Cutstatus='intact', angleinsert=0,angletal=0., geno=0, surface=0, biomass=0., Besoinencroiss=0,TailleEmergence=0.,R=0.973):
+  def __init__(self,age=0, Agecroiss=0, Taillefeuille=0, id_plante=0, id_talle=0, id_rang=1, Ymax=0, Difftps=0,  Taillefinalelimbe=0, Taillefinalegaine=0., Taillelimbe=0, Taillegaine=0, Phase='cachee', rapportK=0.2, coupe=0.,Cutstatus='intact', angleinsert=0,angletal=0., geno=0, surface=0, biomass=0., Besoinencroiss=0,TailleEmergence=0.,R=0.973):
     self.age=age                             # Age de la feuille
     self.Agecroiss=Agecroiss                 # 
     self.Taillefeuille=Taillefeuille         # Taille de la feuille au temps t
@@ -268,7 +268,7 @@ scales['SegFeuille']=5
 parameters['SegFeuille']=['ParamSegFeuille']
 
 class ParamEntrenoeud:
-  def __init__(self, id_plante, id_talle, id_rang = 1, internode_type = 'short_internode', length = 0, width = 2, final_length = 10):
+  def __init__(self, id_plante, id_talle, id_rang=1, internode_type='short_internode', length=0, width=2, final_length=10):
     self.id_plante = id_plante                    # Id of the plant (between 0 and number of plants-1) 
     self.id_talle = id_talle                      # Id of the tiller
     self.id_rang = id_rang                        # Rank of the phytomere
@@ -280,7 +280,7 @@ scales['Entrenoeud']=4
 parameters['Entrenoeud']=['ParamEntrenoeud']
 
 class ParamApex:
-  def __init__(self, id_plante, id_talle, id_rang = 1,retard = 0, total_emerged_leaves = 0, total_created_leaves = 0, day = 0, primary_induction_index = 0, secondary_induction_index = 0, phenological_state = 'vegetative', primordia_number = 3, spikelet_created = 0, final_leaf_number = None, final_spikelet_number = None, organ_lengths_dict = {}, terminal_spikelet_height = 0, heading_date = None, appearance_date = None):   # PARAMETRE
+  def __init__(self, id_plante, id_talle, id_rang=1,retard=0, total_emerged_leaves=0, total_created_leaves=0, day=0, primary_induction_index=0, secondary_induction_index=0, phenological_state='vegetative', primordia_number=3, spikelet_created=0, final_leaf_number=None, final_spikelet_number=None, organ_lengths_dict={}, terminal_spikelet_height=0, heading_date=None, appearance_date=None):   # PARAMETRE
     self.id_plante = id_plante
     self.id_talle = id_talle
     self.id_rang = id_rang
@@ -304,7 +304,7 @@ scales['apex']=4
 parameters['apex']=['ParamApex']
 
 class ParamApexTal:
-  def __init__(self,id_plante,id_talle=0,id_rang=1,retard=0, day = 0, primary_induction_index = 0, secondary_induction_index = 0, phenological_state = 'vegetative'):
+  def __init__(self, id_plante, id_talle=0, id_rang=1, retard=0, day=0, primary_induction_index=0, secondary_induction_index=0, phenological_state='vegetative'):
     self.id_plante=id_plante
     self.id_talle=id_talle
     self.id_rang=id_rang
@@ -335,7 +335,7 @@ scales['Epillet']=5
 parameters['Epillet']=['ParamEpillet']
 
 class ParambourgeonRoot:
-  def __init__(self,id_plante,id_talle=0,id_rang=1,nb_prod_root=0):
+  def __init__(self,id_plante, id_talle=0, id_rang=1, nb_prod_root=0):
     self.id_plante=id_plante
     self.id_talle=id_talle
     self.id_rang=id_rang
@@ -344,7 +344,7 @@ scales['bourgeonRoot']=4
 parameters['bourgeonRoot']=['ParambourgeonRoot']
 
 class ParamRacine:
-  def __init__(self,age=0, id_plante=0 ,id_talle=0 ,id_rang=0,axe_arret=0,lateral_arret=0,feuil_ref=0):
+  def __init__(self,age=0, id_plante=0, id_talle=0 ,id_rang=0, axe_arret=0, lateral_arret=0, feuil_ref=0):
     self.age=age
     self.id_plante=id_plante
     self.id_talle=id_talle
@@ -389,7 +389,7 @@ scales['Site']=5
 parameters['Site']=['primord']
 
 class seg:
-  def __init__(self, jourForm,diametre,longueur=0.,id_pointe_axe=0):
+  def __init__(self, jourForm, diametre, longueur=0., id_pointe_axe=0):
     self.jourForm=jourForm
     self.diametre=diametre
     self.longueur=longueur
@@ -398,9 +398,9 @@ scales['segment']=5
 parameters['segment']=['seg']
 
 #########   definition sol   #########
-path_sol=os.path.join(INPUTS_DIRPATH,'sol2.txt')
-fichier_sol=open(path_sol,"rb")
-tableau_sol=csv.reader(fichier_sol,delimiter='	')
+path_sol=os.path.join(INPUTS_DIRPATH, 'sol2.txt')
+fichier_sol=open(path_sol, "rb")
+tableau_sol=csv.reader(fichier_sol, delimiter='	')
 Sol=[]
 j=0
 for x in tableau_sol:
@@ -442,11 +442,11 @@ module FLW
 TREE=[False,False,True,False,True]
 
 ### Calcul du rayonnement direct via Caribu ###
-def apply_caribu(lscene, energy=1, azimuts=4, zenits=5, diffuse_model='soc', scene_unit='mm'):
+def apply_caribu(lscene, energy=1, azimuths=4, zeniths=5, diffuse_model='soc', scene_unit='mm'):
   # generation des sources
   from alinea.caribu.sky_tools import GenSky, GetLight
   #: Diffuse light sources : Get the energy and positions of the source for each sector as a string
-  sky_string = GetLight.GetLight(GenSky.GenSky()(energy, diffuse_model, azimuts, zenits))  #: (Energy, soc/uoc, azimuts, zenits)
+  sky_string = GetLight.GetLight(GenSky.GenSky()(energy, diffuse_model, azimuths, zeniths))  #: (Energy, soc/uoc, azimuths, zeniths)
   # Convert string to list in order to be compatible with CaribuScene input format
   sky = []
   for string in sky_string.split('\n'):
@@ -461,8 +461,8 @@ def apply_caribu(lscene, energy=1, azimuts=4, zenits=5, diffuse_model='soc', sce
     output=c_scene.run(direct=True,infinite=True)
   else:
     output=c_scene.run(direct=True,infinite=False)  
-  c_res=output[1]['default_band']['Eabs']   
-  return c_res
+  raw, c_res = output
+  return c_res['default_band']
 
 ### Creation du MTG ###
 def my_axialtree2mtg(tree, scale, scene, parameters, TREE=[]):
@@ -744,7 +744,7 @@ def Start():
   global NBlignes,NBcolonnes,posPlante,Espacement #Parametres scene
   global Surfoliairetotale,Surfoliaireencours,Premiecroiss #Definition des groupes de production
   global Alpha,Beta,t1,t2,t3,Caribu #Relation allometrique
-  global current_day, meteo, radiation_interception, tiller_appearance
+  global current_day, meteo, radiation_interception, tiller_appearance, tiller_to_remove
   
   alea1_index=[0]*nb_plantes
   
@@ -822,6 +822,8 @@ def Start():
   
   radiation_interception = pd.DataFrame()
   
+  tiller_to_remove = pd.DataFrame()
+  
   ##### Ecriture des fichiers de sortie #####
 #  chemin_fichier1=open(os.path.join(OUTPUTS_DIRPATH,outvarfile),"wb")
 #  surface_biomass=csv.writer(chemin_fichier1)
@@ -837,10 +839,10 @@ def Start():
 
 
 
-def StartEach():
+def StartEach(lstring):
   global RootPotentialNewBiomass,longueur_totale_feuille,Rootbiom,groupe,dt,reprise_coupe,CoupeTaille
   global df_induction, df_organ_lengths
-  global current_day, meteo, tiller_appearance
+  global current_day, meteo, tiller_appearance, tiller_to_remove, mortality_zone
 #  global apex_characteristics, internode_characteristics
   
   RootPotentialNewBiomass=[0]*(nb_plantes)
@@ -867,6 +869,18 @@ def StartEach():
       for i in xrange(len(Seuil)):
         for j in xrange(len(Seuil[i])):
           Seuil[i][j]=5.5
+  
+  
+  #### Régression des talles : Détermination des zones où appliquer le Cut
+  if option_tiller_regression == True and current_day > 1:
+    mortality_zone = pd.DataFrame()
+    for i in [i for i in range(len(lstring))]:
+     if lstring[i] == '[' and lstring[i+1] == 'phytomere':
+       mortality_zone = mortality_zone.append(pd.DataFrame({'id_plante': [lstring[i+1][0].id_plante], 'id_talle': [lstring[i+1][0].id_talle], 'id_rang': [lstring[i+1][0].id_rang]}))
+    
+    
+    
+    
     
     ### Declenchement de la coupe selon la taille de la plante ###
     #if TPS>1 and groupe=='croissance':
@@ -892,7 +906,7 @@ def EndEach(lstring,lscene):
   #global simul_expe
   global TPS,dt,mtg,Surfoliairetotale,les_pointes,les_primordiums,RootPotentialNewBiomass,les_feuilles,les_feuilles_emergees,les_racines, Reserve,Biomasse_aerienne,Surfoliaireencours,Biomasse_racinaire,fichier_test,groupe,PourcentageRootGrowthRealized,PourcentageFeuilGrowthRealized,Demande_feuille,C,reprise_coupe,Ray,BiomProd,option_caribu
   global current_day, meteo
-  global df_induction, df_organ_lengths, radiation_interception, tiller_appearance
+  global df_induction, df_organ_lengths, radiation_interception, tiller_appearance, tiller_to_remove
 #  global apex_characteristics, internode_characteristics # AJOUT SIMON
   
   TPS=TPS+dt
@@ -907,6 +921,7 @@ def EndEach(lstring,lscene):
   newSB=0 #Nouvelle biomasse aerienne
   
   
+  
   # ------------------------------------------------------------------------------------------------
   # -------------------------------------- Use of Caribu -------------------------------------------
   # ------------------------------------------------------------------------------------------------
@@ -916,15 +931,14 @@ def EndEach(lstring,lscene):
   ### Utilisation de Caribu ###  
   if TPS >= meteo[meteo.experimental_day == current_day].thermal_time_cumul.iloc[0] and option_caribu=='On':
     timing_method1=t.time()
-    res=apply_caribu(lscene, energy=par_incident, azimuts=azimuts, zenits=zenits, diffuse_model=diffuse_model, scene_unit=scene_unit)
-    print res
+    res=apply_caribu(lscene, energy=par_incident, azimuths=azimuths, zeniths=zeniths, diffuse_model=diffuse_model, scene_unit=scene_unit)
     print('temps d exec de caribu:',t.time()-timing_method1)
-    for id, v in res.items():
+    for id, v in res['Ei'].items():
        Ray[lstring[id][0].id_plante]+=v # TODO: a multiplier par la surface de lobjet
        id_plante = lstring[id][0].id_plante
        id_talle = lstring[id][0].id_talle
-       radiation_interception = radiation_interception.append(pd.DataFrame({'id_plante': [id_plante], 'id_talle': [id_talle], 'date': [current_day], 'organ': lstring[id].name, 'radiation': [v]}))
-    print radiation_interception
+       area = res['area'][id]
+       radiation_interception = radiation_interception.append(pd.DataFrame({'id_plante': [id_plante], 'id_talle': [id_talle], 'date': [current_day], 'organ': lstring[id].name, 'Ei': [v], 'area': [area]}))
     
     # ------------------------------------------------------------------------------------------------
     # --------------------------- Conditions for tiller regression  ----------------------------------
@@ -937,22 +951,27 @@ def EndEach(lstring,lscene):
     # ------------------------------------------------------------------------------------------------
     if option_tiller_regression == True and len(tiller_appearance) > 0:
       tiller_to_remove = pd.DataFrame()
+      
       for id_plante in np.unique(tiller_appearance.id_plante):
         plant_tillers = tiller_appearance[tiller_appearance.id_plante == id_plante]
         youngest_tillers = plant_tillers[plant_tillers.appearance_date == max(plant_tillers.appearance_date)]
         youngest_tillers_radiations = pd.DataFrame()
+        
         for id_talle in youngest_tillers.id_talle:
           select_plant = radiation_interception.id_plante == id_plante
           select_tiller = radiation_interception.id_talle == id_talle
           time_condition = current_day - period_considered_tiller_regression <= radiation_interception.date
-          youngest_tillers_radiations = youngest_tillers_radiations.append(pd.DataFrame({'id_talle': [id_talle], 'radiation': [radiation_interception[select_plant][select_tiller][time_condition].radiation.sum()]}))
-        potential_tiller_to_remove = youngest_tillers_radiations[youngest_tillers_radiations.radiation == min(youngest_tillers_radiations.radiation)]
-        if potential_tiller_to_remove.radiation <= radiation_threshold:
-          tiller_to_remove = tiller_to_remove.append(pd.DataFrame({'id_plante': [id_plante], 'id_talle': [potential_tiller_to_remove.id_talle]}))
+          df = radiation_interception[select_plant & select_tiller & time_condition]
+          tiller_raditation = (df.Ei * df.area).sum() / df.area.sum()
+          youngest_tillers_radiations = youngest_tillers_radiations.append(pd.DataFrame({'id_talle': [id_talle], 'Ei_tiller': [tiller_raditation]}))
+        
+        potential_tiller_to_remove = youngest_tillers_radiations[youngest_tillers_radiations.Ei_tiller == min(youngest_tillers_radiations.Ei_tiller)]
+        if potential_tiller_to_remove.Ei_tiller.item() <= radiation_threshold:
+          tiller_to_remove = tiller_to_remove.append(pd.DataFrame({'id_plante': [id_plante], 'id_talle': [potential_tiller_to_remove.id_talle.item()]}))
     
     if option_mophogenetic_regulation_by_carbone == True:
       for ID in xrange(nb_plantes):
-        BiomProd[ID]=Ray[ID]*RUE # Ray: molPAR.m-2    RUE : g.MJ-1
+        BiomProd[ID] = Ray[ID]*RUE # Ray: molPAR.m-2    RUE : g.MJ-1
         print('Plante %s, Ray: %s, BiomProd: %s' % (ID, Ray[ID],BiomProd[ID]))
   
   for ID in xrange(nb_plantes):
@@ -970,9 +989,9 @@ def EndEach(lstring,lscene):
     Surfoliairetotale[ID]=sum([mtg.property('ParamFeuille').get(x).surface for x in les_feuilles])
     
     if Biomasse_aerienne[ID]>0 and t1[ID]*exp(TPS*t2[ID])-t1[ID]>0 and Surfoliairetotale[ID] > 0 and Demande_feuille[ID] != 0: #Verifie qu'il y a une partie aerienne et que TPS, t1 et t2 sont positifs          # Surfoliairetotale[ID] > 0 and Demande_feuille[ID] > 0 : ajout SIMON
-      if option_mophogenetic_regulation_by_carbone==True:
+      if option_mophogenetic_regulation_by_carbone == True:
         print "On"
-        BiomassCree=BiomProd[ID]
+        BiomassCree = BiomProd[ID]
       else:
         print "Off"
         BiomassCree=t2[ID]*(Biomasse_aerienne[ID]+t1[ID])*(1+Beta[ID]*Alpha[ID]*(Biomasse_aerienne[ID])**(Alpha[ID]-1))
@@ -1346,14 +1365,20 @@ Plante(X):
 
 
 phytomere(X, X_AP):
-  global groupe
-  if groupe=='croissance':
-    X.age=X.age+1
-    if (X.id_talle!=0 and X.id_rang==1):
-      if (X.age>=120 and X.angletal<=ParamP[X.id_plante]['divergetalle']):
-        X.angletal=X.angletal+(1./3.)
-  if groupe=='defoliation':
-    produce phytomere(X, X_AP)
+  global groupe, tiller_to_remove, mortality_zone
+  if option_tiller_regression == True:
+    if len(tiller_to_remove) > 0:
+      if len(tiller_to_remove[(tiller_to_remove.id_plante == X.id_plante) & (tiller_to_remove.id_talle == X.id_talle)]) > 0 and len(mortality_zone[(mortality_zone.id_plante == X.id_plante) & (mortality_zone.id_talle == X.id_talle) & (mortality_zone.id_rang == X.id_rang)]) > 0:
+        print 'Tiller ', X.id_talle, ' of plant ', X.id_plante, ' is dead'
+        produce Cut()
+  else:
+    if groupe == 'croissance':
+      X.age=X.age+1
+      if (X.id_talle!=0 and X.id_rang==1):
+        if (X.age>=120 and X.angletal<=ParamP[X.id_plante]['divergetalle']):
+          X.angletal=X.angletal+(1./3.)
+    if groupe=='defoliation':
+      produce phytomere(X, X_AP)
 
 
 Feuille(X, X_apex, X_phytomere):
@@ -1740,7 +1765,6 @@ apex(X):
       X.day = current_day
       daily_temperature = meteo.mean_temperature[meteo.experimental_day == current_day].iloc[0]
       daily_daylength = meteo.daylength[meteo.experimental_day == current_day].iloc[0]
-      print daily_daylength
       
       if X.phenological_state == 'vegetative':
         X.primary_induction_index += flowering_model.vernalisation_function(daily_temperature)
@@ -1775,8 +1799,9 @@ apex(X):
         X.retard = 0
         X.total_created_leaves += 1
         X.organ_lengths_dict[YP.id_rang] = {'limb': YF.Taillelimbe, 'sheath': YF.Taillegaine, 'internode': YINT.length}
-        if X.total_emerged_leaves > 0:
-          tiller_appearance = tiller_appearance.append(pd.DataFrame({'id_plante': [X.id_plante], 'id_talle': [X.id_talle], 'appearance_date': [TPS]}))
+        if X.appearance_date == None and X.total_emerged_leaves > 0:
+          X.appearance_date = TPS
+          tiller_appearance = tiller_appearance.append(pd.DataFrame({'id_plante': [X.id_plante], 'id_talle': [X.id_talle], 'appearance_date': [X.appearance_date]}))
         
         
         
