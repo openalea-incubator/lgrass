@@ -49,4 +49,4 @@ class GraphicOutputs:
 
 
 graph = GraphicOutputs()
-graph.graph_length(r'D:\Simon\Python\lgrass\lgrass\outputs', '\output_organ_lengths')
+graph.graph_length(r'outputs', '\output_organ_lengths')
