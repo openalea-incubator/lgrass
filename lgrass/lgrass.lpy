@@ -42,7 +42,7 @@ num_pointe=0
 num_primordium=0
 
 LSTEP=1
-DureeExp = 1500
+DureeExp = 300
 
 ##### Parametre scene #####
 OptionRacine='SansRacines' 
@@ -101,12 +101,30 @@ option_floraison = True        # True or False
 option_graphic_outputs = True
 
 
-#### Pour lancer L-grass hors du batch
-flowering_model = None
+#### Load flowering model
+from lgrass import flowering_functions
+flowering_model = flowering_functions.FloweringFunctions()
 
-if flowering_model == None:
-  from lgrass import flowering_functions
-  flowering_model = flowering_functions.FloweringFunctions()
+
+# ------------------------------------------------------------------------------------------------
+# -------------------------------- Meteorological data ----------------------------------------
+# ------------------------------------------------------------------------------------------------
+# Import of meteorological data from a .csv file with separator ';'
+# Column names should be:
+#   - doy: integer (1 = 01/01)
+#   - date: YYYY_MM_DD
+#   - mean_temperature: float
+#   - daylength: float
+# ------------------------------------------------------------------------------------------------
+
+from lgrass import meteo_ephem
+sowing_date = "2007_04_01"
+site = 'LUSIGNAN'
+#meteo_path = os.path.join(INPUTS_DIRPATH,'meteo_file.csv')
+meteo_path = 'D:/Simon/Comites_de_these/Comite_de_these_2/Modelisation/Meteo_sites_GEVES_daylength.csv'
+
+
+
 
 
 # ------------------------------------------------------------------------------------------------
@@ -760,27 +778,17 @@ def Start():
   TPS=0.
   TPS_expe=range(1000)
   
-  # ------------------------------------------------------------------------------------------------
-  # -------------------------------- Meteorological data ----------------------------------------
-  # ------------------------------------------------------------------------------------------------
-  # Import of meteorological data from a .csv file with separator ';'
-  # Column names should be:
-  #   - doy: integer (1 = 01/01)
-  #   - date: YYYY_MM_DD
-  #   - mean_temperature: float
-  #   - daylength: float
-  # ------------------------------------------------------------------------------------------------
   
   
-  from lgrass import meteo_ephem
-  sowing_date = '2017-10-01'
-  meteo_path = os.path.join(INPUTS_DIRPATH,'meteo_file.csv')
+  
+  # ------------------------------------------------------------------------------------------------
+  # -------------------------------- Thermal time calculation --------------------------------------
+  # ------------------------------------------------------------------------------------------------
   meteo = pd.read_csv(meteo_path, sep=';')
+  meteo = meteo[meteo.site == site]
   meteo = meteo_ephem.thermal_time_calculation(meteo, sowing_date)
   meteo['experimental_day'] = list(range(1, len(meteo) + 1))
   current_day = meteo.experimental_day.tolist()[0]
-  
-  
   
   ##### Creation de parametres vides #####
   Biomasse_aerienne=[0.]*(nb_plantes) # Biomasse foliaire
@@ -819,9 +827,9 @@ def Start():
   #t3=[ParamP[i]['t3'] for i in xrange(nb_plantes)]
   option_caribu="Off"
   
-  df_induction = pd.DataFrame(columns = ['GDD', 'Day' , 'Daily_mean_temperature', 'Daily_daylength', 'Id_plante', 'Id_talle', 'Leaf_produced', 'Primordia_on_apex', 'Spikelet_number', 'Vernalisation_rate', 'Secondary_induction_rate', 'Heading_date'])
+  df_induction = pd.DataFrame(columns = ['GDD', 'Date', 'Site', 'Day', 'Daily_mean_temperature', 'Daily_daylength', 'Id_plante', 'Id_talle', 'Leaf_produced', 'Primordia_on_apex', 'Spikelet_number', 'Vernalisation_rate', 'Secondary_induction_rate', 'Heading_date'])
   
-  df_organ_lengths = pd.DataFrame(columns = ['GDD', 'Day', 'Id_plante', 'Id_talle', 'Id_rang', 'Organ', 'Length'])
+  df_organ_lengths = pd.DataFrame(columns = ['GDD', 'Date', 'Site', 'Day', 'Id_plante', 'Id_talle', 'Id_rang', 'Organ', 'Length'])
   
   tiller_appearance = pd.DataFrame()
   
@@ -1768,6 +1776,7 @@ apex(X):
   if option_floraison == True:
     if X.day < current_day:
       X.day = current_day
+      date = meteo.date[meteo.experimental_day == current_day].iloc[0]
       daily_temperature = meteo.mean_temperature[meteo.experimental_day == current_day].iloc[0]
       daily_daylength = meteo.daylength[meteo.experimental_day == current_day].iloc[0]
       
@@ -1785,11 +1794,11 @@ apex(X):
         if X.secondary_induction_index >= 1:
           X.phenological_state = 'reproductive'
           
-      df_induction = df_induction.append({'GDD': TPS, 'Day': current_day, 'Daily_mean_temperature': daily_temperature, 'Daily_daylength': daily_daylength, 'Id_plante': X.id_plante, 'Id_talle': X.id_talle, 'Leaf_produced': X.total_created_leaves, 'Primordia_on_apex': X.primordia_number, 'Spikelet_number': X.spikelet_created, 'Vernalisation_rate': X.primary_induction_index, 'Secondary_induction_rate': X.secondary_induction_index, 'Heading_date': X.heading_date}, ignore_index = True)
+      df_induction = df_induction.append({'GDD': TPS, 'Date': date, 'Site': site, 'Day': current_day, 'Daily_mean_temperature': daily_temperature, 'Daily_daylength': daily_daylength, 'Id_plante': X.id_plante, 'Id_talle': X.id_talle, 'Leaf_produced': X.total_created_leaves, 'Primordia_on_apex': X.primordia_number, 'Spikelet_number': X.spikelet_created, 'Vernalisation_rate': X.primary_induction_index, 'Secondary_induction_rate': X.secondary_induction_index, 'Heading_date': X.heading_date}, ignore_index = True)
       
       for phytomere_rank in X.organ_lengths_dict.keys():
         for organ in X.organ_lengths_dict[phytomere_rank].keys():
-          df_organ_lengths = df_organ_lengths.append({'GDD': TPS, 'Day': current_day, 'Id_plante': X.id_plante, 'Id_talle': X.id_talle, 'Id_rang': phytomere_rank, 'Organ': organ, 'Length': X.organ_lengths_dict[phytomere_rank][organ]}, ignore_index = True)
+          df_organ_lengths = df_organ_lengths.append({'GDD': TPS, 'Date': date, 'Site': site, 'Day': current_day, 'Id_plante': X.id_plante, 'Id_talle': X.id_talle, 'Id_rang': phytomere_rank, 'Organ': organ, 'Length': X.organ_lengths_dict[phytomere_rank][organ]}, ignore_index = True)
   
   if groupe=='croissance':     
     if (X.phenological_state == 'vegetative' or X.phenological_state == 'vernalized' or (X.phenological_state == 'reproductive' and (X.total_created_leaves < X.final_leaf_number or X.final_leaf_number is None))):
