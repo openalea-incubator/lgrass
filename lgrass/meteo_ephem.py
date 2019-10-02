@@ -11,19 +11,21 @@ def thermal_time_calculation(meteo_data, sowing_date):
     """
     :param meteo_data: dataframe with 2 columns:   date: format 'YYYY_mm_dd'
                                                    temperature: daily mean temperature (float in °C)
-    :param sowing_date: date: format 'YYYY-mm-dd'
+    :param sowing_date: date: format 'YYYY_mm_dd'
     :return:
     """
-    meteo_data.date = pd.to_datetime(meteo_data.date, format='%Y-%m-%d')
+    meteo_data.date = pd.to_datetime(meteo_data.date, format='%Y_%m_%d')
+    meteo_data = meteo_data.sort_values(by=['date'])
     meteo_data.loc[meteo_data.mean_temperature < 0, 'mean_temperature'] = 0
-    for id_missing_value in meteo_data[meteo_data.mean_temperature.isnull()].index:
-        if id_missing_value == min(meteo_data.index) or id_missing_value == max(meteo_data.index):
-            meteo_data.mean_temperature[meteo_data.index == id_missing_value] = 0
-        else:
-            prev_value = meteo_data.mean_temperature[meteo_data.index == id_missing_value - 1].item()
-            next_value = meteo_data.mean_temperature[meteo_data.index == id_missing_value + 1].item()
-            meteo_data.loc[id_missing_value, 'mean_temperature'] = np.mean([prev_value, next_value])
-    meteo_data = meteo_data.loc[meteo_data['date'] >= sowing_date]
+    if len(meteo_data[meteo_data.mean_temperature.isnull()].index) > 0:
+        for id_missing_value in meteo_data[meteo_data.mean_temperature.isnull()].index:
+            if id_missing_value == min(meteo_data.index) or id_missing_value == max(meteo_data.index):
+                meteo_data.mean_temperature[meteo_data.index == id_missing_value] = 0
+            else:
+                prev_value = meteo_data.mean_temperature[meteo_data.index == id_missing_value - 1].item()
+                next_value = meteo_data.mean_temperature[meteo_data.index == id_missing_value + 1].item()
+                meteo_data.loc[id_missing_value, 'mean_temperature'] = np.mean([prev_value, next_value])
+    meteo_data = meteo_data.loc[meteo_data['date'] >= pd.to_datetime(sowing_date, format='%Y_%m_%d')]
     meteo_data['thermal_time_cumul'] = meteo_data.mean_temperature.cumsum()
     return meteo_data
 
@@ -61,14 +63,13 @@ def daylength_for_a_date(date, observer):
     This method calculates daylength for one date and one object of class 'ephem.Observer'
     Arguments:
     - date:
-        date of the day as a string : 'YYYY-mm-dd'
+        date of the day as a string : 'YYYY_mm_dd'
         type: str
     - observer:
-        observer created with set_observer()
-        type: 'ephem.Observer'
+
     return a daylength in hours
     """
-    date_at_noon = datetime.strptime(str(date), '%Y-%m-%d %H:%M:%S') + timedelta(hours=12)
+    date_at_noon = datetime.strptime(str(date), '%Y_%m_%d') + timedelta(hours=12)
     observer.date = date_at_noon
     sunrise = observer.previous_rising(ephem.Sun())                              # GTM hour
     sunrise = datetime.strptime(str(sunrise), '%Y/%m/%d %H:%M:%S')               # GTM hour
@@ -79,7 +80,7 @@ def daylength_for_a_date(date, observer):
     return daylength
 
 
-def daylength_series(data, address):
+def daylength_series(data):
     """
     This method creates a pandas.DataFrame with dates and associated daylengths for a location
     Arguments:
@@ -90,12 +91,19 @@ def daylength_series(data, address):
         address of the geographical location of the site to be simulated
         type: str
     """
-    site = set_observer(address)
-    data.date = pd.to_datetime(data['date'], format='%Y_%m_%d')
-    data['daylength'] = data.apply(lambda x: daylength_for_a_date(x['date'], site), axis=1).tolist()
+    observer = set_observer(data.iloc[0].site)
+    data['daylength'] = data.apply(lambda x: daylength_for_a_date(x['date'], observer), axis=1).tolist()
     return data
 
 
 # meteo = pd.read_csv('D:/Simon/Python/Fichiers_meteo_brut_pour_lgrass/meteo_lusignan_2000_2019.csv', sep=';')
 # meteo = daylength_series(meteo, 'Lusignan')
 # meteo.to_csv('D:/Simon/Python/lgrass/lgrass/inputs/meteo_file.csv', index=False, sep=';')
+
+
+# meteo = pd.read_csv('D:/Simon/Comites_de_these/Comite_de_these_2/Modelisation/Meteo_sites_GEVES.csv', sep=';')
+# meteo_output = pd.DataFrame()
+# for site in set(meteo.site):
+#     meteo_site = daylength_series(meteo[meteo['site'] == site])
+#     meteo_output = meteo_output.append(meteo_site)
+# meteo_output.to_csv('D:/Simon/Comites_de_these/Comite_de_these_2/Modelisation/Meteo_sites_GEVES_daylength.csv', index=False, sep=';')
