@@ -42,7 +42,7 @@ num_pointe=0
 num_primordium=0
 
 LSTEP=1
-DureeExp = 1500
+DureeExp = 500
 
 ##### Parametre scene #####
 OptionRacine='SansRacines' 
@@ -834,18 +834,18 @@ def Start():
   tiller_to_remove = pd.DataFrame()
   
 #  ##### Ecriture des fichiers de sortie #####
-#  chemin_fichier1=open(os.path.join(OUTPUTS_DIRPATH,outvarfile),"wb")
-#  surface_biomass=csv.writer(chemin_fichier1)
-#  surface_biomass.writerow(["TPS","Espacement","Densite","id plante","X.coupe","id talle","ordre","nb_feuillemergees","MS_feuille","Surface foliaire"])
-#  
-#  chemin_fichier2=open(os.path.join(OUTPUTS_DIRPATH,outvarfile2),"wb")
-#  simul_expe=csv.writer(chemin_fichier2)
-#  simul_expe.writerow(["TPS","Espacement","Densite","C","id_plante","nb_feuille","nb_talle_emergees","nb_feuilles_talle1","nb_feuilles_talle2","nb_feuilles_talle3"])
-#  
-#  chemin_fichier3=open(os.path.join(OUTPUTS_DIRPATH,outvarfile3),"wb")
-#  taille_finale_feuille=csv.writer(chemin_fichier3)
-#  taille_finale_feuille.writerow(["TPS","Espacement","Densite","id plante","talle","rang","Phase","taille feuille","taille gaine","taille limbe"])
-#
+  chemin_fichier1=open(os.path.join(OUTPUTS_DIRPATH,outvarfile),"wb")
+  surface_biomass=csv.writer(chemin_fichier1)
+  surface_biomass.writerow(["TPS","Espacement","Densite","id plante","X.coupe","id talle","ordre","nb_feuillemergees","MS_feuille","Surface foliaire"])
+  
+  chemin_fichier2=open(os.path.join(OUTPUTS_DIRPATH,outvarfile2),"wb")
+  simul_expe=csv.writer(chemin_fichier2)
+  simul_expe.writerow(["TPS","Espacement","Densite","C","id_plante","nb_feuille","nb_talle_emergees","nb_feuilles_talle1","nb_feuilles_talle2","nb_feuilles_talle3"])
+  
+  chemin_fichier3=open(os.path.join(OUTPUTS_DIRPATH,outvarfile3),"wb")
+  taille_finale_feuille=csv.writer(chemin_fichier3)
+  taille_finale_feuille.writerow(["TPS","Espacement","Densite","id plante","talle","rang","Phase","taille feuille","taille gaine","taille limbe"])
+
 
 
 def StartEach(lstring):
@@ -1093,18 +1093,18 @@ def EndEach(lstring,lscene):
   nb_feuilles=[0]*nb_plantes
   nb_talles_emergees=[0]*nb_plantes
   
-##  ##### Remplissage du fichier surface_biomass #####
-#  for x in les_feuilles_emergees:
-#    #if mtg.property('ParamFeuille').get(x).id_rang==1:
-#    if x[0].id_rang==1:
-#      #nb_talles_emergees[mtg.property('ParamFeuille').get(x).id_plante]+=1
-#      nb_talles_emergees[x[0].id_plante]+=1
-#      ordre=0#Order(Complex(x)) 
-#      #les_feuilles_dans_talle=[y for y in les_feuilles_emergees if mtg.property('ParamFeuille').get(y).id_plante==mtg.property('ParamFeuille').get(x).id_plante and mtg.property('ParamFeuille').get(y).id_talle==mtg.property('ParamFeuille').get(x).id_talle]
-#      les_feuilles_dans_talle=[y for y in les_feuilles_emergees if y[0].id_plante==y[0].id_plante and y[0].id_talle==y[0].id_talle]
-#      #surface_biomass.writerow([TPS,Espacement,Densite,mtg.property('ParamFeuille').get(x).id_plante+1,mtg.property('ParamFeuille').get(x).coupe,mtg.property('ParamFeuille').get(x).id_talle+1,ordre+1,len(les_feuilles_dans_talle),Biomasse_aerienne[ID],Surfoliairetotale[ID]])
-#      surface_biomass.writerow([TPS,Espacement,Densite,x[0].id_plante+1,x[0].coupe,x[0].id_talle+1,ordre+1,len(les_feuilles_dans_talle),Biomasse_aerienne[ID],Surfoliairetotale[ID]])
-#      
+#  ##### Remplissage du fichier surface_biomass #####
+  for x in les_feuilles_emergees:
+    #if mtg.property('ParamFeuille').get(x).id_rang==1:
+    if x[0].id_rang==1:
+      #nb_talles_emergees[mtg.property('ParamFeuille').get(x).id_plante]+=1
+      nb_talles_emergees[x[0].id_plante]+=1
+      ordre=0#Order(Complex(x)) 
+      #les_feuilles_dans_talle=[y for y in les_feuilles_emergees if mtg.property('ParamFeuille').get(y).id_plante==mtg.property('ParamFeuille').get(x).id_plante and mtg.property('ParamFeuille').get(y).id_talle==mtg.property('ParamFeuille').get(x).id_talle]
+      les_feuilles_dans_talle=[y for y in les_feuilles_emergees if y[0].id_plante==x[0].id_plante and y[0].id_talle==x[0].id_talle]
+      #surface_biomass.writerow([TPS,Espacement,Densite,mtg.property('ParamFeuille').get(x).id_plante+1,mtg.property('ParamFeuille').get(x).coupe,mtg.property('ParamFeuille').get(x).id_talle+1,ordre+1,len(les_feuilles_dans_talle),Biomasse_aerienne[ID],Surfoliairetotale[ID]])
+      surface_biomass.writerow([TPS,Espacement,Densite,x[0].id_plante+1,x[0].coupe,x[0].id_talle+1,ordre+1,len(les_feuilles_dans_talle),Biomasse_aerienne[ID],Surfoliairetotale[ID]])
+      
       
     
     #for x in les_racines:
@@ -1189,44 +1189,44 @@ def End(lstring,lscene): #Ecriture et fermeture des fichiers de sortie
   global df_induction, df_organ_lengths
   
   
-#  ### Remplissage du fichier taille_finale_feuille ###
-#  for ID in xrange(nb_plantes):
-#    for x in les_feuilles_emergees:
-#      #if mtg.property('ParamFeuille').get(x).id_plante==ID and mtg.property('ParamFeuille').get(x).Phase=='mature':
-#      if x[0].id_plante==ID and x[0].Phase=='mature':
-#        #taille_finale_feuille.writerow([TPS,Espacement,Densite,ID+1,mtg.property('ParamFeuille').get(x).id_talle+1,mtg.property('ParamFeuille').get(x).id_rang+1, mtg.property('ParamFeuille').get(x).Phase,mtg.property('ParamFeuille').get(x).Taillefeuille,mtg.property('ParamFeuille').get(x).Taillegaine,mtg.property('ParamFeuille').get(x).Taillelimbe])
-#        taille_finale_feuille.writerow([TPS,Espacement,Densite,ID+1,x[0].id_talle+1,x[0].id_rang+1, x[0].Phase,x[0].Taillefeuille,x[0].Taillegaine,x[0].Taillelimbe])
-#
-#  
-##  ##### Remplissage du fichier sortie_simul_ValidCoupe #####  
-#  nb_feuilles=[0]*nb_plantes
-#  nb_talles_emergees=[0.]*nb_plantes
-#  nb_feuilles_talle1=[0.]*nb_plantes
-#  nb_feuilles_talle2=[0.]*nb_plantes
-#  nb_feuilles_talle3=[0.]*nb_plantes
-#  
-#  for x in les_feuilles_emergees:
-#    #nb_feuilles[mtg.property('ParamFeuille').get(x).id_plante]+=1
-#    nb_feuilles[x[0].id_plante]+=1
-#    #Nombre de talles emmergees
-#    #if mtg.property('ParamFeuille').get(x).id_rang==1:
-#    if x[0].id_rang==1:
-#      #nb_talles_emergees[mtg.property('ParamFeuille').get(x).id_plante]+=1
-#      nb_talles_emergees[x[0].id_plante]+=1
-#    #Nombre de feuille presente sur chacun des 3 premiers talles
-#    #if mtg.property('ParamFeuille').get(x).id_talle==0:
-#    if x[0].id_talle==0:
-#      #nb_feuilles_talle1[mtg.property('ParamFeuille').get(x).id_plante]+=1
-#      nb_feuilles_talle1[x[0].id_plante]+=1
-#    #if mtg.property('ParamFeuille').get(x).id_talle==1:
-#    if x[0].id_talle==1:
-#      #nb_feuilles_talle2[mtg.property('ParamFeuille').get(x).id_plante]+=1
-#      nb_feuilles_talle2[x[0].id_plante]+=1
-#    #if mtg.property('ParamFeuille').get(x).id_talle==2:
-#    if x[0].id_talle==2:
-#      #nb_feuilles_talle3[mtg.property('ParamFeuille').get(x).id_plante]+=1
-#      nb_feuilles_talle3[x[0].id_plante]+=1
-#  
+  ### Remplissage du fichier taille_finale_feuille ###
+  for ID in xrange(nb_plantes):
+    for x in les_feuilles_emergees:
+      #if mtg.property('ParamFeuille').get(x).id_plante==ID and mtg.property('ParamFeuille').get(x).Phase=='mature':
+      if x[0].id_plante==ID and x[0].Phase=='mature':
+        #taille_finale_feuille.writerow([TPS,Espacement,Densite,ID+1,mtg.property('ParamFeuille').get(x).id_talle+1,mtg.property('ParamFeuille').get(x).id_rang+1, mtg.property('ParamFeuille').get(x).Phase,mtg.property('ParamFeuille').get(x).Taillefeuille,mtg.property('ParamFeuille').get(x).Taillegaine,mtg.property('ParamFeuille').get(x).Taillelimbe])
+        taille_finale_feuille.writerow([TPS,Espacement,Densite,ID+1,x[0].id_talle+1,x[0].id_rang+1, x[0].Phase,x[0].Taillefeuille,x[0].Taillegaine,x[0].Taillelimbe])
+
+  
+#  ##### Remplissage du fichier sortie_simul_ValidCoupe #####  
+  nb_feuilles=[0]*nb_plantes
+  nb_talles_emergees=[0.]*nb_plantes
+  nb_feuilles_talle1=[0.]*nb_plantes
+  nb_feuilles_talle2=[0.]*nb_plantes
+  nb_feuilles_talle3=[0.]*nb_plantes
+  
+  for x in les_feuilles_emergees:
+    #nb_feuilles[mtg.property('ParamFeuille').get(x).id_plante]+=1
+    nb_feuilles[x[0].id_plante]+=1
+    #Nombre de talles emmergees
+    #if mtg.property('ParamFeuille').get(x).id_rang==1:
+    if x[0].id_rang==1:
+      #nb_talles_emergees[mtg.property('ParamFeuille').get(x).id_plante]+=1
+      nb_talles_emergees[x[0].id_plante]+=1
+    #Nombre de feuille presente sur chacun des 3 premiers talles
+    #if mtg.property('ParamFeuille').get(x).id_talle==0:
+    if x[0].id_talle==0:
+      #nb_feuilles_talle1[mtg.property('ParamFeuille').get(x).id_plante]+=1
+      nb_feuilles_talle1[x[0].id_plante]+=1
+    #if mtg.property('ParamFeuille').get(x).id_talle==1:
+    if x[0].id_talle==1:
+      #nb_feuilles_talle2[mtg.property('ParamFeuille').get(x).id_plante]+=1
+      nb_feuilles_talle2[x[0].id_plante]+=1
+    #if mtg.property('ParamFeuille').get(x).id_talle==2:
+    if x[0].id_talle==2:
+      #nb_feuilles_talle3[mtg.property('ParamFeuille').get(x).id_plante]+=1
+      nb_feuilles_talle3[x[0].id_plante]+=1
+  
   nb_racines=[0]*nb_plantes
   nb_racines_visible=[0]*nb_plantes
   longroottotal=[0]*nb_plantes
@@ -1259,14 +1259,14 @@ def End(lstring,lscene): #Ecriture et fermeture des fichiers de sortie
       pointe=axe[len(axe)-2]
       profond[mtg.property('ParamRacine').get(x).id_plante]=max(profond[mtg.property('ParamRacine').get(x).id_plante],mtg.property('pte').get(pointe).profondeur)
   
-#  for ID in xrange(nb_plantes):
-#    simul_expe.writerow([TPS,Espacement,Densite,ParamP[ID]['C'],ID+1,nb_feuilles[ID],nb_talles_emergees[ID],nb_feuilles_talle1[ID],nb_feuilles_talle2[ID],nb_feuilles_talle3[ID]])
-#  
-#  ### Fermeture des fichiers ###
-#  chemin_fichier1.close()
-#  chemin_fichier2.close()
-#  chemin_fichier3.close()
-#  
+  for ID in xrange(nb_plantes):
+    simul_expe.writerow([TPS,Espacement,Densite,ParamP[ID]['C'],ID+1,nb_feuilles[ID],nb_talles_emergees[ID],nb_feuilles_talle1[ID],nb_feuilles_talle2[ID],nb_feuilles_talle3[ID]])
+  
+  ### Fermeture des fichiers ###
+  chemin_fichier1.close()
+  chemin_fichier2.close()
+  chemin_fichier3.close()
+  
 #  ### Sauvegarde d'une image de la scene
 #  outimagepath = os.path.join(OUTPUTS_DIRPATH, outimage)
 #  frameDisplay(True)
@@ -1944,8 +1944,7 @@ ApexTal(X):
         if X.id_rang==0 and X.id_talle==0:
           produce F(0)
         
-        Sitefillingproba=10000 #Le temps de faire les tests sur un faible nombre d'iterations (400)
-        #Sitefillingproba=alea1[alea1_index[X.id_plante]]*ParamP[X.id_plante]['STOPTALLAGE'] #Besoin de choisir des valeurs de tallage a laquelle arreter
+        Sitefillingproba=alea1[alea1_index[X.id_plante]]*ParamP[X.id_plante]['STOPTALLAGE'] #Besoin de choisir des valeurs de tallage a laquelle arreter
         alea1_index[X.id_plante]+=1
         rapportS9_SSol=FonctionParamPlante.rapportS9_SSol(X.id_plante)
         #print "Plante",X.id_plante, "   rapportS9_SSol",rapportS9_SSol,"SENSETALLAGE",ParamP[X.id_plante]['SENSETALLAGE'],"Sitefillingproba", Sitefillingproba
