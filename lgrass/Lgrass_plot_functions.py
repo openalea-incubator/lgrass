@@ -8,7 +8,7 @@ import math
 
 class GraphicOutputs:
     def __init__(self):
-        self.color_list = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'w']
+        self.color_list = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
 
     def graph_induction(self, path, csv_name):
         df = pd.read_csv(path + csv_name + '.csv')
