@@ -1477,8 +1477,7 @@ ApexTal(X):
       if X.id_rang==0 and X.id_talle==0:
         produce F(0)
       
-      Sitefillingproba=10000 #Le temps de faire les tests sur un faible nombre d'iterations (400)
-      #Sitefillingproba=alea1[alea1_index[X.id_plante]]*ParamP[X.id_plante]['STOPTALLAGE'] #Besoin de choisir des valeurs de tallage a laquelle arreter
+      Sitefillingproba=alea1[alea1_index[X.id_plante]]*ParamP[X.id_plante]['STOPTALLAGE'] #Besoin de choisir des valeurs de tallage a laquelle arreter
       alea1_index[X.id_plante]+=1
       rapportS9_SSol=FonctionParamPlante.rapportS9_SSol(X.id_plante)
       #print "Plante",X.id_plante, "   rapportS9_SSol",rapportS9_SSol,"SENSETALLAGE",ParamP[X.id_plante]['SENSETALLAGE'],"Sitefillingproba", Sitefillingproba
