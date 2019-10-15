@@ -610,7 +610,7 @@ def Start():
   TPS_expe=range(1000)
   
   ##### Creation de parametres vides #####
-  Biomasse_aerienne=[0.]*(nb_plantes) # Biomasse foliaire
+  Biomasse_aerienne=[0.]*(nb_plantes) # Biomasse foliaire totale
   Biomasse_racinaire=[0.]*(nb_plantes) # Biomasse racinaire
   BiomProd=[0.]*(nb_plantes)
   Ray=[0.]*(nb_plantes)
@@ -633,7 +633,7 @@ def Start():
   Espacement=10*sqrt(10000/Densite) #en mm
   
   ##### Definition des groupes de production #####
-  Surfoliairetotale =[0.]*(nb_plantes) # Surface folaire totale obtenue a la fin d'un pas
+  Surfoliairetotale =[0.]*(nb_plantes) # Surface foliaire émergée totale obtenue a la fin d'un pas
   Surfoliaireencours=[0.]*(nb_plantes) # variable de calcul de la surface foliaire totale
   Premiecroiss=[ParamP[i]['Premiecroiss'] for i in xrange(nb_plantes)]
   
@@ -648,7 +648,7 @@ def Start():
   ##### Ecriture des fichiers de sortie #####
   chemin_fichier1=open(os.path.join(OUTPUTS_DIRPATH,outvarfile),"wb")
   surface_biomass=csv.writer(chemin_fichier1)
-  surface_biomass.writerow(["TPS","Espacement","Densite","id plante","X.coupe","id talle","ordre","nb_feuillemergees","MS_feuille","Surface foliaire"])
+  surface_biomass.writerow(["TPS","Espacement","Densite","id plante","X.coupe","id talle","ordre","nb_feuills_emergees","Biomasse_feuilles_emergees","Surface_feuilles_emergees"])
   
   chemin_fichier2=open(os.path.join(OUTPUTS_DIRPATH,outvarfile2),"wb")
   simul_expe=csv.writer(chemin_fichier2)
@@ -762,8 +762,8 @@ def EndEach(lstring,lscene):
     Demande_feuille_dans_gaine[ID]=sum([mtg.property('ParamFeuille').get(x).Besoinencroiss for x in les_feuilles if mtg.property('ParamFeuille').get(x).Phase=='cachee'])
     Demande_feuille_hors_gaine[ID]=sum([mtg.property('ParamFeuille').get(x).Besoinencroiss for x in les_feuilles if mtg.property('ParamFeuille').get(x).Phase!='cachee'])    
     Demande_feuille[ID]=sum([Demande_feuille_dans_gaine[ID],Demande_feuille_hors_gaine[ID]])
-    Biomasse_aerienne[ID]=sum([mtg.property('ParamFeuille').get(x).biomass for x in les_feuilles])    
-    Surfoliairetotale[ID]=sum([mtg.property('ParamFeuille').get(x).surface for x in les_feuilles])
+    Biomasse_aerienne[ID]=sum([mtg.property('ParamFeuille').get(x).biomass for x in les_feuilles]) # Biomasse de toutes les feuilles y compris cachées    
+    Surfoliairetotale[ID]=sum([mtg.property('ParamFeuille').get(x).surface for x in les_feuilles]) # Surface des feuilles émergées seulement (voir règle écriture dans module Feuille)
     
     if Biomasse_aerienne[ID]>0 and t1[ID]*exp(TPS*t2[ID])-t1[ID]>0: #Verifie qu'il y a une partie aerienne et que TPS, t1 et t2 sont positifs
       if Caribu=="On":
@@ -853,8 +853,8 @@ def EndEach(lstring,lscene):
     if mtg.property('ParamFeuille').get(x).id_rang==1:
       nb_talles_emergees[mtg.property('ParamFeuille').get(x).id_plante]+=1
       ordre=Order(Complex(x)) 
-      les_feuilles_dans_talle=[y for y in les_feuilles_emergees if mtg.property('ParamFeuille').get(y).id_plante==mtg.property('ParamFeuille').get(x).id_plante and mtg.property('ParamFeuille').get(y).id_talle==mtg.property('ParamFeuille').get(x).id_talle]
-      surface_biomass.writerow([TPS,Espacement,Densite,mtg.property('ParamFeuille').get(x).id_plante+1,mtg.property('ParamFeuille').get(x).coupe,mtg.property('ParamFeuille').get(x).id_talle+1,ordre+1,len(les_feuilles_dans_talle),Biomasse_aerienne[ID],Surfoliairetotale[ID]])
+      les_feuilles_dans_talle=[y for y in les_feuilles_emergees if mtg.property('ParamFeuille').get(y).id_plante==mtg.property('ParamFeuille').get(x).id_plante and mtg.property('ParamFeuille').get(y).id_talle==mtg.property('ParamFeuille').get(x).id_talle]  # Liste des feuilles émergées pour talle courante
+      surface_biomass.writerow([TPS,Espacement,Densite,mtg.property('ParamFeuille').get(x).id_plante+1,mtg.property('ParamFeuille').get(x).coupe,mtg.property('ParamFeuille').get(x).id_talle+1,ordre+1,len(les_feuilles_dans_talle),sum([mtg.property('ParamFeuille').get(x).biomass for x in les_feuilles_dans_talle]),sum([mtg.property('ParamFeuille').get(x).surface for x in les_feuilles_dans_talle])])
     
     #for x in les_racines:
     #  ensemble_de_racine=Components(x)
@@ -1111,7 +1111,7 @@ phytomere(X):
 
 Feuille(X):
   global mtg,NewShootBiomass,longueur_totale_feuille,les_feuilles,Surfoliaireencours,groupe
-  X.surface=0
+  X.surface=0  # Ecriture surface seulement pour feuilles éemrgées
   
   if groupe=='croissance':
     X.age+=dt
@@ -1307,7 +1307,7 @@ Feuille(X):
             large=0.
           
           Surfoliaireencours[X.id_plante]=Surfoliaireencours[X.id_plante]+large*2.*LSTEP  
-          X.surface=X.surface+large*2.*LSTEP  
+          X.surface=X.surface+large*2.*LSTEP  # Ecriture surface seulement pour feuilles éemrgées
       
       largegaine=max((2/pi)*(paramManagement['CoefDirLonLarAjust']*log(max(X.Taillegaine*5,1))-paramManagement['OrdOriLonLarAjust']),0.1)
       X.surface+=largegaine*pi*X.Taillegaine
