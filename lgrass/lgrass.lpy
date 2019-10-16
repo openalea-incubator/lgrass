@@ -838,6 +838,14 @@ def EndEach(lstring,lscene):
   
   les_feuilles=[x for x in VtxList(4) if Class(x)=='F']
   les_feuilles_emergees=[x for x in VtxList(4) if Class(x)=='F' and mtg.property('ParamFeuille').get(x).Phase!='cachee']
+  les_feuilles_dans_talles = {}
+  for feuille_emergee in les_feuilles_emergees:
+    plante_talle = str(mtg.property('ParamFeuille').get(feuille_emergee).id_plante) + '_' + str(mtg.property('ParamFeuille').get(feuille_emergee).id_talle)
+    if plante_talle not in les_feuilles_dans_talles:
+      les_feuilles_dans_talles[plante_talle] = [feuille_emergee]
+    else:
+      les_feuilles_dans_talles[plante_talle].append(feuille_emergee)      
+      
   les_racines=[x for x in VtxList(4) if Class(x)=='r']
   les_pointes=[[mtg.property('pte').get(x).id_pointe,x] for x in VtxList(5) if Class(x)=='t']
   les_pointes2=[x for x in VtxList(5) if Class(x)=='t']
@@ -849,12 +857,12 @@ def EndEach(lstring,lscene):
   nb_talles_emergees=[0]*nb_plantes
   
   ##### Remplissage du fichier surface_biomass #####
-  for x in les_feuilles_emergees:
-    if mtg.property('ParamFeuille').get(x).id_rang==1:
-      nb_talles_emergees[mtg.property('ParamFeuille').get(x).id_plante]+=1
-      ordre=Order(Complex(x)) 
-      les_feuilles_dans_talle=[y for y in les_feuilles_emergees if mtg.property('ParamFeuille').get(y).id_plante==mtg.property('ParamFeuille').get(x).id_plante and mtg.property('ParamFeuille').get(y).id_talle==mtg.property('ParamFeuille').get(x).id_talle]  # Liste des feuilles émergées pour talle courante
-      surface_biomass.writerow([TPS,Espacement,Densite,mtg.property('ParamFeuille').get(x).id_plante+1,mtg.property('ParamFeuille').get(x).coupe,mtg.property('ParamFeuille').get(x).id_talle+1,ordre+1,len(les_feuilles_dans_talle),sum([mtg.property('ParamFeuille').get(x).biomass for x in les_feuilles_dans_talle]),sum([mtg.property('ParamFeuille').get(x).surface for x in les_feuilles_dans_talle])])
+  for plante_talle, feuilles_emergees_talle in les_feuilles_dans_talles.items():
+    id_plante, id_talle = int(plante_talle.split('_')[0]), int(plante_talle.split('_')[1])
+    nb_talles_emergees[id_plante]+=1
+    premeire_feuille = feuilles_emergees_talle[0]
+    ordre=Order(Complex(premeire_feuille)) 
+    surface_biomass.writerow([TPS,Espacement,Densite,id_plante + 1,mtg.property('ParamFeuille').get(premeire_feuille).coupe, id_talle + 1,ordre+1,len(feuilles_emergees_talle),sum([mtg.property('ParamFeuille').get(x).biomass for x in feuilles_emergees_talle]),sum([mtg.property('ParamFeuille').get(x).surface for x in feuilles_emergees_talle])])
     
     #for x in les_racines:
     #  ensemble_de_racine=Components(x)
@@ -1260,12 +1268,6 @@ Feuille(X):
         #Next_biom_feuil[mtg.property('ParamPlante').get(plante).id_plante]=Next_biom_feuil[mtg.property('ParamPlante').get(plante).id_plante]+Next_feuil
       #NewShootBiomass=NewShootBiomass+Accroiss*0.0001
       
-      ####### Senescence #######
-      ##Agesenesc=paramManagement['T0sen']*10000.+(X.Ymax/20.)*paramManagement['Lpot']. 
-      ##if (X.age>Agesenesc+100.):
-      ##  produce Cut() # Pour que la feuille soit vraiment coupee supprimee de la chaine, en ENTIER
-      ##else:
-    
     else:      
       if mtg.property('ParamPlante').get(plante).id_geno==0:
         long=X.Taillefeuille
@@ -1276,6 +1278,12 @@ Feuille(X):
         coupe=X.coupe
         Next_feuil=paramManagement['FacBiom1']*(paramManagement['b0']*exp(paramManagement['b1']*(long+coupe)**2+paramManagement['b2']*(long+coupe))-paramManagement['b0'])*(long/(long+coupe))
         #Next_feuil=1.554*(paramManagement['b0']*exp(paramManagement['b1']*(long)**2+paramManagement['b2']*(long))-paramManagement['b0'])*(long/(long+X.coupe))
+      
+      ####### Senescence #######
+      Agesenesc = paramManagement['T0sen'] + (X.Ymax/20.)*paramManagement['Lpot']
+      if (X.age>Agesenesc+100.):
+        produce Cut() # Pour que la feuille soit vraiment coupee supprimee de la chaine, en ENTIER
+      
       #Next_biom_feuil[mtg.property('ParamPlante').get(plante).id_plante]=Next_biom_feuil[mtg.property('ParamPlante').get(plante).id_plante]+Next_feuil
     # La feuille est ecartee par une autre talle
     phytos_suivant=Sons(Complex(vtx_feuille))
