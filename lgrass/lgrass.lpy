@@ -42,7 +42,7 @@ num_pointe=0
 num_primordium=0
 
 LSTEP=1
-DureeExp = 300
+DureeExp = 3000
 
 ##### Parametre scene #####
 OptionRacine='SansRacines' 
@@ -933,7 +933,7 @@ def EndEach(lstring,lscene):
   #else:
   newSB=0 #Nouvelle biomasse aerienne
   
-  
+  print groupe
   
   # ------------------------------------------------------------------------------------------------
   # -------------------------------------- Use of Caribu -------------------------------------------
@@ -1416,7 +1416,7 @@ Feuille(X, X_apex, X_phytomere):
         genotype=mtg.property('ParamPlante').get(plante).id_geno
         LEDGAINE=((0.2*110*5)*2)-110
         TrueAge=TpourY2(Seuil[X.id_plante][X.id_talle],paramManagement['YFinit'], paramManagement['Jled']*LEDGAINE,paramManagement['Kled']*paramManagement['Jled']*LEDGAINE) #Jled*LEDGAINE correspond a te, Kled*Jled*LEDGAINE correspond a tm (These Alban Verdenal)
-        NewYmax=ParamP[X.geno]['C']*((pow(paramManagement['T01'],(TrueAge+paramManagement['tb1'])*paramManagement['k1'])-paramManagement['Lpot'])-(pow(paramManagement['T02'],(TrueAge+paramManagement['tb2'])*paramManagement['k2'])))
+        NewYmax=ParamP[X.geno]['C']*((pow(paramManagement['T01'],(TrueAge+paramManagement['tb1'])*paramManagement['k1'])-paramManagement['Lpot'])-(pow(paramManagement['T02'],(TrueAge+paramManagement['tb2'])*paramManagement['k2']))) # Fonction potentiel de croissance
         if NewYmax>X.Ymax:
           NewYmax=X.Ymax
         elif NewYmax<X.Taillefeuille+X.coupe:

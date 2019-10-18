@@ -35,7 +35,7 @@ class GraphicOutputs:
             ax.set_xlabel(u'Day from Oct 1rst')
             ax.set_ylabel(u'Length (mm)')
             rank_number = float(len(set(df[df.Id_talle == tiller].Id_rang.tolist())))
-            colors = int(math.ceil(rank_number/8))*self.color_list
+            colors = int(math.ceil(rank_number/7.))*self.color_list
             for rank in set(df[df.Id_talle == tiller].Id_rang.tolist()):
                 col = colors[rank - 1]
                 ax.plot(u'Day', u'Length', data=df[(df.Id_talle == tiller) & (df.Id_rang == rank) &
@@ -49,4 +49,4 @@ class GraphicOutputs:
 
 
 graph = GraphicOutputs()
-graph.graph_length(r'D:\Simon\Python\lgrass\lgrass\outputs', '\output_organ_lengths')
+graph.graph_length(r'outputs', '\output_organ_lengths')
