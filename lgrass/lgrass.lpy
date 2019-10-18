@@ -860,9 +860,9 @@ def EndEach(lstring,lscene):
   for plante_talle, feuilles_emergees_talle in les_feuilles_dans_talles.items():
     id_plante, id_talle = int(plante_talle.split('_')[0]), int(plante_talle.split('_')[1])
     nb_talles_emergees[id_plante]+=1
-    premeire_feuille = feuilles_emergees_talle[0]
-    ordre=Order(Complex(premeire_feuille)) 
-    surface_biomass.writerow([TPS,Espacement,Densite,id_plante + 1,mtg.property('ParamFeuille').get(premeire_feuille).coupe, id_talle + 1,ordre+1,len(feuilles_emergees_talle),sum([mtg.property('ParamFeuille').get(x).biomass for x in feuilles_emergees_talle]),sum([mtg.property('ParamFeuille').get(x).surface for x in feuilles_emergees_talle])])
+    premiere_feuille = feuilles_emergees_talle[0]
+    ordre=Order(Complex(premiere_feuille)) 
+    surface_biomass.writerow([TPS,Espacement,Densite,id_plante + 1,mtg.property('ParamFeuille').get(premiere_feuille).coupe, id_talle + 1,ordre+1,len(feuilles_emergees_talle),sum([mtg.property('ParamFeuille').get(x).biomass for x in feuilles_emergees_talle]),sum([mtg.property('ParamFeuille').get(x).surface for x in feuilles_emergees_talle])])
     
     #for x in les_racines:
     #  ensemble_de_racine=Components(x)
