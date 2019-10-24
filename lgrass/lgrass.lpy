@@ -34,7 +34,6 @@ paramP2=dict(zip(TableParamP2['name'],TableParamP2['value']))
 
 TableManagement=pd.read_excel(path_param,sheetname='Management')
 paramManagement=dict(zip(TableManagement['name'],TableManagement['value']))
-
 ParamP=[paramP2] #liste des parametres plante
 nb_plantes=len(ParamP) 
 
@@ -213,10 +212,11 @@ parameters['Plante']=['ParamPlante']
 
 
 class ParamPhytomere:
-  def __init__(self, id_plante=0, id_talle=0, id_rang=1, age=0, angletal=0, organ_lengths={}):#, Carbdescend=0, Carbmonte=0):
+  def __init__(self, id_plante=0, id_talle=0, id_rang=1, topology=(0,), age=0, angletal=0, organ_lengths={}):#, Carbdescend=0, Carbmonte=0):
     self.id_plante=id_plante
     self.id_talle=id_talle
     self.id_rang=id_rang
+    self.topology=topology     # Topological information
     self.age=age
     self.angletal=angletal
     self.organ_lengths=organ_lengths
@@ -231,13 +231,14 @@ parameters['Entrenoeud']=[]
 
 
 class ParamFeuille:
-  def __init__(self,age=0, Agecroiss=0, Taillefeuille=0, id_plante=0, id_talle=0, id_rang=1, Ymax=0, Difftps=0,  Taillefinalelimbe=0, Taillefinalegaine=0., Taillelimbe=0, Taillegaine=0, Phase='cachee', rapportK=0.2, coupe=0.,Cutstatus='intact', angleinsert=0,angletal=0., id_geno=0, surface=0, biomass=0., Besoinencroiss=0,TailleEmergence=0.,R=0.973):
+  def __init__(self,age=0, Agecroiss=0, Taillefeuille=0, id_plante=0, id_talle=0, id_rang=1, topology=(0,), Ymax=0, Difftps=0,  Taillefinalelimbe=0, Taillefinalegaine=0., Taillelimbe=0, Taillegaine=0, Phase='cachee', rapportK=0.2, coupe=0.,Cutstatus='intact', angleinsert=0,angletal=0., id_geno=0, surface=0, biomass=0., Besoinencroiss=0,TailleEmergence=0.,R=0.973):
     self.age=age                             # Age de la feuille
     self.Agecroiss=Agecroiss                 # 
     self.Taillefeuille=Taillefeuille         # Taille de la feuille au temps t
     self.id_plante=id_plante                 # Identifiant de la plante (compris entre 0 et nb_plantes)
     self.id_talle=id_talle                   # Identifiant de la talle
     self.id_rang=id_rang                     # Rang de la feuille
+    self.topology=topology                   # Topological information
     self.Ymax=Ymax                           # Taille finale de la feuille
     self.Difftps=Difftps                     # Delai entre l'apparition de 2 feuilles
     self.Taillefinalelimbe=Taillefinalelimbe # Taille finale du limbe
@@ -260,18 +261,21 @@ scales['Feuille']=4
 parameters['Feuille']=['ParamFeuille']
 
 class ParamSegFeuille:
-  def __init__(self,id_plante,idLong,hauteur):
+  def __init__(self,id_plante, id_talle, id_rang, idLong,hauteur):
     self.id_plante=id_plante
+    self.id_talle=id_talle
+    self.id_rang=id_rang
     self.idLong=idLong
     self.hauteur=hauteur
 scales['SegFeuille']=5
 parameters['SegFeuille']=['ParamSegFeuille']
 
 class ParamEntrenoeud:
-  def __init__(self, id_plante, id_talle, id_rang=1, internode_type='short_internode', length=0, width=2, final_length=10):
+  def __init__(self, id_plante, id_talle, id_rang=1, topology=(0,), internode_type='short_internode', length=0, width=2, final_length=10):
     self.id_plante = id_plante                    # Id of the plant (between 0 and number of plants-1) 
     self.id_talle = id_talle                      # Id of the tiller
     self.id_rang = id_rang                        # Rank of the phytomere
+    self.topology=topology                        # Topological information
     self.internode_type = internode_type          # Type of the internode mean : short_internode or long_internode
     self.length = length                          # Current length of the internode when time = t
     self.width = width                            # Width of the internode, constant
@@ -280,10 +284,11 @@ scales['Entrenoeud']=4
 parameters['Entrenoeud']=['ParamEntrenoeud']
 
 class ParamApex:
-  def __init__(self, id_plante, id_talle, id_rang=1,retard=0, total_emerged_leaves=0, total_created_leaves=0, day=0, primary_induction_index=0, secondary_induction_index=0, phenological_state='vegetative', primordia_number=3, spikelet_created=0, final_leaf_number=None, final_spikelet_number=None, organ_lengths_dict={}, terminal_spikelet_height=0, heading_date=None, appearance_date=None, id_geno=0):   # PARAMETRE
+  def __init__(self, id_plante, id_talle, id_rang=1, topology=(0,), retard=0, total_emerged_leaves=0, total_created_leaves=0, day=0, primary_induction_index=0, secondary_induction_index=0, phenological_state='vegetative', primordia_number=3, spikelet_created=0, final_leaf_number=None, final_spikelet_number=None, organ_lengths_dict={}, terminal_spikelet_height=0, heading_date=None, appearance_date=None, id_geno=0):   # PARAMETRE
     self.id_plante = id_plante
     self.id_talle = id_talle
     self.id_rang = id_rang
+    self.topology=topology                        # Topological information
     self.retard = retard
     self.total_emerged_leaves = total_emerged_leaves
     self.total_created_leaves = total_created_leaves                         # number of leaves produced by the apex
@@ -305,10 +310,11 @@ scales['apex']=4
 parameters['apex']=['ParamApex']
 
 class ParamApexTal:
-  def __init__(self, id_plante, id_talle=0, id_rang=1, retard=0, day=0, primary_induction_index=0, secondary_induction_index=0, phenological_state='vegetative', id_geno=0):
+  def __init__(self, id_plante, id_talle=0, id_rang=1, topology=(0,), retard=0, day=0, primary_induction_index=0, secondary_induction_index=0, phenological_state='vegetative', id_geno=0):
     self.id_plante=id_plante
     self.id_talle=id_talle
     self.id_rang=id_rang
+    self.topology=topology                        # Topological information
     self.retard=retard
     self.day = day
     self.primary_induction_index = primary_induction_index
@@ -320,19 +326,21 @@ scales['ApexTal']=4
 parameters['ApexTal']=['ParamApexTal']
 
 class ParamEntrenoeudEpi:
-  def __init__(self, id_plante, id_talle, id_rang, long_entrenoeud=0):
+  def __init__(self, id_plante, id_talle, id_rang, topology=(0,), long_entrenoeud=0):
     self.id_plante=id_plante
     self.id_talle=id_talle
     self.id_rang=id_rang
+    self.topology=topology                        # Topological information
     self.long_entrenoeud = long_entrenoeud      # Longueur moyenne des entrenoeuds (entre chaque insertion d epillet)
 scales['EntrenoeudEpi']=5
 parameters['EntrenoeudEpi']=['ParamEntrenoeudEpi']
 
 class ParamEpillet:
-  def __init__(self, id_plante, id_talle, id_rang, long_epillet=0):
+  def __init__(self, id_plante, id_talle, id_rang, topology=(0,), long_epillet=0):
     self.id_plante=id_plante
     self.id_talle=id_talle
     self.id_rang=id_rang
+    self.topology=topology                        # Topological information
     self.long_epillet = long_epillet            # Longueur moyenne des epillets
 scales['Epillet']=5
 parameters['Epillet']=['ParamEpillet']
@@ -588,11 +596,10 @@ def my_axialtree2mtg(tree, scale, scene, parameters, TREE=[]):
   mtg=fat_mtg(mtg)
   return mtg
 
-def LongueurFeuilleCoupee(vtx_feuille,ID): #Renvoie idLong si hauteur>HCOUP, renvoie -1 si hauteur<HCOUP
-  global mtg
-  for x in Components(vtx_feuille):
-    if mtg.property('ParamSegFeuille').get(x).hauteur>ParamP[ID]['HCOUP']:
-      return mtg.property('ParamSegFeuille').get(x).idLong
+def LongueurFeuilleCoupee(segments_feuille,ID): #Renvoie idLong si hauteur>HCOUP, renvoie -1 si hauteur<HCOUP
+  for x in segments_feuille:
+    if x[0].hauteur > ParamP[ID]['HCOUP']:
+      return x[0].idLong  # Retourne l'id du 1er segment coupé
   return -1 
 
 ########   Fonction racinaires   ########
@@ -835,7 +842,7 @@ def Start():
 #  ##### Ecriture des fichiers de sortie #####
   chemin_fichier1=open(os.path.join(OUTPUTS_DIRPATH,outvarfile),"wb")
   surface_biomass=csv.writer(chemin_fichier1)
-  surface_biomass.writerow(["TPS","Espacement","Densite","id plante","X.coupe","id talle","ordre","nb_feuillemergees","MS_feuille","Surface foliaire"])
+  surface_biomass.writerow(["TPS","Espacement","Densite","id plante","X.coupe","id talle","topologie","nb_feuillemergees","MS_feuille","Surface foliaire"])
   
   chemin_fichier2=open(os.path.join(OUTPUTS_DIRPATH,outvarfile2),"wb")
   simul_expe=csv.writer(chemin_fichier2)
@@ -863,6 +870,7 @@ def StartEach(lstring):
       if groupe=='croissance':
         groupe='defoliation'
         dt=0.25
+        print 'coupe'
     
     if (TPS==ParamP[ID]['DCOUP']+1.):
       if groupe=='defoliation':
@@ -912,7 +920,7 @@ def StartEach(lstring):
 
 def EndEach(lstring,lscene):
   global simul_expe,surface_biomass,taille_finale_feuille
-  global TPS,dt,mtg,Surfoliairetotale,les_pointes,les_primordiums,RootPotentialNewBiomass,les_feuilles,les_feuilles_emergees,les_racines, Reserve,Biomasse_aerienne,Surfoliaireencours,Biomasse_racinaire,fichier_test,groupe,PourcentageRootGrowthRealized,PourcentageFeuilGrowthRealized,Demande_feuille,C,reprise_coupe,Ray,BiomProd,option_caribu
+  global TPS,dt,mtg,Surfoliairetotale,les_pointes,les_primordiums,RootPotentialNewBiomass,les_feuilles,les_feuilles_emergees, les_segments_feuilles, les_racines, Reserve,Biomasse_aerienne,Surfoliaireencours,Biomasse_racinaire,fichier_test,groupe,PourcentageRootGrowthRealized,PourcentageFeuilGrowthRealized,Demande_feuille,C,reprise_coupe,Ray,BiomProd,option_caribu
   global current_day, meteo
   global df_induction, df_organ_lengths, radiation_interception, tiller_appearance, tiller_to_remove
 #  global apex_characteristics, internode_characteristics # AJOUT SIMON
@@ -981,9 +989,6 @@ def EndEach(lstring,lscene):
         print('Plante %s, Ray: %s, BiomProd: %s' % (ID, Ray[ID],BiomProd[ID]))
   
   for ID in xrange(nb_plantes):
-    #print
-    #print 'Plante', ID+1
-    
     if reprise_coupe==True:
       reprise_coupe=False
     
@@ -1065,9 +1070,11 @@ def EndEach(lstring,lscene):
   
   #Biomasse_aerienne=newSB
   #Surfoliairetotale=Surfoliaireencours
-  
+
   les_feuilles=[x for x in lstring if x.name=='Feuille']
   les_feuilles_emergees=[x for x in lstring if x.name=='Feuille' and x[0].Phase!='cachee']
+  if groupe == 'defoliation':
+    les_segments_feuilles = [x for x in lstring if x.name=='SegFeuille']
   
   if OptionRacine!='SansRacines':
     mtg=my_axialtree2mtg(lstring, scales,None, parameters,TREE)
@@ -1086,9 +1093,8 @@ def EndEach(lstring,lscene):
   for x in les_feuilles_emergees:
     if x[0].id_rang==1:
       nb_talles_emergees[x[0].id_plante]+=1
-      ordre=0  # TODO
       les_feuilles_dans_talle=[y for y in les_feuilles_emergees if y[0].id_plante==x[0].id_plante and y[0].id_talle==x[0].id_talle]
-      surface_biomass.writerow([TPS,Espacement,Densite,x[0].id_plante+1,x[0].coupe,x[0].id_talle+1,ordre+1,len(les_feuilles_dans_talle),Biomasse_aerienne[ID],Surfoliairetotale[ID]])
+      surface_biomass.writerow([TPS,Espacement,Densite,x[0].id_plante+1,x[0].coupe,x[0].id_talle+1, x[0].topology, len(les_feuilles_dans_talle),Biomasse_aerienne[ID],Surfoliairetotale[ID]])
     
     
     #for x in les_racines:
@@ -1394,7 +1400,7 @@ phytomere(X, X_AP):
 
 
 Feuille(X, X_apex, X_phytomere):
-  global mtg,NewShootBiomass,longueur_totale_feuille,les_feuilles,Surfoliaireencours,groupe
+  global NewShootBiomass,longueur_totale_feuille,les_feuilles, les_segments_feuilles, Surfoliaireencours,groupe
   X.surface=0
   
   if groupe=='croissance':
@@ -1605,7 +1611,7 @@ Feuille(X, X_apex, X_phytomere):
       if (X.Phase=='cachee'):
         numsteps=(X.Taillefeuille-X.coupe)/LSTEP
         for i in range(int(numsteps)):
-          PS=ParamSegFeuille(X.id_plante,idLong=i,hauteur=0)
+          PS=ParamSegFeuille(X.id_plante, X.id_talle, X.id_rang, idLong=i,hauteur=0)
           rank=X.id_rang
           if(i<(10/LSTEP)):
             nproduce  Down(Torsiongaine*pow(-1,rank)) GetPos(0,0,0) SegFeuille(PS)
@@ -1620,7 +1626,7 @@ Feuille(X, X_apex, X_phytomere):
         numstepsg=ceil((X.Taillegaine)/LSTEP)
         
         for i in range(int(numsteps)):
-          PS=ParamSegFeuille(X.id_plante,idLong=i,hauteur=0)
+          PS=ParamSegFeuille(X.id_plante, X.id_talle, X.id_rang, idLong=i,hauteur=0)
           rank=X.id_rang
           if (i<numstepsg-1):
             if(i<(10/LSTEP)):
@@ -1679,9 +1685,9 @@ Feuille(X, X_apex, X_phytomere):
       produce IN EB
     
     ### Realisation de la coupe ###
-    elif TPS==ParamP[X.id_plante]['DCOUP']+0.5: 
-        vtx_feuille=[x for x in les_feuilles if (mtg.property('ParamFeuille').get(x).id_plante==X.id_plante and mtg.property('ParamFeuille').get(x).id_talle==X.id_talle and mtg.property('ParamFeuille').get(x).id_rang==X.id_rang)][0]
-        longcoupee=LongueurFeuilleCoupee(vtx_feuille,X.id_plante)
+    elif TPS==ParamP[X.id_plante]['DCOUP']+0.5:
+        segments_feuille=[x for x in les_segments_feuilles if (x[0].id_plante==X.id_plante and x[0].id_talle==X.id_talle and x[0].id_rang==X.id_rang)]
+        longcoupee=LongueurFeuilleCoupee(segments_feuille,X.id_plante)
         if longcoupee<>-1:
           X.coupe=X.Taillefeuille-longcoupee
           X.Taillefeuille=longcoupee
@@ -1706,12 +1712,10 @@ Feuille(X, X_apex, X_phytomere):
       
       Taille_finale_gaine[X.id_plante][X.id_talle][X.id_rang]=X.Taillegaine
       
-      if X.id_rang==1 and X.id_talle>0:
-        vtx_feuille=[x for x in les_feuilles if (mtg.property('ParamFeuille').get(x).id_plante==X.id_plante and mtg.property('ParamFeuille').get(x).id_talle==X.id_talle and mtg.property('ParamFeuille').get(x).id_rang==X.id_rang)][0]
-        phyto=Complex(vtx_feuille)
-        phyto_precedent=Father(phyto)
-        feuille_ref=[x for x in Components(phyto_precedent) if Class(x)=='F'][0]
-        Seuil[X.id_plante][X.id_talle]=max(Seuil[X.id_plante][X.id_talle],mtg.property('ParamFeuille').get(feuille_ref).Taillegaine)
+      if X.id_rang==1 and X.id_talle>0 and X.topology!=(0,0):  # Premiere feuille de chaque talle sauf brim maitre et talle coleoptile
+        vtx_feuille=[x for x in les_feuilles if (x[0].id_plante==X.id_plante and x[0].id_talle==X.id_talle and x[0].id_rang==X.id_rang)][0]
+        feuille_ref = [x for x in les_feuilles if (x[0].id_plante==X.id_plante and x[0].topology==X.topology[:-1] and (x[0].id_rang==max(1, X.topology[-1])))][0]  # Feuille axillante de l'ordre précédent (le max sert a traiter les cas des 1ers rangs)
+        Seuil[X.id_plante][X.id_talle]=max(Seuil[X.id_plante][X.id_talle], feuille_ref[0].Taillegaine)
       X.biomass=BiomassFeuille(X.Taillefeuille,X.coupe,X.id_geno)
     else:
       # Remplissage des hauteurs d organes 
@@ -1794,11 +1798,11 @@ apex(X):
       if X.retard==2:
         #Seuil[X.id_plante][X.id_talle]=Seuil[X.id_plante][X.id_talle] * 1.15
         Taille_finale_gaine[X.id_plante][X.id_talle].append(5.5)
-        YP=ParamPhytomere(X.id_plante,X.id_talle,X.id_rang+1)
-        YF=ParamFeuille(age=0,Agecroiss=0,Taillefeuille=0,id_plante=X.id_plante,id_talle=X.id_talle,id_rang=X.id_rang+1,Ymax=Premiecroiss[X.id_plante],Taillefinalelimbe=0.8*Premiecroiss[X.id_plante],Taillefinalegaine=0.2*Premiecroiss[X.id_plante], id_geno=X.id_geno)
+        YP=ParamPhytomere(X.id_plante,X.id_talle,X.id_rang+1, topology=X.topology)
+        YF=ParamFeuille(age=0,Agecroiss=0,Taillefeuille=0,id_plante=X.id_plante,id_talle=X.id_talle,id_rang=X.id_rang+1,topology=X.topology, Ymax=Premiecroiss[X.id_plante],Taillefinalelimbe=0.8*Premiecroiss[X.id_plante],Taillefinalegaine=0.2*Premiecroiss[X.id_plante], id_geno=X.id_geno)
         Yb=ParambourgeonRoot(X.id_plante,X.id_talle,X.id_rang+1, id_geno=X.id_geno)
-        YAT=ParamApexTal(id_plante = X.id_plante, id_talle = X.id_talle, id_rang = X.id_rang+1, id_geno=X.id_geno) # ICI MODIF ID_TALLE
-        YINT=ParamEntrenoeud(X.id_plante, X.id_talle, X.id_rang+1)      # AJOUT SIMON
+        YAT=ParamApexTal(id_plante = X.id_plante, id_talle = X.id_talle, id_rang = X.id_rang+1, topology=X.topology, id_geno=X.id_geno)
+        YINT=ParamEntrenoeud(X.id_plante, X.id_talle, X.id_rang+1, topology=X.topology)      # AJOUT SIMON
         X.id_rang += 1
         X.retard = 0
         X.total_created_leaves += 1
@@ -1845,8 +1849,8 @@ apex(X):
         X.final_spikelet_number = X.primordia_number
         
       if (X.spikelet_created < X.final_spikelet_number):
-        YEntrenoeudEpi = ParamEntrenoeudEpi(id_plante = X.id_plante, id_talle = X.id_talle, id_rang = X.id_rang, long_entrenoeud = 0)      # ATTENTION il faudra donner une orientation au premier epillet
-        YEpillet = ParamEpillet(id_plante = X.id_plante, id_talle = X.id_talle, id_rang = X.id_rang, long_epillet = 0)
+        YEntrenoeudEpi = ParamEntrenoeudEpi(id_plante = X.id_plante, id_talle = X.id_talle, id_rang = X.id_rang, topology=X.topology, long_entrenoeud = 0)      # ATTENTION il faudra donner une orientation au premier epillet
+        YEpillet = ParamEpillet(id_plante = X.id_plante, id_talle = X.id_talle, id_rang = X.id_rang, topology=X.topology, long_epillet = 0)
         X.spikelet_created += 1
         X.organ_lengths_dict[X.id_rang] = {'internode' : YEntrenoeudEpi.long_entrenoeud, 'spikelet' : YEpillet.long_epillet}
         X.id_rang += 1
@@ -1891,7 +1895,6 @@ ApexTal(X):
   global les_feuilles,Surfoliairetotale,alea1,alea1_index,alea2
   if option_tallage == True:
     if groupe=='croissance':
-      #vtx_feuille_ref=[x for x in les_feuilles if (mtg.property('ParamFeuille').get(x).id_plante==X.id_plante and mtg.property('ParamFeuille').get(x).id_talle==X.id_talle and mtg.property('ParamFeuille').get(x).id_rang==X.id_rang+2)]
       vtx_feuille_ref=[x for x in les_feuilles if (x[0].id_plante==X.id_plante and x[0].id_talle==X.id_talle and x[0].id_rang==X.id_rang+2)]
       #if vtx_feuille_suivante!=[]:  # la feuille du rang+2 existe donc la feuille du rang+1 emerge
       if vtx_feuille_ref!=[]:
@@ -1910,12 +1913,13 @@ ApexTal(X):
             nb_talle[X.id_plante]=nb_talle[X.id_plante]+1
             Seuil[X.id_plante].append(seuil)
             Taille_finale_gaine[X.id_plante].append([5.5,5.5])
-            YP=ParamPhytomere(X.id_plante,nb_talle[X.id_plante],id_rang=1)
-            YF=ParamFeuille(age=0,Agecroiss=0,Taillefeuille=0,id_plante=X.id_plante,id_talle=nb_talle[X.id_plante],id_rang=1,Ymax=Premiecroiss[X.id_plante],Taillefinalelimbe=0.8*Premiecroiss[X.id_plante],Taillefinalegaine=0.2*Premiecroiss[X.id_plante])
+            tiller_topology = X.topology + (X.id_rang - 1,)  # Garde info topologique du phyto duquel la talle emergera. La talle de coleoptile sera (0,0)
+            YP=ParamPhytomere(X.id_plante,nb_talle[X.id_plante],id_rang=1, topology=tiller_topology)
+            YF=ParamFeuille(age=0,Agecroiss=0,Taillefeuille=0,id_plante=X.id_plante,id_talle=nb_talle[X.id_plante],id_rang=1, topology=tiller_topology, Ymax=Premiecroiss[X.id_plante],Taillefinalelimbe=0.8*Premiecroiss[X.id_plante],Taillefinalegaine=0.2*Premiecroiss[X.id_plante])
             Yb=ParambourgeonRoot(X.id_plante,nb_talle[X.id_plante],id_rang=1)
-            YAT=ParamApexTal(X.id_plante,nb_talle[X.id_plante],id_rang=1)
-            YA=ParamApex(X.id_plante,nb_talle[X.id_plante],id_rang=1)
-            YINT=ParamEntrenoeud(X.id_plante,id_talle=0,id_rang=1)      # AJOUT SIMON
+            YAT=ParamApexTal(X.id_plante,nb_talle[X.id_plante],id_rang=1, topology=tiller_topology)
+            YA=ParamApex(X.id_plante,nb_talle[X.id_plante],id_rang=1, topology=tiller_topology)
+            YINT=ParamEntrenoeud(X.id_plante,id_talle=0,id_rang=1, topology=tiller_topology)      # AJOUT SIMON
             
             YA.organ_lengths_dict = {YP.id_rang: {'limb': YF.Taillelimbe, 'sheath': YF.Taillegaine, 'internode': YINT.length}}
             
@@ -1927,12 +1931,13 @@ ApexTal(X):
               nb_talle[X.id_plante]=nb_talle[X.id_plante]+1
               Seuil[X.id_plante].append(seuil)
               Taille_finale_gaine[X.id_plante].append([5.5,5.5])
-              YP=ParamPhytomere(X.id_plante,nb_talle[X.id_plante],id_rang=1)
-              YF=ParamFeuille(age=0,Agecroiss=0,Taillefeuille=0,id_plante=X.id_plante,id_talle=nb_talle[X.id_plante],id_rang=1,Ymax=Premiecroiss[X.id_plante],Taillefinalelimbe=0.8*Premiecroiss[X.id_plante],Taillefinalegaine=0.2*Premiecroiss[X.id_plante])
+              tiller_topology = X.topology + (X.id_rang - 1,)
+              YP=ParamPhytomere(X.id_plante,nb_talle[X.id_plante],id_rang=1, topology=tiller_topology)
+              YF=ParamFeuille(age=0,Agecroiss=0,Taillefeuille=0,id_plante=X.id_plante,id_talle=nb_talle[X.id_plante],id_rang=1, topology=tiller_topology, Ymax=Premiecroiss[X.id_plante],Taillefinalelimbe=0.8*Premiecroiss[X.id_plante],Taillefinalegaine=0.2*Premiecroiss[X.id_plante])
               Yb=ParambourgeonRoot(X.id_plante,nb_talle[X.id_plante],id_rang=1)
-              YAT=ParamApexTal(X.id_plante,nb_talle[X.id_plante],id_rang=1)
-              YA=ParamApex(X.id_plante,nb_talle[X.id_plante],id_rang=1)
-              YINT=ParamEntrenoeud(X.id_plante,id_talle=0,id_rang=1)      # AJOUT SIMON
+              YAT=ParamApexTal(X.id_plante,nb_talle[X.id_plante],id_rang=1, topology=tiller_topology)
+              YA=ParamApex(X.id_plante,nb_talle[X.id_plante],id_rang=1, topology=tiller_topology)
+              YINT=ParamEntrenoeud(X.id_plante,id_talle=0,id_rang=1, topology=tiller_topology)      # AJOUT SIMON
               
               YA.organ_lengths_dict = {YP.id_rang: {'limb': YF.Taillelimbe, 'sheath': YF.Taillegaine, 'internode': YINT.length}}
               
