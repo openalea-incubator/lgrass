@@ -7,6 +7,17 @@ from geopy.geocoders import Nominatim
 from datetime import datetime, timedelta
 
 
+def import_meteo_data(meteo_path, sowing_date, site):
+    meteo_data = pd.read_csv(meteo_path, sep=',')
+    meteo_data = meteo_data[meteo_data.site == site]
+    meteo_data = thermal_time_calculation(meteo_data, sowing_date)
+    meteo_data['experimental_day'] = list(range(1, len(meteo_data) + 1))
+    if 'daylength' in meteo_data.columns:
+        return meteo_data
+    else:
+        meteo_data = daylength_series(meteo_data)
+        return meteo_data
+
 def thermal_time_calculation(meteo_data, sowing_date):
     """
     :param meteo_data: dataframe with 2 columns:   date: format 'YYYY_mm_dd'
@@ -94,16 +105,3 @@ def daylength_series(data):
     observer = set_observer(data.iloc[0].site)
     data['daylength'] = data.apply(lambda x: daylength_for_a_date(x['date'], observer), axis=1).tolist()
     return data
-
-
-# meteo = pd.read_csv('D:/Simon/Python/Fichiers_meteo_brut_pour_lgrass/meteo_lusignan_2000_2019.csv', sep=';')
-# meteo = daylength_series(meteo, 'Lusignan')
-# meteo.to_csv('D:/Simon/Python/lgrass/lgrass/inputs/meteo_file.csv', index=False, sep=';')
-
-
-# meteo = pd.read_csv('D:/Simon/Comites_de_these/Comite_de_these_2/Modelisation/Meteo_sites_GEVES.csv', sep=';')
-# meteo_output = pd.DataFrame()
-# for site in set(meteo.site):
-#     meteo_site = daylength_series(meteo[meteo['site'] == site])
-#     meteo_output = meteo_output.append(meteo_site)
-# meteo_output.to_csv('D:/Simon/Comites_de_these/Comite_de_these_2/Modelisation/Meteo_sites_GEVES_daylength.csv', index=False, sep=';')
