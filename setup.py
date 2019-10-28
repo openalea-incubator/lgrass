@@ -40,7 +40,7 @@ if sys.version_info < (2, 7):
 if sys.version_info >= (3, 0):
     print('WARNING: lgrass has not been tested with Python 3.')
 
-#pkg_resources.require('numpy>=1.11.0', 'pandas>=0.18.0', 'sphinx>=1.4.8', 'VPlants.Lpy', 'VPlants.PlantGL', 'OpenAlea.Mtg')
+pkg_resources.require('numpy>=1.11.0', 'pandas>=0.18.0',  'OpenAlea.Lpy', 'OpenAlea.PlantGL', 'OpenAlea.Mtg')
 
 def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()

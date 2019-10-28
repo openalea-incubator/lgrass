@@ -48,7 +48,7 @@ OptionRacine='SansRacines'
 #OptionRacine='AvecRacines'
 
 Densite=400 #en nb de plante par m2
-Espacement=10*sqrt(10000/Densite) #en mm   # ATTENTION, caribu est en m
+Espacement=10*sqrt(10000/Densite) #en mm
 #Espacement=200. # Distance entre chaque plante
 NBlignes=int(ceil(sqrt(nb_plantes)))
 NBcolonnes=int(floor(sqrt(nb_plantes)))
@@ -797,7 +797,7 @@ def Start():
   current_day = meteo.experimental_day.tolist()[0]
   
   ##### Creation de parametres vides #####
-  Biomasse_aerienne=[0.]*(nb_plantes) # Biomasse foliaire
+  Biomasse_aerienne=[0.]*(nb_plantes) # Biomasse foliaire totale
   Biomasse_racinaire=[0.]*(nb_plantes) # Biomasse racinaire
   BiomProd=[0.]*(nb_plantes)
   Ray=[0.]*(nb_plantes)
@@ -821,7 +821,7 @@ def Start():
   Espacement=10*sqrt(10000/Densite) #en mm
   
   ##### Definition des groupes de production #####
-  Surfoliairetotale =[0.]*(nb_plantes) # Surface folaire totale obtenue a la fin d'un pas
+  Surfoliairetotale =[0.]*(nb_plantes) # Surface foliaire émergée totale obtenue a la fin d'un pas
   Surfoliaireencours=[0.]*(nb_plantes) # variable de calcul de la surface foliaire totale
   Premiecroiss=[ParamP[i]['Premiecroiss'] for i in xrange(nb_plantes)]
   
@@ -1405,10 +1405,10 @@ phytomere(X, X_AP):
 
 Feuille(X, X_apex, X_phytomere):
   global NewShootBiomass,longueur_totale_feuille,les_feuilles, les_segments_feuilles, Surfoliaireencours,groupe
-  X.surface=0
+  X.surface=0  # Ecriture surface seulement pour feuilles éemrgées
   
   if groupe=='croissance':
-    X.age=X.age+1  
+    X.age+=dt
     index_feuilles=[x for x in les_feuilles if (x[0].id_plante==X.id_plante and x[0].id_talle==X.id_talle and x[0].id_rang==X.id_rang)]  # index de la feuille
     
     if(X.angleinsert<=ParamP[X.id_plante]['INSERTIONLIMBE'] and X.Taillegaine>Taille_finale_gaine[X.id_plante][X.id_talle][X.id_rang-1] +1):
@@ -1447,7 +1447,7 @@ Feuille(X, X_apex, X_phytomere):
           Seuil[X.id_plante][X.id_talle] *= 1.15
           LEDGAINE=((0.2*Premiecroiss[X.id_plante]*5)*2)-Premiecroiss[X.id_plante]
           X.TailleEmergence=Seuil[X.id_plante][X.id_talle]
-          TrueAge=TpourY2(X.Taillefeuille+X.coupe,Premiecroiss[X.id_plante], paramManagement['Jled']*LEDGAINE,paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)
+          TrueAge=X.age-dt #On pourrait affiner la determination de TrueAge qui en realite a eu lieu entre age-dt et age-2dt (soit on prend la moyenne soit au prorata des longueurs)
           
           genotype=X.geno
           X.Ymax=ParamP[genotype]['C']*((pow(paramManagement['T01'],(TrueAge+paramManagement['tb1'])*paramManagement['k1'])-paramManagement['Lpot'])-(pow(paramManagement['T02'],(TrueAge+paramManagement['tb2'])*paramManagement['k2']))); #Alban
@@ -1467,17 +1467,15 @@ Feuille(X, X_apex, X_phytomere):
           LED=((X.Taillefinalegaine*5)*2)-X.Ymax
           #LEDGAINE=((0.2*110*5)*2)-110
           X.Difftps=TpourY2(Seuil[X.id_plante][X.id_talle], X.Ymax,paramManagement['Jled']*LED,paramManagement['Kled']*paramManagement['Jled']*LED)-X.age#TpourY2(X.Taillefeuille+X.coupe,110, paramManagement['Jled']*LEDGAINE,paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)
-          X.AgeCroiss=X.age+X.Difftps#TpourY(X.Taillefeuille, X.Ymax ,paramManagement['Jled']*(((X.Ymax/0.2)*(0.2+((X.age/(60.*10.))-0.1))*2.)-X.Ymax),paramManagement['Kled']*paramManagement['Jled']*(((X.Ymax/0.2)*(0.2+((X.age/(60.*10.))-0.1))*2.)-X.Ymax))
       
       ###### croissance ######
       LEDGAINE=((X.Taillefinalegaine*5)*2)-X.Ymax
       Accroiss=0
       #if (X.Taillegaine< Taille_finale_gaine[X.id_plante][X.id_talle][X.id_rang-1] +13):
-      inversea=TpourY2(X.Taillefeuille+X.coupe, X.Ymax, paramManagement['Jled']*LEDGAINE,paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)
       
       if(X.Phase=='cachee'):
-        inversea=TpourY2(X.Taillefeuille+X.coupe, X.Ymax, paramManagement['Jled']*LEDGAINE,paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)
-        AccroissDemande=FoncCroiss(inversea+1, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)-FoncCroiss(inversea, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)
+        inversea=X.age-dt
+        AccroissDemande=FoncCroiss(inversea+dt, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)-FoncCroiss(inversea, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)
         #Accroiss=FoncCroiss(X.age, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)-FoncCroiss(X.age-1, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)
         X.Agecroiss=X.age
       if(X.Phase=='visible'):
@@ -1531,20 +1529,18 @@ Feuille(X, X_apex, X_phytomere):
       
       if X.Phase!='mature':
         if (X.Taillegaine< Taille_finale_gaine[X.id_plante][X.id_talle][X.id_rang-1] +13):
-          inversea=TpourY2(X.Taillefeuille+X.coupe, X.Ymax, paramManagement['Jled']*LEDGAINE,paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)
-        
-        if(X.Phase=='cachee'):
-          NextAccroiss=FoncCroiss(X.age+1, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)-FoncCroiss(X.age, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)
-          #X.Agecroiss=X.age
-        
-        if(X.Phase=='visible'):
-          NextAccroiss=(FoncCroiss(X.Agecroiss+1, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)-FoncCroiss(X.Agecroiss, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE))         
-          #X.Agecroiss=X.age+X.Difftps
-        
+          if(X.Phase=='cachee'):
+            NextAccroiss=FoncCroiss(X.age+dt, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)-FoncCroiss(X.age, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)
+          else: # X.Phase=='visible'
+            NextAccroiss=(FoncCroiss(X.Agecroiss+dt, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)-FoncCroiss(X.Agecroiss, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE))         
+        if (X.Taillegaine>0.98*X.Taillefinalegaine and X.Taillegaine<=Taille_finale_gaine[X.id_plante][X.id_talle][X.id_rang-1] -5 and X.Phase=='visible'):
+          NextAccroiss=1        
+        if (X.Taillegaine>=Taille_finale_gaine[X.id_plante][X.id_talle][X.id_rang-1] +13 and X.Phase=='visible'):
+          NextAccroiss=0          
+          
         if X.geno==0:
           long=X.Taillefeuille+NextAccroiss
           Next_feuil=BiomassFeuille(long,X.coupe,X.geno)
-        
         else:
           long=X.Taillefeuille+NextAccroiss
           Next_feuil=BiomassFeuille(long,X.coupe,X.id_geno)
@@ -1552,12 +1548,6 @@ Feuille(X, X_apex, X_phytomere):
         #Next_biom_feuil[mtg.property('ParamPlante').get(plante).id_plante]=Next_biom_feuil[mtg.property('ParamPlante').get(plante).id_plante]+Next_feuil
       #NewShootBiomass=NewShootBiomass+Accroiss*0.0001
       
-      ####### Senescence #######
-      ##Agesenesc=paramManagement['T0sen']*10000.+(X.Ymax/20.)*paramManagement['Lpot']. 
-      ##if (X.age>Agesenesc+100.):
-      ##  produce Cut() # Pour que la feuille soit vraiment coupee supprimee de la chaine, en ENTIER
-      ##else:
-    
     else:      
       if X.geno==0:
         long=X.Taillefeuille
@@ -1568,6 +1558,12 @@ Feuille(X, X_apex, X_phytomere):
         coupe=X.coupe
         Next_feuil=paramManagement['FacBiom1']*(paramManagement['b0']*exp(paramManagement['b1']*(long+coupe)**2+paramManagement['b2']*(long+coupe))-paramManagement['b0'])*(long/(long+coupe))
         #Next_feuil=1.554*(paramManagement['b0']*exp(paramManagement['b1']*(long)**2+paramManagement['b2']*(long))-paramManagement['b0'])*(long/(long+X.coupe))
+      
+      ####### Senescence #######
+      Agesenesc = paramManagement['T0sen'] + (X.Ymax/20.)*paramManagement['Lpot']
+      if (X.age>Agesenesc+100.):
+        produce Cut() # Pour que la feuille soit vraiment coupee supprimee de la chaine, en ENTIER
+      
       #Next_biom_feuil[mtg.property('ParamPlante').get(plante).id_plante]=Next_biom_feuil[mtg.property('ParamPlante').get(plante).id_plante]+Next_feuil
     longueur_totale_feuille=longueur_totale_feuille+X.Taillefeuille
     
@@ -1592,7 +1588,7 @@ Feuille(X, X_apex, X_phytomere):
             large=0.
           
           Surfoliaireencours[X.id_plante]=Surfoliaireencours[X.id_plante]+large*2.*LSTEP  
-          X.surface=X.surface+large*2.*LSTEP  
+          X.surface=X.surface+large*2.*LSTEP  # Ecriture surface seulement pour feuilles éemrgées
       
       largegaine=max((2/pi)*(paramManagement['CoefDirLonLarAjust']*log(max(X.Taillegaine*5,1))-paramManagement['OrdOriLonLarAjust']),0.1)
       X.surface+=largegaine*pi*X.Taillegaine
@@ -1901,7 +1897,6 @@ ApexTal(X):
   if option_tallage == True:
     if groupe=='croissance':
       vtx_feuille_ref=[x for x in les_feuilles if (x[0].id_plante==X.id_plante and x[0].id_talle==X.id_talle and x[0].id_rang==X.id_rang+2)]
-      #if vtx_feuille_suivante!=[]:  # la feuille du rang+2 existe donc la feuille du rang+1 emerge
       if vtx_feuille_ref!=[]:
         seuil=max(Taille_finale_gaine[X.id_plante][X.id_talle][X.id_rang-1],5.5)
         
@@ -1911,7 +1906,6 @@ ApexTal(X):
         Sitefillingproba=alea1[alea1_index[X.id_plante]]*ParamP[X.id_plante]['STOPTALLAGE'] #Besoin de choisir des valeurs de tallage a laquelle arreter
         alea1_index[X.id_plante]+=1
         rapportS9_SSol=FonctionParamPlante.rapportS9_SSol(X.id_plante)
-        #print "Plante",X.id_plante, "   rapportS9_SSol",rapportS9_SSol,"SENSETALLAGE",ParamP[X.id_plante]['SENSETALLAGE'],"Sitefillingproba", Sitefillingproba
         
         if (rapportS9_SSol<Sitefillingproba): #Pour la gestoin du site filling : plus la surface augmente et plus la probabilite de faire un talle diminue
           if (rapportS9_SSol<=ParamP[X.id_plante]['SENSETALLAGE']):
