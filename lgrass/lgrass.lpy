@@ -41,7 +41,7 @@ num_pointe=0
 num_primordium=0
 
 LSTEP=1
-DureeExp = 700
+DureeExp = 1000
 
 ##### Parametre scene #####
 OptionRacine='SansRacines' 
@@ -89,7 +89,7 @@ alea2=[random.random() for x in xrange(4000)]
 option_tallage = True
 
 ##### Activation de la senescence
-option_senescence = False
+option_senescence = True
 
 
 ##### Activation de la floraison #####
@@ -846,7 +846,7 @@ def Start():
 #  ##### Ecriture des fichiers de sortie #####
   chemin_fichier1=open(os.path.join(OUTPUTS_DIRPATH,outvarfile),"wb")
   surface_biomass=csv.writer(chemin_fichier1)
-  surface_biomass.writerow(["TPS","Espacement","Densite","id plante","X.coupe","id talle","topologie","nb_feuillemergees","MS_feuille","Surface foliaire"])
+  surface_biomass.writerow(["TPS","Espacement","Densite","id plante","id talle","topologie","nb_feuille_emergees","Biomasse_feuilles_emergees","Surface_feuilles_emergees"])
   
   chemin_fichier2=open(os.path.join(OUTPUTS_DIRPATH,outvarfile2),"wb")
   simul_expe=csv.writer(chemin_fichier2)
@@ -1074,9 +1074,22 @@ def EndEach(lstring,lscene):
   
   #Biomasse_aerienne=newSB
   #Surfoliairetotale=Surfoliaireencours
-
-  les_feuilles=[x for x in lstring if x.name=='Feuille']
-  les_feuilles_emergees=[x for x in lstring if x.name=='Feuille' and x[0].Phase!='cachee']
+  
+  dico_talles = {}
+  les_feuilles, les_feuilles_emergees = [], []
+  
+  for x in lstring:
+    if x.name=='Feuille':
+      les_feuilles.append(x)
+      if x[0].Phase!='cachee':
+        les_feuilles_emergees.append(x)
+        id_plante_talle = (x[0].id_plante,x[0].id_talle)
+        if id_plante_talle in dico_talles.keys():
+          dico_talles[id_plante_talle].append(x)
+        else:
+          dico_talles[id_plante_talle]=[x]
+    
+  
   if groupe == 'defoliation':
     les_segments_feuilles = [x for x in lstring if x.name=='SegFeuille']
   
@@ -1094,11 +1107,10 @@ def EndEach(lstring,lscene):
   nb_talles_emergees=[0]*nb_plantes
   
 #  ##### Remplissage du fichier surface_biomass #####
-  for x in les_feuilles_emergees:
-    if x[0].id_rang==1:
-      nb_talles_emergees[x[0].id_plante]+=1
-      les_feuilles_dans_talle=[y for y in les_feuilles_emergees if y[0].id_plante==x[0].id_plante and y[0].id_talle==x[0].id_talle]
-      surface_biomass.writerow([TPS,Espacement,Densite,x[0].id_plante+1,x[0].coupe,x[0].id_talle+1, x[0].topology, len(les_feuilles_dans_talle),Biomasse_aerienne[ID],Surfoliairetotale[ID]])
+  for id_plante_talle, les_feuilles_dans_talle in dico_talles.items():
+    id_plante, id_talle = id_plante_talle[0],id_plante_talle[1]
+    nb_talles_emergees[id_plante_talle[0]]+=1
+    surface_biomass.writerow([TPS,Espacement,Densite,id_plante+1, id_talle+1, les_feuilles_dans_talle[0][0].topology, len(les_feuilles_dans_talle),sum(x[0].biomass for x in les_feuilles_dans_talle),sum(x[0].surface for x in les_feuilles_dans_talle)])
     
     
     #for x in les_racines:
