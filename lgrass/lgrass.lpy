@@ -1942,9 +1942,9 @@ ApexTal(X):
               
               produce SB phytomere(YP, YA) RollR(95) GetHead(0, 0, 0) bourgeonRoot(Yb, YINT) ApexTal(YAT) Entrenoeud(YINT, YA, YF, YP) FLW SB Feuille(YF, YA, YP) FLW EB apex(YA) EB
             else:
-              produce
+              produce ApexTal(X)
         else:
-          produce
+          produce ApexTal(X)
       else:
         produce ApexTal(X)
     if groupe=='defoliation':
