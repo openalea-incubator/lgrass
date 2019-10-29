@@ -41,7 +41,7 @@ num_pointe=0
 num_primordium=0
 
 LSTEP=1
-DureeExp = 500
+DureeExp = 700
 
 ##### Parametre scene #####
 OptionRacine='SansRacines' 
@@ -1902,7 +1902,6 @@ ApexTal(X):
         
         if X.id_rang==0 and X.id_talle==0:
           produce F(0)
-        
         Sitefillingproba=alea1[alea1_index[X.id_plante]]*ParamP[X.id_plante]['STOPTALLAGE'] #Besoin de choisir des valeurs de tallage a laquelle arreter
         alea1_index[X.id_plante]+=1
         rapportS9_SSol=FonctionParamPlante.rapportS9_SSol(X.id_plante)
@@ -1942,9 +1941,9 @@ ApexTal(X):
               
               produce SB phytomere(YP, YA) RollR(95) GetHead(0, 0, 0) bourgeonRoot(Yb, YINT) ApexTal(YAT) Entrenoeud(YINT, YA, YF, YP) FLW SB Feuille(YF, YA, YP) FLW EB apex(YA) EB
             else:
-              produce ApexTal(X)
+              produce
         else:
-          produce ApexTal(X)
+          produce
       else:
         produce ApexTal(X)
     if groupe=='defoliation':
