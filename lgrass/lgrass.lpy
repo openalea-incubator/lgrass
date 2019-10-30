@@ -65,14 +65,6 @@ groupe='croissance' # Permet de realiser les coupes
 reprise_coupe=False
 #CoupeTaille=600000.
 
-##### Sorties #####
-outvarfile='surface_biomass_%s_%s_%s.csv'%(int(Espacement),DureeExp,ParamP[0]['HCOUP'])
-outvarfile2='sortie_simul_ValidCoupe_%s_%s_%s.csv'%(int(Espacement),DureeExp,ParamP[0]['HCOUP'])
-outvarfile3='sorties_feuilles_finales_%s_%s_%s.csv'%(int(Espacement),DureeExp,ParamP[0]['HCOUP'])
-##output_apex = 'output_apex_%s_%s_%s.csv'%(int(Espacement),DureeExp,ParamP[0]['HCOUP'])                  # Ajout SIMON
-#output_organ_characteristics = 'output_organ_characteristics%s_%s_%s.csv'%(int(Espacement),DureeExp,ParamP[0]['HCOUP'])    
-#outimage='Scene\scene_'+str(int(Espacement))+'_'+t.strftime('%d-%m-%y_%Hh%M',t.localtime())+'.bmp'
-
 # Default name of the output
 output_induction_file_name = 'output_induction'
 output_organ_lengths_file_name = 'output_organ_lengths'
@@ -120,6 +112,7 @@ from lgrass import meteo_ephem
 sowing_date = "2007_04_01"
 site = 'LUSIGNAN'
 meteo_path = os.path.join(INPUTS_DIRPATH,'meteo_file.csv')
+print meteo_path 
 
 
 
@@ -844,6 +837,12 @@ def Start():
   tiller_to_remove = pd.DataFrame()
   
 #  ##### Ecriture des fichiers de sortie #####
+  outvarfile='surface_biomass_%s_%s_%s.csv'%(int(Espacement),DureeExp,ParamP[0]['HCOUP'])
+  outvarfile2='sortie_simul_ValidCoupe_%s_%s_%s.csv'%(int(Espacement),DureeExp,ParamP[0]['HCOUP'])
+  outvarfile3='sorties_feuilles_finales_%s_%s_%s.csv'%(int(Espacement),DureeExp,ParamP[0]['HCOUP'])
+##output_apex = 'output_apex_%s_%s_%s.csv'%(int(Espacement),DureeExp,ParamP[0]['HCOUP'])                  # Ajout SIMON
+#output_organ_characteristics = 'output_organ_characteristics%s_%s_%s.csv'%(int(Espacement),DureeExp,ParamP[0]['HCOUP'])    
+#outimage='Scene\scene_'+str(int(Espacement))+'_'+t.strftime('%d-%m-%y_%Hh%M',t.localtime())+'.bmp'
   chemin_fichier1=open(os.path.join(OUTPUTS_DIRPATH,outvarfile),"wb")
   surface_biomass=csv.writer(chemin_fichier1)
   surface_biomass.writerow(["TPS","Espacement","Densite","id plante","id talle","topologie","nb_feuille_emergees","Biomasse_feuilles_emergees","Surface_feuilles_emergees"])
@@ -1001,6 +1000,7 @@ def EndEach(lstring,lscene):
     Demande_feuille_dans_gaine[ID]=sum([x[0].Besoinencroiss for x in les_feuilles if x[0].Phase=='cachee'])
     Demande_feuille_hors_gaine[ID]=sum([x[0].Besoinencroiss for x in les_feuilles if x[0].Phase!='cachee'])    
     Demande_feuille[ID]=sum([Demande_feuille_dans_gaine[ID],Demande_feuille_hors_gaine[ID]])
+    # Feuilles emergees uniquement
     Biomasse_aerienne[ID]=sum([x[0].biomass for x in les_feuilles])    
     Surfoliairetotale[ID]=sum([x[0].surface for x in les_feuilles])
     
@@ -1572,11 +1572,10 @@ Feuille(X, X_apex, X_phytomere):
         #Next_feuil=1.554*(paramManagement['b0']*exp(paramManagement['b1']*(long)**2+paramManagement['b2']*(long))-paramManagement['b0'])*(long/(long+X.coupe))
       
       ####### Senescence #######
-      Agesenesc = paramManagement['T0sen'] + (X.Ymax/20.)*paramManagement['Lpot']
-      if (X.age>Agesenesc+100.):
+      Agesenesc = paramManagement['T0sen'] + X.Ymax * 1.5
+      if X.age > Agesenesc:
         produce Cut() # Pour que la feuille soit vraiment coupee supprimee de la chaine, en ENTIER
-      
-      #Next_biom_feuil[mtg.property('ParamPlante').get(plante).id_plante]=Next_biom_feuil[mtg.property('ParamPlante').get(plante).id_plante]+Next_feuil
+        
     longueur_totale_feuille=longueur_totale_feuille+X.Taillefeuille
     
     if (X.Phase!='cachee'):
@@ -1600,11 +1599,10 @@ Feuille(X, X_apex, X_phytomere):
             large=0.
           
           Surfoliaireencours[X.id_plante]=Surfoliaireencours[X.id_plante]+large*2.*LSTEP  
-          X.surface=X.surface+large*2.*LSTEP  # Ecriture surface seulement pour feuilles éemrgées
+          X.surface=X.surface+large*2.*LSTEP  # Ecriture surface seulement pour feuilles émergées
       
       largegaine=max((2/pi)*(paramManagement['CoefDirLonLarAjust']*log(max(X.Taillegaine*5,1))-paramManagement['OrdOriLonLarAjust']),0.1)
       X.surface+=largegaine*pi*X.Taillegaine
-      
       # Remplissage des hauteurs d organes
       X_apex.organ_lengths_dict[X.id_rang]['sheath'] = X.Taillegaine
       X_apex.organ_lengths_dict[X.id_rang]['limb'] = X.Taillelimbe

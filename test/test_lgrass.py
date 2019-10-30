@@ -75,8 +75,10 @@ def test_run(overwrite_desired_data=False):
     lsys = Lsystem(lpy_filename)
     axiom = lsys.axiom
 
-    lsys.INPUTS = INPUTS_DIRPATH
-    lsys.OUTPUTS = OUTPUTS_DIRPATH
+    lsys.INPUTS_DIRPATH = INPUTS_DIRPATH
+    lsys.OUTPUTS_DIRPATH = OUTPUTS_DIRPATH
+    lsys.derivationLength = NSTEP
+    lsys.DureeExp = NSTEP
     lstring = lsys.derive(axiom, NSTEP)
 
     # convert the outputs to Pandas dataframe
