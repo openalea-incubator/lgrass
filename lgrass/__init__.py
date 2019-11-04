@@ -20,4 +20,4 @@
         $Id: __init__.py 29 2015-10-01 09:42:38Z cchambon $
 """
 
-__version__  = '1.0'
+__version__  = '2.0'

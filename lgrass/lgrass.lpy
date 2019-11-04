@@ -112,7 +112,6 @@ from lgrass import meteo_ephem
 sowing_date = "2007_04_01"
 site = 'LUSIGNAN'
 meteo_path = os.path.join(INPUTS_DIRPATH,'meteo_file.csv')
-print meteo_path 
 
 
 
@@ -760,7 +759,7 @@ def Start():
   global alea1_index,timing,growth_realized,dt,TPS,TPS_expe #Parametres de temps
   global df_induction, df_organ_lengths
   global surface_biomass,chemin_fichier1,chemin_fichier2,chemin_fichier3,long_root,simul_expe,taille_finale_feuille #Fichiers de sortie
-  global Biomasse_aerienne,Biomasse_racinaire,BiomProd,Ray,PourcentageRootGrowthRealized,PourcentageRootGrowthRealized,Reserve,Demande_feuille,Demande_feuille_dans_gaine,Demande_feuille_hors_gaine,PourcentageFeuilGrowthRealized,les_diametres,Seuil,Taille_finale_gaine,nb_talle #Parametres vides
+  global Biomasse_aerienne,Biomasse_racinaire,BiomProd,Ray,PourcentageRootGrowthRealized,PourcentageRootGrowthRealized,Reserve,Demande_feuille,PourcentageFeuilGrowthRealized,les_diametres,Seuil,Taille_finale_gaine,nb_talle #Parametres vides
   global NBlignes,NBcolonnes,posPlante,Espacement #Parametres scene
   global Surfoliairetotale,Surfoliaireencours,Premiecroiss #Definition des groupes de production
   global Alpha,Beta,t1,t2,t3,Caribu #Relation allometrique
@@ -797,8 +796,6 @@ def Start():
   PourcentageRootGrowthRealized=[0]*(nb_plantes)
   Reserve=[0]*(nb_plantes) # Reserve de "biomass"
   Demande_feuille=[0]*(nb_plantes)
-  Demande_feuille_dans_gaine=[0]*(nb_plantes)
-  Demande_feuille_hors_gaine=[0]*(nb_plantes)
   #Next_biom_feuil=[0]*(nb_plantes)
   PourcentageFeuilGrowthRealized=[1]*(nb_plantes)
   les_diametres=[]
@@ -838,8 +835,7 @@ def Start():
   
 #  ##### Ecriture des fichiers de sortie #####
   outvarfile='surface_biomass_%s_%s_%s.csv'%(int(Espacement),DureeExp,ParamP[0]['HCOUP'])
-  outvarfile2='sortie_simul_ValidCoupe_%s_%s_%s.csv'%(int(Espacement),DureeExp,ParamP[0]['HCOUP'])
-  outvarfile3='sorties_feuilles_finales_%s_%s_%s.csv'%(int(Espacement),DureeExp,ParamP[0]['HCOUP'])
+  outvarfile2='sorties_feuilles_finales_%s_%s_%s.csv'%(int(Espacement),DureeExp,ParamP[0]['HCOUP'])
 ##output_apex = 'output_apex_%s_%s_%s.csv'%(int(Espacement),DureeExp,ParamP[0]['HCOUP'])                  # Ajout SIMON
 #output_organ_characteristics = 'output_organ_characteristics%s_%s_%s.csv'%(int(Espacement),DureeExp,ParamP[0]['HCOUP'])    
 #outimage='Scene\scene_'+str(int(Espacement))+'_'+t.strftime('%d-%m-%y_%Hh%M',t.localtime())+'.bmp'
@@ -848,13 +844,8 @@ def Start():
   surface_biomass.writerow(["TPS","Espacement","Densite","id plante","id talle","topologie","nb_feuille_emergees","Biomasse_feuilles_emergees","Surface_feuilles_emergees"])
   
   chemin_fichier2=open(os.path.join(OUTPUTS_DIRPATH,outvarfile2),"wb")
-  simul_expe=csv.writer(chemin_fichier2)
-  simul_expe.writerow(["TPS","Espacement","Densite","C","id_plante","nb_feuille","nb_talle_emergees","nb_feuilles_talle1","nb_feuilles_talle2","nb_feuilles_talle3"])
-  
-  chemin_fichier3=open(os.path.join(OUTPUTS_DIRPATH,outvarfile3),"wb")
-  taille_finale_feuille=csv.writer(chemin_fichier3)
+  taille_finale_feuille=csv.writer(chemin_fichier2)
   taille_finale_feuille.writerow(["TPS","Espacement","Densite","id plante","talle","rang","Phase","taille feuille","taille gaine","taille limbe"])
-
 
 
 def StartEach(lstring):
@@ -931,13 +922,8 @@ def EndEach(lstring,lscene):
   TPS=TPS+dt
   print 'TPS :',TPS , 'Current day :', current_day # AJOUT SIMON
   
-  #if groupe=='croissance':  
-  #if TPS==PREMIERCOUPE:
-  #  newSB=Biomasse_aerienne-0.221  #TF   0.1591  #TG
-  #else:
-  newSB=0 #Nouvelle biomasse aerienne
-  
-  print groupe
+  if reprise_coupe==True:
+    reprise_coupe=False
   
   # ------------------------------------------------------------------------------------------------
   # -------------------------------------- Use of Caribu -------------------------------------------
@@ -945,7 +931,7 @@ def EndEach(lstring,lscene):
   # Caribu is used at the end of each day
   # 
   # ------------------------------------------------------------------------------------------------
-  ### Utilisation de Caribu ###  
+  
   if TPS >= meteo[meteo.experimental_day == current_day].thermal_time_cumul.iloc[0] and option_caribu=='On':
     timing_method1=t.time()
     res=apply_caribu(lscene, energy=par_incident, azimuths=azimuths, zeniths=zeniths, diffuse_model=diffuse_model, scene_unit=scene_unit)
@@ -991,37 +977,61 @@ def EndEach(lstring,lscene):
         BiomProd[ID] = Ray[ID]*RUE # Ray: molPAR.m-2    RUE : g.MJ-1
         print('Plante %s, Ray: %s, BiomProd: %s' % (ID, Ray[ID],BiomProd[ID]))
   
-  for ID in xrange(nb_plantes):
-    if reprise_coupe==True:
-      reprise_coupe=False
-    
-    les_feuilles=[x for x in lstring if x.name=='Feuille' and x[0].id_plante==ID]
-    
-    Demande_feuille_dans_gaine[ID]=sum([x[0].Besoinencroiss for x in les_feuilles if x[0].Phase=='cachee'])
-    Demande_feuille_hors_gaine[ID]=sum([x[0].Besoinencroiss for x in les_feuilles if x[0].Phase!='cachee'])    
-    Demande_feuille[ID]=sum([Demande_feuille_dans_gaine[ID],Demande_feuille_hors_gaine[ID]])
-    # Feuilles emergees uniquement
-    Biomasse_aerienne[ID]=sum([x[0].biomass for x in les_feuilles])    
-    Surfoliairetotale[ID]=sum([x[0].surface for x in les_feuilles])
-    
-    if Biomasse_aerienne[ID]>0 and t1[ID]*exp(TPS*t2[ID])-t1[ID]>0 and Surfoliairetotale[ID] > 0 and Demande_feuille[ID] != 0: #Verifie qu'il y a une partie aerienne et que TPS, t1 et t2 sont positifs          # Surfoliairetotale[ID] > 0 and Demande_feuille[ID] > 0 : ajout SIMON
+  # ------------------------------------------------------------------------------------------------
+  # -------------------------------------- End of Caribu -------------------------------------------
+  # ------------------------------------------------------------------------------------------------
+  
+  liste_organes = []
+  for mod in lstring:
+    if mod.name in ('Feuille', ):
+      liste_organes.append({'Plante': mod[0].id_plante, 'id_talle': mod[0].id_talle, 'id_rang': mod[0].id_rang, 'Topology': mod[0].topology, 'Organe': mod.name, 'ObjetOrgane': mod[0], 'Phase': mod[0].Phase})
+  df_organes = pd.DataFrame(liste_organes, columns=['Plante', 'id_talle', 'id_rang', 'Topology', 'Organe', 'ObjetOrgane', 'Phase'])
+  
+  les_feuilles = df_organes[(df_organes['Organe'] == 'Feuille')] # Toutes les feuilles de toutes les plantes
+  
+  for id_plante in les_feuilles['Plante'].unique():
+    les_feuilles_plante = les_feuilles[les_feuilles['Plante'] == id_plante]
+    Biomasse_aerienne[id_plante] = 0
+    Surfoliairetotale[id_plante] = 0
+    Demande_feuille[id_plante] = 0
+    for id_talle in les_feuilles_plante['id_talle'].unique():
+      # Toutes les feuilles de la talle
+      les_feuilles_talle = les_feuilles_plante[les_feuilles_plante['id_talle'] == id_talle]['ObjetOrgane'].tolist()
+      
+      # Demande croissance de toutes les feuilles de la talle
+      Demande_feuille[id_plante] += sum([x.Besoinencroiss for x in les_feuilles_talle])
+      
+      # Biomasse et surface des feuilles emergees uniquement
+      Biomasse_aerienne[id_plante] += sum([x.biomass for x in les_feuilles_talle])
+      Surfoliairetotale[id_plante] += sum([x.surface for x in les_feuilles_talle])  #: N'ajoute que les surfaces de limbes emerges (cf. incrementation .surface dans regle production Feuille)
+      # ajoute les surfaces des gaines emergees à partir de Seuil
+      seuil_talle = Seuil[id_plante][id_talle]
+      diametre_seuil_talle = max((2 / pi) * (paramManagement['CoefDirLonLarAjust'] * log(max(seuil_talle * 5,1)) - paramManagement['OrdOriLonLarAjust']), 0.1)
+      surface_gaine_emergee = seuil_talle * pi * diametre_seuil_talle
+      Surfoliairetotale[id_plante] += surface_gaine_emergee
+      
+      ##### Remplissage du fichier surface_biomass #####
+      surface_biomass.writerow([TPS,Espacement,Densite,id_plante+1, id_talle+1, les_feuilles_talle[0].topology, len(les_feuilles_talle),sum(x.biomass for x in les_feuilles_talle),sum(x.surface for x in les_feuilles_talle) + surface_gaine_emergee])
+ 
+    # Mise a jour biomasse et pourcentage echelle plante
+    if Biomasse_aerienne[id_plante]>0 and t1[id_plante]*exp(TPS*t2[id_plante])-t1[id_plante]>0 and Surfoliairetotale[id_plante] > 0 and Demande_feuille[id_plante] != 0: #Verifie qu'il y a une partie aerienne et que TPS, t1 et t2 sont positifs          # Surfoliairetotale[ID] > 0 and Demande_feuille[ID] > 0 : ajout SIMON
       if option_mophogenetic_regulation_by_carbone == True:
         print "On"
-        BiomassCree = BiomProd[ID]
+        BiomassCree = BiomProd[id_plante]
       else:
         print "Off"
-        BiomassCree=t2[ID]*(Biomasse_aerienne[ID]+t1[ID])*(1+Beta[ID]*Alpha[ID]*(Biomasse_aerienne[ID])**(Alpha[ID]-1))
-      if BiomassCree>0 and 0.99*BiomassCree-Demande_feuille[ID]>0:#Next_biom_feuil[ID]-Biomasse_aerienne[ID]>0 and 
-        RootBiomassCree=BiomassCree-Demande_feuille[ID]
-        Biomasse_racinaire[ID]+=RootBiomassCree
-        PourcentageFeuilGrowthRealized[ID]=1
+        BiomassCree=t2[id_plante]*(Biomasse_aerienne[id_plante]+t1[id_plante])*(1+Beta[id_plante]*Alpha[id_plante]*(Biomasse_aerienne[id_plante])**(Alpha[id_plante]-1))
+      if BiomassCree>0 and 0.99*BiomassCree-Demande_feuille[id_plante]>0:#Next_biom_feuil[ID]-Biomasse_aerienne[ID]>0 and 
+        RootBiomassCree=BiomassCree-Demande_feuille[id_plante]
+        Biomasse_racinaire[id_plante]+=RootBiomassCree
+        PourcentageFeuilGrowthRealized[id_plante]=1
       else:
         RootBiomassCree=0.01*BiomassCree
-        Biomasse_racinaire[ID]+=RootBiomassCree
+        Biomasse_racinaire[id_plante]+=RootBiomassCree
         BiomassFeuilCree=0.99*BiomassCree
-        PourcentageFeuilGrowthRealized[ID]=BiomassFeuilCree/Demande_feuille[ID]
-        if PourcentageFeuilGrowthRealized[ID]<0:
-          PourcentageFeuilGrowthRealized[ID]=0
+        PourcentageFeuilGrowthRealized[id_plante]=BiomassFeuilCree/Demande_feuille[id_plante]
+        if PourcentageFeuilGrowthRealized[id_plante]<0:
+          PourcentageFeuilGrowthRealized[id_plante]=0
     else:
       RootBiomassCree=0
       BiomassCree=0
@@ -1030,66 +1040,22 @@ def EndEach(lstring,lscene):
     #  PourcentageRootGrowthRealized[ID]=1
     #PourcentageFeuilGrowthRealized[ID]=1 #le temps de tester
     
-    if RootPotentialNewBiomass[ID]==0:
-      PourcentageRootGrowthRealized[ID]=0
+    if RootPotentialNewBiomass[id_plante]==0:
+      PourcentageRootGrowthRealized[id_plante]=0
       #Reserve[ID]=Reserve[ID]+RootBiomassCree
     else:
-      PourcentageRootGrowthRealized[ID]=RootBiomassCree/RootPotentialNewBiomass[ID]
-      if PourcentageRootGrowthRealized[ID]>1:
-        PourcentageRootGrowthRealized[ID]=1
+      PourcentageRootGrowthRealized[id_plante]=RootBiomassCree/RootPotentialNewBiomass[id_plante]
+      if PourcentageRootGrowthRealized[id_plante]>1:
+        PourcentageRootGrowthRealized[id_plante]=1
         #Reserve[ID]=Reserve[ID]+(RootBiomassCree-RootPotentialNewBiomass[ID])
       else:
-        if RootPotentialNewBiomass[ID]-RootBiomassCree < Reserve[ID]:
-          PourcentageRootGrowthRealized[ID]=1
+        if RootPotentialNewBiomass[id_plante]-RootBiomassCree < Reserve[id_plante]:
+          PourcentageRootGrowthRealized[id_plante]=1
           #Reserve[ID]=Reserve[ID]-(RootPotentialNewBiomass[ID]-RootBiomassCree)
         else:
-          PourcentageRootGrowthRealized[ID]=(RootBiomassCree+Reserve[ID])/RootPotentialNewBiomass[ID]
+          PourcentageRootGrowthRealized[id_plante]=(RootBiomassCree+Reserve[id_plante])/RootPotentialNewBiomass[id_plante]
           #Reserve[ID]=0
     
-    #print('PourcentageFeuilGrowthRealized: %s, PourcentageRootGrowthRealized: %s' % (PourcentageFeuilGrowthRealized[ID],PourcentageRootGrowthRealized[ID]))
-    #print ('demande feuille: %s, RootPotentialNewBiomass : %s, BiomassCree : %s, RootBiomassCree : %s' % (Demande_feuille[ID], RootPotentialNewBiomass[ID],BiomassCree,RootBiomassCree))
-    
-    #Biomasse_aerienne[ID]=newSB
-    
-    #for x in VtxList(5):
-    #  if Class(x)=='s':
-    #    Biomasse_racinaire=Biomasse_racinaire+(mtg.property('seg').get(x).longueur*P_RootMasseVolumique*pi*(mtg.property('seg').get(x).diametre/2)**2)
-    #  elif Class(x)=='t':
-    #    Biomasse_racinaire=Biomasse_racinaire+(mtg.property('pte').get(x).longueur*P_RootMasseVolumique*pi/3*(mtg.property('pte').get(x).diametre/2)**2)
-  
-  #if TPS<PREMIERCOUPE:
-  #  PourcentageFeuilGrowthRealized=[1]*(nb_plantes)
-  
-  #longtotal=0
-  #for x in les_racines:
-  #  ensemble_de_racine=Components(x)
-  #  axe=Path(ensemble_de_racine[0],ensemble_de_racine[len(ensemble_de_racine)-1])
-  #  axe.append(ensemble_de_racine[0])
-  #  for y in axe:
-  #    if Class(y)=='s':
-  #      longtotal=longtotal+mtg.property('seg').get(y).longueur
-  #    elif Class(y)=='t':
-  #      longtotal=longtotal+mtg.property('pte').get(y).longueur
-  #  derniere_pointe=ensemble_de_racine[len(ensemble_de_racine)-1]
-  
-  #Biomasse_aerienne=newSB
-  #Surfoliairetotale=Surfoliaireencours
-  
-  dico_talles = {}
-  les_feuilles, les_feuilles_emergees = [], []
-  
-  for x in lstring:
-    if x.name=='Feuille':
-      les_feuilles.append(x)
-      if x[0].Phase!='cachee':
-        les_feuilles_emergees.append(x)
-        id_plante_talle = (x[0].id_plante,x[0].id_talle)
-        if id_plante_talle in dico_talles.keys():
-          dico_talles[id_plante_talle].append(x)
-        else:
-          dico_talles[id_plante_talle]=[x]
-    
-  
   if groupe == 'defoliation':
     les_segments_feuilles = [x for x in lstring if x.name=='SegFeuille']
   
@@ -1099,81 +1065,6 @@ def EndEach(lstring,lscene):
     les_racines=[x for x in VtxList(4) if Class(x)=='r']
     les_pointes=[[mtg.property('pte').get(x).id_pointe,x] for x in VtxList(5) if Class(x)=='t']
     les_pointes2=[x for x in VtxList(5) if Class(x)=='t']
-    #les_phytos=[Complex(x) for x in les_feuilles_emergees if Rank(Complex(x))==0]
-    #les_primordiums=[x for x in VtxList(5) if Class(x)=='S']
-    #les_longs=les_longs2
-  
-  nb_feuilles=[0]*nb_plantes
-  nb_talles_emergees=[0]*nb_plantes
-  
-#  ##### Remplissage du fichier surface_biomass #####
-  for id_plante_talle, les_feuilles_dans_talle in dico_talles.items():
-    id_plante, id_talle = id_plante_talle[0],id_plante_talle[1]
-    nb_talles_emergees[id_plante_talle[0]]+=1
-    surface_biomass.writerow([TPS,Espacement,Densite,id_plante+1, id_talle+1, les_feuilles_dans_talle[0][0].topology, len(les_feuilles_dans_talle),sum(x[0].biomass for x in les_feuilles_dans_talle),sum(x[0].surface for x in les_feuilles_dans_talle)])
-    
-    
-    #for x in les_racines:
-    #  ensemble_de_racine=Components(x)
-    #  axe=Path(ensemble_de_racine[0],ensemble_de_racine[len(ensemble_de_racine)-1])
-    #  axe.append(ensemble_de_racine[0])
-    #  nb_tip=[x for x in axe if Class(x)=='t']
-    #  if len(nb_tip)>1:
-    #    print('probleme !!!!!!!!!!!!!!!!!!!!!!!')
-    #  long=0
-    #  for y in axe:
-    #    if Class(y)=='s':
-    #      long=long+mtg.property('seg').get(y).longueur
-    #    elif Class(y)=='t':
-    #      long=long+mtg.property('pte').get(y).longueur
-    #  pointe=axe[len(axe)-2]
-    #  if mtg.property('pte').get(pointe).diametre<0.52:
-    #    print 'probleme racine'
-    #    print axe
-    #    print ensemble_de_racine
-  
-  
-  
-  ##### Remplissage du fichier sortie_simul #####
-  
-  #les_feuilles_emergees=[]
-  #les_feuilles_emergees.append(len([x for x in VtxList(4) if Class(x)=='F' and mtg.property('ParamFeuille').get(x).Phase!='cachee' and mtg.property('ParamFeuille').get(x).id_plante==0]))
-  #les_feuilles_emergees.append(len([x for x in VtxList(4) if Class(x)=='F' and mtg.property('ParamFeuille').get(x).Phase!='cachee' and mtg.property('ParamFeuille').get(x).id_plante==1]))
-  #talles=[]
-  #les_feuilles2=[]
-  #les_feuilles2.append(len([x for x in VtxList(4) if Class(x)=='F' and mtg.property('ParamFeuille').get(x).id_plante==0]))
-  #les_feuilles2.append(len([x for x in VtxList(4) if Class(x)=='F' and mtg.property('ParamFeuille').get(x).id_plante==1]))
-  #talles.append(len([x for x in VtxList(4) if Class(x)=='F' and mtg.property('ParamFeuille').get(x).Phase!='cachee' and mtg.property('ParamFeuille').get(x).id_rang==1 and mtg.property('ParamFeuille').get(x).id_plante==0]))
-  #talles.append(len([x for x in VtxList(4) if Class(x)=='F' and mtg.property('ParamFeuille').get(x).Phase!='cachee' and mtg.property('ParamFeuille').get(x).id_rang==1 and mtg.property('ParamFeuille').get(x).id_plante==1]))
-  
-  #for x in [x for x in VtxList(2) if Class(x)=='P']:
-  #tab=[]
-  #display_mtg(mtg, x,tab)
-  #filename='E:/Projets/ESIP/2016-2017/Plant_Model/essai display.mtg'
-  #plantes=[x for x in VtxList(2) if Class(x)=='P']
-  
-  #  if les_racines<>[]:
-  #    plante1=mtg.sub_mtg(les_racines[0])
-  #    print('root',les_racines[0])
-  #    f=open(filename, 'w')
-  #    #properties=[(p, 'REAL') for p in plante1.property_names() if p not in ['edge_type', 'index', 'label']]
-  #    mtg_lines=write_mtg(plante1)#,properties)
-  #    f.write(mtg_lines)
-  #    f.close()
-  #Next_biom_feuil=[0]*(nb_plantes)
-  
-  #if TPS>5:
-  #  print('talllage',nb_talle[0],nb_talle[1])
-  
-  #for ID in xrange(nb_plantes):
-  #  nb_feuilles_emergees[ID]=les_feuilles_emergees[ID]
-  
-  #print
-  #for ID in xrange(nb_plantes):
-  #  print('Plante %s, surface foliaire : %.2f mm², Biomasse_aerienne : %s' % (ID+1,Surfoliairetotale[ID],Biomasse_aerienne[ID]))
-  
-  
-  
   
   # ------------------------------------------------------------------------------------------------
   # -------------------------------- Date change management ----------------------------------------
@@ -1185,10 +1076,6 @@ def EndEach(lstring,lscene):
     current_day += 1
     
 
-
-
-
-
 def End(lstring,lscene): #Ecriture et fermeture des fichiers de sortie
   global taille_finale_feuille,surface_biomass,simul_expe
   global TPS,timing,chemin_fichier1,chemin_fichier2,chemin_fichier3,mtg,long_root, les_racines, apex_characteristics, internode_characteristics
@@ -1197,30 +1084,11 @@ def End(lstring,lscene): #Ecriture et fermeture des fichiers de sortie
   
   ### Remplissage du fichier taille_finale_feuille ###
   for ID in xrange(nb_plantes):
+    les_feuilles_emergees = les_feuilles[(les_feuilles['Plante'] == ID) & (les_feuilles['Phase'] == 'mature')]['ObjetOrgane'].tolist()
     for x in les_feuilles_emergees:
-      if x[0].id_plante==ID and x[0].Phase=='mature':
-        taille_finale_feuille.writerow([TPS,Espacement,Densite,ID+1,x[0].id_talle+1,x[0].id_rang+1, x[0].Phase,x[0].Taillefeuille,x[0].Taillegaine,x[0].Taillelimbe])
+      taille_finale_feuille.writerow([TPS, Espacement, Densite,ID+1, x.id_talle+1, x.id_rang+1, x.Phase, x.Taillefeuille, x.Taillegaine, x.Taillelimbe])
 
 #  ##### Remplissage du fichier sortie_simul_ValidCoupe #####  
-  nb_feuilles=[0]*nb_plantes
-  nb_talles_emergees=[0.]*nb_plantes
-  nb_feuilles_talle1=[0.]*nb_plantes
-  nb_feuilles_talle2=[0.]*nb_plantes
-  nb_feuilles_talle3=[0.]*nb_plantes
-  
-  for x in les_feuilles_emergees:
-    nb_feuilles[x[0].id_plante]+=1
-    #Nombre de talles emmergees
-    if x[0].id_rang==1:
-      nb_talles_emergees[x[0].id_plante]+=1
-    #Nombre de feuille presente sur chacun des 3 premiers talles
-    if x[0].id_talle==0:
-      nb_feuilles_talle1[x[0].id_plante]+=1
-    if x[0].id_talle==1:
-      nb_feuilles_talle2[x[0].id_plante]+=1
-    if x[0].id_talle==2:
-      nb_feuilles_talle3[x[0].id_plante]+=1
-  
   nb_racines=[0]*nb_plantes
   nb_racines_visible=[0]*nb_plantes
   longroottotal=[0]*nb_plantes
@@ -1253,13 +1121,9 @@ def End(lstring,lscene): #Ecriture et fermeture des fichiers de sortie
       pointe=axe[len(axe)-2]
       profond[mtg.property('ParamRacine').get(x).id_plante]=max(profond[mtg.property('ParamRacine').get(x).id_plante],mtg.property('pte').get(pointe).profondeur)
   
-  for ID in xrange(nb_plantes):
-    simul_expe.writerow([TPS,Espacement,Densite,ParamP[ID]['C'],ID+1,nb_feuilles[ID],nb_talles_emergees[ID],nb_feuilles_talle1[ID],nb_feuilles_talle2[ID],nb_feuilles_talle3[ID]])
-  
   ### Fermeture des fichiers ###
   chemin_fichier1.close()
   chemin_fichier2.close()
-  chemin_fichier3.close()
   
 #  ### Sauvegarde d'une image de la scene
 #  outimagepath = os.path.join(OUTPUTS_DIRPATH, outimage)
@@ -1340,7 +1204,7 @@ def TpourY2(Y, Ym, Te, Tm):  # retrouver le temps T auquel la taille de la feuil
 
 
 
-Axiom: CouvertVegetal(0)
+Axiom: CouvertVegetal(1)
 
 derivation length: DureeExp
 
@@ -1369,6 +1233,8 @@ CouvertVegetal(X):
           genotype.append(geno)
           param=ParamPlante(id_plante,geno)
           nb_talle.append(0)
+          Seuil.append([5.5])
+          Taille_finale_gaine.append([[5.5,5.5]])
           nproduce IN SB() RollR(45) MoveTo(j*Espacement,Espacement*i,0) Plante(param) IN EB()
     else:
       produce CouvertVegetal(X+1)
@@ -1380,8 +1246,6 @@ Plante(X):
   global TPS,groupe, current_day
   if groupe=='croissance':
     if TPS ==2:
-      Seuil.append([5.5])
-      Taille_finale_gaine.append([[5.5,5.5]])
       Y1=ParamPhytomere(id_plante = X.id_plante, id_talle = 0, id_rang=1)
       YF=ParamFeuille(age=0, Agecroiss=0, Taillefeuille=0, id_plante=X.id_plante ,id_rang=1, Ymax=Premiecroiss[X.id_plante], Taillefinalelimbe=0.8*Premiecroiss[X.id_plante], Taillefinalegaine=0.2*Premiecroiss[X.id_plante])
       Yb=ParambourgeonRoot(X.id_plante,id_talle=0,id_rang=1,id_geno=X.id_geno)
@@ -1421,7 +1285,6 @@ Feuille(X, X_apex, X_phytomere):
   
   if groupe=='croissance':
     X.age+=dt
-    index_feuilles=[x for x in les_feuilles if (x[0].id_plante==X.id_plante and x[0].id_talle==X.id_talle and x[0].id_rang==X.id_rang)]  # index de la feuille
     
     if(X.angleinsert<=ParamP[X.id_plante]['INSERTIONLIMBE'] and X.Taillegaine>Taille_finale_gaine[X.id_plante][X.id_talle][X.id_rang-1] +1):
       X.angleinsert=X.angleinsert+1    
@@ -1601,8 +1464,6 @@ Feuille(X, X_apex, X_phytomere):
           Surfoliaireencours[X.id_plante]=Surfoliaireencours[X.id_plante]+large*2.*LSTEP  
           X.surface=X.surface+large*2.*LSTEP  # Ecriture surface seulement pour feuilles émergées
       
-      largegaine=max((2/pi)*(paramManagement['CoefDirLonLarAjust']*log(max(X.Taillegaine*5,1))-paramManagement['OrdOriLonLarAjust']),0.1)
-      X.surface+=largegaine*pi*X.Taillegaine
       # Remplissage des hauteurs d organes
       X_apex.organ_lengths_dict[X.id_rang]['sheath'] = X.Taillegaine
       X_apex.organ_lengths_dict[X.id_rang]['limb'] = X.Taillelimbe
@@ -1722,10 +1583,9 @@ Feuille(X, X_apex, X_phytomere):
       
       Taille_finale_gaine[X.id_plante][X.id_talle][X.id_rang]=X.Taillegaine
       
-      if X.id_rang==1 and X.id_talle>0 and X.topology!=(0,0):  # Premiere feuille de chaque talle sauf brim maitre et talle coleoptile
-        vtx_feuille=[x for x in les_feuilles if (x[0].id_plante==X.id_plante and x[0].id_talle==X.id_talle and x[0].id_rang==X.id_rang)][0]
-        feuille_ref = [x for x in les_feuilles if (x[0].id_plante==X.id_plante and x[0].topology==X.topology[:-1] and (x[0].id_rang==max(1, X.topology[-1])))][0]  # Feuille axillante de l'ordre précédent (le max sert a traiter les cas des 1ers rangs)
-        Seuil[X.id_plante][X.id_talle]=max(Seuil[X.id_plante][X.id_talle], feuille_ref[0].Taillegaine)
+      if X.id_rang==1 and X.id_talle>0 and X.topology!=(0,0):  # Premiere feuille de chaque talle sauf brin maitre et talle coleoptile
+        feuille_ref = les_feuilles[(les_feuilles['Plante'] == X.id_plante) & (les_feuilles['Topology'] == X.topology[:-1]) & (les_feuilles['id_rang'] == max(1, X.topology[-1]))].iloc[0]['ObjetOrgane']    # Feuille axillante de l'ordre précédent (le max sert a traiter les cas des 1ers rangs)
+        Seuil[X.id_plante][X.id_talle]=max(Seuil[X.id_plante][X.id_talle], feuille_ref.Taillegaine)
       X.biomass=BiomassFeuille(X.Taillefeuille,X.coupe,X.geno)
     else:
       # Remplissage des hauteurs d organes 
@@ -1804,8 +1664,7 @@ apex(X):
   
   if groupe=='croissance':     
     if (X.phenological_state == 'vegetative' or X.phenological_state == 'vernalized' or (X.phenological_state == 'reproductive' and (X.total_created_leaves < X.final_leaf_number or X.final_leaf_number is None))):
-      #vtx_feuille=[x for x in les_feuilles if (mtg.property('ParamFeuille').get(x).id_plante==X.id_plante and mtg.property('ParamFeuille').get(x).id_talle==X.id_talle and mtg.property('ParamFeuille').get(x).id_rang==X.id_rang)][0]
-      vtx_feuille=[x for x in les_feuilles if (x[0].id_plante==X.id_plante and x[0].id_talle==X.id_talle and x[0].id_rang==X.id_rang)]
+      feuille_ref = les_feuilles[(les_feuilles['Plante'] == X.id_plante) & (les_feuilles['id_talle'] == X.id_talle) & (les_feuilles['id_rang'] == X.id_rang)].iloc[0]['ObjetOrgane']
       if X.retard==2:
         #Seuil[X.id_plante][X.id_talle]=Seuil[X.id_plante][X.id_talle] * 1.15
         Taille_finale_gaine[X.id_plante][X.id_talle].append(5.5)
@@ -1849,8 +1708,7 @@ apex(X):
         X.retard=2
         print 'RETARD_1'
         produce apex(X)
-      #elif abs(Seuil[X.id_plante][X.id_talle]-mtg.property('ParamFeuille').get(vtx_feuille).Taillefeuille)<2: #Si |Seuil-Taillefeuille| <2mm
-      elif abs(Seuil[X.id_plante][X.id_talle]-vtx_feuille[0][0].Taillefeuille)<2: #Si |Seuil-Taillefeuille| <2mm
+      elif feuille_ref and abs(Seuil[X.id_plante][X.id_talle]-feuille_ref.Taillefeuille)<2: #Si |Seuil-Taillefeuille| <2mm
         X.retard=1
         print 'RETARD_0'
         produce apex(X)
@@ -1906,9 +1764,9 @@ ApexTal(X):
   global les_feuilles,Surfoliairetotale,alea1,alea1_index,alea2
   if option_tallage == True:
     if groupe=='croissance':
-      vtx_feuille_ref=[x for x in les_feuilles if (x[0].id_plante==X.id_plante and x[0].id_talle==X.id_talle and x[0].id_rang==X.id_rang+2)]
-      if vtx_feuille_ref!=[]:
-        seuil=max(Taille_finale_gaine[X.id_plante][X.id_talle][X.id_rang-1],5.5)
+      feuille_ref = les_feuilles[(les_feuilles['Plante'] == X.id_plante) & (les_feuilles['id_talle'] == X.id_talle) & (les_feuilles['id_rang'] == X.id_rang+2)]['ObjetOrgane']  # Coordination demarrage ApexTal avec feuille n+2
+      if not feuille_ref.empty:
+        seuil=max(Taille_finale_gaine[X.id_plante][X.id_talle][X.id_rang-1], 5.5)
         
         if X.id_rang==0 and X.id_talle==0:
           produce F(0)
@@ -1916,7 +1774,7 @@ ApexTal(X):
         alea1_index[X.id_plante]+=1
         rapportS9_SSol=FonctionParamPlante.rapportS9_SSol(X.id_plante)
         
-        if (rapportS9_SSol<Sitefillingproba): #Pour la gestoin du site filling : plus la surface augmente et plus la probabilite de faire un talle diminue
+        if (rapportS9_SSol<Sitefillingproba): #Pour la gestoin du site filling : plus la surface augmente et plus la probabilite de faire une talle diminue
           if (rapportS9_SSol<=ParamP[X.id_plante]['SENSETALLAGE']):
             nb_talle[X.id_plante]=nb_talle[X.id_plante]+1
             Seuil[X.id_plante].append(seuil)
@@ -1985,13 +1843,13 @@ racine(X):
     produce *
   else:
     if X.axe_arret==0:
-      feuille_test=[x for x in les_feuilles if (mtg.property('ParamFeuille').get(x).id_plante==X.id_plante and mtg.property('ParamFeuille').get(x).id_talle==X.id_talle and mtg.property('ParamFeuille').get(x).id_rang==X.feuil_ref+6)]
-      if feuille_test!=[] and mtg.property('ParamFeuille').get(feuille_test[0]).Phase!='cachee' :
+      feuille_test=[x for x in les_feuilles if (x.id_plante==X.id_plante and x.id_talle==X.id_talle and x.id_rang==X.feuil_ref+6)][0]
+      if feuille_test!=[] and feuille_test.Phase!='cachee':
         X.axe_arret=1
     
     elif X.lateral_arret==0:
-      feuille_test=[x for x in les_feuilles if (mtg.property('ParamFeuille').get(x).id_plante==X.id_plante and mtg.property('ParamFeuille').get(x).id_talle==X.id_talle and mtg.property('ParamFeuille').get(x).id_rang==X.feuil_ref+7)]
-      if feuille_test!=[] and mtg.property('ParamFeuille').get(feuille_test[0]).Phase!='cachee':
+      feuille_test = [x for x in les_feuilles if (x.id_plante==X.id_plante and x.id_talle==X.id_talle and x.id_rang==X.feuil_ref+7)][0]
+      if feuille_test!=[] and feuille_test.Phase!='cachee':
         X.lateral_arret=1
 
 
@@ -2007,13 +1865,13 @@ bourgeonRoot(X, Y_EN):
   
     else:
       if groupe=='croissance':
-        feuille_du_phytomere=[x for x in les_feuilles if (mtg.property('ParamFeuille').get(x).id_plante==X.id_plante and mtg.property('ParamFeuille').get(x).id_talle==X.id_talle and mtg.property('ParamFeuille').get(x).id_rang==X.id_rang)][0]
-        ordre=Order(Complex(feuille_du_phytomere)) #ordre de la talle
+        feuille_du_phytomere = [x for x in les_feuilles if (x.id_plante==X.id_plante and x.id_talle==X.id_talle and x.id_rang==X.id_rang)][0]
+        ordre=Order(Complex(feuille_du_phytomere)) #ordre de la talle, TODO: ordre a activer quand mtg
         
-        #if ordre<=1:
+        
         if X.nb_prod_root==0:
-          feuille_reference=[x for x in les_feuilles if (mtg.property('ParamFeuille').get(x).id_plante==X.id_plante and mtg.property('ParamFeuille').get(x).id_talle==X.id_talle and mtg.property('ParamFeuille').get(x).id_rang==X.id_rang+ordre)]
-          if feuille_reference!=[] and mtg.property('ParamFeuille').get(feuille_reference[0]).Phase!='cachee':
+          feuille_reference = [x for x in les_feuilles if (x.id_plante==X.id_plante and x.id_talle==X.id_talle and x.id_rang==X.id_rang+ordre)][0]
+          if feuille_reference!=[] and feuille_reference.Phase!='cachee':
             num_pointe=num_pointe+1
             #if Biomasse_aerienne<0.1:
             #  if les_diametres==[]:
@@ -2040,10 +1898,10 @@ bourgeonRoot(X, Y_EN):
         
         elif X.nb_prod_root==1:
           if ordre==0:
-            feuille_reference=[x for x in les_feuilles if (mtg.property('ParamFeuille').get(x).id_plante==X.id_plante and mtg.property('ParamFeuille').get(x).id_talle==X.id_talle and mtg.property('ParamFeuille').get(x).id_rang==X.id_rang+1)]
+            feuille_reference=[x for x in les_feuilles if (x.id_plante==X.id_plante and x.id_talle==X.id_talle and x.id_rang==X.id_rang+1)]
           else:
-            feuille_reference=[x for x in les_feuilles if (mtg.property('ParamFeuille').get(x).id_plante==X.id_plante and mtg.property('ParamFeuille').get(x).id_talle==X.id_talle and mtg.property('ParamFeuille').get(x).id_rang==X.id_rang+ordre+1)]
-          if feuille_reference!=[] and mtg.property('ParamFeuille').get(feuille_reference[0]).Phase!='cachee':
+            feuille_reference=[x for x in les_feuilles if (x.id_plante==X.id_plante and x.id_talle==X.id_talle and x.id_rang==X.id_rang+ordre+1)][0]
+          if feuille_reference!=[] and feuille_reference.Phase!='cachee':
             num_pointe=num_pointe+1
             #if Biomasse_aerienne<0.1:
             #  if les_diametres==[]:
