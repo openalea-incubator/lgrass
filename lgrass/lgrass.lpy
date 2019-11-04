@@ -74,8 +74,6 @@ output_organ_lengths_file_name = 'output_organ_lengths'
 ##### Maitrise de l'aleatoire #####
 seed=0
 random.seed(seed)
-alea1=[random.random() for x in xrange(4000)]
-alea2=[random.random() for x in xrange(4000)]
 
 ##### Activation du tallage
 option_tallage = True
@@ -756,7 +754,7 @@ def BiomassFeuille(long,coupe,geno):
 
 
 def Start():
-  global alea1_index,timing,growth_realized,dt,TPS,TPS_expe #Parametres de temps
+  global timing,growth_realized,dt,TPS,TPS_expe #Parametres de temps
   global df_induction, df_organ_lengths
   global surface_biomass,chemin_fichier1,chemin_fichier2,chemin_fichier3,long_root,simul_expe,taille_finale_feuille #Fichiers de sortie
   global Biomasse_aerienne,Biomasse_racinaire,BiomProd,Ray,PourcentageRootGrowthRealized,PourcentageRootGrowthRealized,Reserve,Demande_feuille,PourcentageFeuilGrowthRealized,les_diametres,Seuil,Taille_finale_gaine,nb_talle #Parametres vides
@@ -768,9 +766,6 @@ def Start():
   # Camera setting
   Viewer.camera.lookAt((250,250,50),(-100,-100,50))#((Position),(direction))
   
-  
-  
-  alea1_index=[0]*nb_plantes
   
   ##### Parametres de temps #####
   timing=t.time()
@@ -1761,7 +1756,7 @@ apex(X):
 
 
 ApexTal(X):
-  global les_feuilles,Surfoliairetotale,alea1,alea1_index,alea2
+  global les_feuilles,Surfoliairetotale
   if option_tallage == True:
     if groupe=='croissance':
       feuille_ref = les_feuilles[(les_feuilles['Plante'] == X.id_plante) & (les_feuilles['id_talle'] == X.id_talle) & (les_feuilles['id_rang'] == X.id_rang+2)]['ObjetOrgane']  # Coordination demarrage ApexTal avec feuille n+2
@@ -1770,8 +1765,7 @@ ApexTal(X):
         
         if X.id_rang==0 and X.id_talle==0:
           produce F(0)
-        Sitefillingproba=alea1[alea1_index[X.id_plante]]*ParamP[X.id_plante]['STOPTALLAGE'] #Besoin de choisir des valeurs de tallage a laquelle arreter
-        alea1_index[X.id_plante]+=1
+        Sitefillingproba = random.uniform(0, ParamP[X.id_plante]['STOPTALLAGE']) #Besoin de choisir des valeurs de tallage a laquelle arreter
         rapportS9_SSol=FonctionParamPlante.rapportS9_SSol(X.id_plante)
         
         if (rapportS9_SSol<Sitefillingproba): #Pour la gestoin du site filling : plus la surface augmente et plus la probabilite de faire une talle diminue
@@ -1792,7 +1786,7 @@ ApexTal(X):
             produce SB phytomere(YP, YA) RollR(95) GetHead(0, 0, 0) bourgeonRoot(Yb, YINT) ApexTal(YAT) Entrenoeud(YINT, YA, YF, YP) FLW SB Feuille(YF, YA, YP) FLW EB apex(YA) EB
           
           if (rapportS9_SSol>ParamP[X.id_plante]['SENSETALLAGE']):
-            deuxiemede=alea2[alea1_index[X.id_plante]-1]*5
+            deuxiemede = random.uniform(0, 5)
             if (deuxiemede>=2):
               nb_talle[X.id_plante]=nb_talle[X.id_plante]+1
               Seuil[X.id_plante].append(seuil)
