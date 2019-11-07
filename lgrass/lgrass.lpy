@@ -18,6 +18,7 @@ import pandas as pd
 ##### Configuration du chemin #####
 INPUTS_DIRPATH = 'inputs'
 OUTPUTS_DIRPATH = 'outputs'
+GRAPHS_DIRPATH = 'graphs'
 
 ##### Parametres plante #####
 path_param=os.path.join(INPUTS_DIRPATH,'Parametre_plante_Lgrass.xls') # Fichier contenant les parametres
@@ -141,12 +142,12 @@ option_tiller_regression = False
 if option_tiller_regression == True:
   option_caribu = 'On'
   period_considered_tiller_regression = 10 # days
-  radiation_threshold = 100000 # rayonnement
+  radiation_threshold = 100000 # rayonnement TODO: a mettre en MJ
 
 option_mophogenetic_regulation_by_carbone = False
 if option_mophogenetic_regulation_by_carbone == True:
   option_caribu = 'On'
-  RUE = 2
+  RUE = 2  # g MJ-1
 
 
 
@@ -205,7 +206,7 @@ class ParamPlante:
     ret=0    
     for p in adj:
       if self.posTOnum(p)>-1:
-        ret+=Surfoliairetotale[self.posTOnum(p)]
+        ret+=surface_foliaire_emergee[self.posTOnum(p)]
     return ret
   
   def rapportS9_SSol(self, id_plante): #Utilise pour simuler l'impact des voisins
@@ -238,7 +239,7 @@ parameters['Entrenoeud']=[]
 
 
 class ParamFeuille:
-  def __init__(self,age=0, Agecroiss=0, Taillefeuille=0, id_plante=0, id_talle=0, id_rang=1, topology=(0,), Ymax=0, Difftps=0,  Taillefinalelimbe=0, Taillefinalegaine=0., Taillelimbe=0, Taillegaine=0, Phase='cachee', rapportK=0.2, coupe=0.,Cutstatus='intact', angleinsert=0,angletal=0., geno=0, surface=0, biomass=0., Besoinencroiss=0,TailleEmergence=0.,R=0.973):
+  def __init__(self,age=0, Agecroiss=0, Taillefeuille=0, id_plante=0, id_talle=0, id_rang=1, topology=(0,), Ymax=0, Difftps=0,  Taillefinalelimbe=0, Taillefinalegaine=0., Taillelimbe=0, Taillegaine=0, Phase='cachee', rapportK=0.2, coupe=0.,Cutstatus='intact', angleinsert=0,angletal=0., geno=0, surface_limbe=0, surface_gaine=0, biomass=0., Besoinencroiss=0,TailleEmergence=0.,R=0.973):
     self.age=age                             # Age de la feuille
     self.Agecroiss=Agecroiss                 # 
     self.Taillefeuille=Taillefeuille         # Taille de la feuille au temps t
@@ -259,7 +260,8 @@ class ParamFeuille:
     self.angleinsert=angleinsert             # Angle limbe
     self.angletal=angletal                   # Angle de la talle qui ecarte la feuille
     self.geno=geno
-    self.surface=surface                     # Surface foliaire
+    self.surface_limbe=surface_limbe         # Surface limbe (mm2)
+    self.surface_gaine=surface_gaine         # Surface gaine (mm2)
     self.biomass=biomass
     self.Besoinencroiss=Besoinencroiss
     self.TailleEmergence=TailleEmergence
@@ -459,7 +461,7 @@ module FLW
 
 TREE=[False,False,True,False,True]
 
-### Calcul du rayonnement direct via Caribu ###
+### Calcul du rayonnement diffus via Caribu ###
 def apply_caribu(lscene, energy=1, azimuths=4, zeniths=5, diffuse_model='soc', scene_unit='mm'):
   # generation des sources
   from alinea.caribu.sky_tools import GenSky, GetLight
@@ -756,10 +758,10 @@ def BiomassFeuille(long,coupe,geno):
 def Start():
   global timing,growth_realized,dt,TPS,TPS_expe #Parametres de temps
   global df_induction, df_organ_lengths
-  global surface_biomass,chemin_fichier1,chemin_fichier2,chemin_fichier3,long_root,simul_expe,taille_finale_feuille #Fichiers de sortie
+  global surface_biomass,chemin_fichier1,chemin_fichier2,chemin_fichier3,long_root,simul_expe,taille_finale_feuille, outvarfile #Fichiers de sortie
   global Biomasse_aerienne,Biomasse_racinaire,BiomProd,Ray,PourcentageRootGrowthRealized,PourcentageRootGrowthRealized,Reserve,Demande_feuille,PourcentageFeuilGrowthRealized,les_diametres,Seuil,Taille_finale_gaine,nb_talle #Parametres vides
   global NBlignes,NBcolonnes,posPlante,Espacement #Parametres scene
-  global Surfoliairetotale,Surfoliaireencours,Premiecroiss #Definition des groupes de production
+  global surface_foliaire_emergee,Surfoliaireencours,Premiecroiss #Definition des groupes de production
   global Alpha,Beta,t1,t2,t3,Caribu #Relation allometrique
   global current_day, meteo, radiation_interception, tiller_appearance, tiller_to_remove
   
@@ -806,7 +808,7 @@ def Start():
   Espacement=10*sqrt(10000/Densite) #en mm
   
   ##### Definition des groupes de production #####
-  Surfoliairetotale =[0.]*(nb_plantes) # Surface foliaire émergée totale obtenue a la fin d'un pas
+  surface_foliaire_emergee =[0.]*(nb_plantes) # Surface foliaire émergée totale obtenue a la fin d'un pas
   Surfoliaireencours=[0.]*(nb_plantes) # variable de calcul de la surface foliaire totale
   Premiecroiss=[ParamP[i]['Premiecroiss'] for i in xrange(nb_plantes)]
   
@@ -907,9 +909,9 @@ def StartEach(lstring):
     
 
 
-def EndEach(lstring,lscene):
+def EndEach(lstring, lscene):
   global simul_expe,surface_biomass,taille_finale_feuille
-  global TPS,dt,mtg,Surfoliairetotale,les_pointes,les_primordiums,RootPotentialNewBiomass,les_feuilles,les_feuilles_emergees, les_segments_feuilles, les_racines, Reserve,Biomasse_aerienne,Surfoliaireencours,Biomasse_racinaire,fichier_test,groupe,PourcentageRootGrowthRealized,PourcentageFeuilGrowthRealized,Demande_feuille,C,reprise_coupe,Ray,BiomProd,option_caribu
+  global TPS,dt,mtg,surface_foliaire_emergee,les_pointes,les_primordiums,RootPotentialNewBiomass,les_feuilles,les_feuilles_emergees, les_segments_feuilles, les_racines, Reserve,Biomasse_aerienne,Surfoliaireencours,Biomasse_racinaire,fichier_test,groupe,PourcentageRootGrowthRealized,PourcentageFeuilGrowthRealized,Demande_feuille,C,reprise_coupe,Ray,BiomProd,option_caribu
   global current_day, meteo
   global df_induction, df_organ_lengths, radiation_interception, tiller_appearance, tiller_to_remove
 #  global apex_characteristics, internode_characteristics # AJOUT SIMON
@@ -929,10 +931,10 @@ def EndEach(lstring,lscene):
   
   if TPS >= meteo[meteo.experimental_day == current_day].thermal_time_cumul.iloc[0] and option_caribu=='On':
     timing_method1=t.time()
-    res=apply_caribu(lscene, energy=par_incident, azimuths=azimuths, zeniths=zeniths, diffuse_model=diffuse_model, scene_unit=scene_unit)
+    res=apply_caribu(lscene, energy=meteo[meteo.experimental_day == current_day].PAR_incident.iloc[0], azimuths=azimuths, zeniths=zeniths, diffuse_model=diffuse_model, scene_unit=scene_unit)
     print('temps d exec de caribu:',t.time()-timing_method1)
     for id, v in res['Ei'].items():
-       Ray[lstring[id][0].id_plante]+=v # TODO: a multiplier par la surface de lobjet
+       Ray[lstring[id][0].id_plante] += (v * (res['area'][id] * 1E-6))  # v: MJ m-2, area: mm2, Ray: MJ PAR
        id_plante = lstring[id][0].id_plante
        id_talle = lstring[id][0].id_talle
        area = res['area'][id]
@@ -969,7 +971,7 @@ def EndEach(lstring,lscene):
     
     if option_mophogenetic_regulation_by_carbone == True:
       for ID in xrange(nb_plantes):
-        BiomProd[ID] = Ray[ID]*RUE # Ray: molPAR.m-2    RUE : g.MJ-1
+        BiomProd[ID] = Ray[ID] * RUE # Ray: MJ PAR ; RUE : g MJ-1
         print('Plante %s, Ray: %s, BiomProd: %s' % (ID, Ray[ID],BiomProd[ID]))
   
   # ------------------------------------------------------------------------------------------------
@@ -987,7 +989,7 @@ def EndEach(lstring,lscene):
   for id_plante in les_feuilles['Plante'].unique():
     les_feuilles_plante = les_feuilles[les_feuilles['Plante'] == id_plante]
     Biomasse_aerienne[id_plante] = 0
-    Surfoliairetotale[id_plante] = 0
+    surface_foliaire_emergee[id_plante] = 0
     Demande_feuille[id_plante] = 0
     for id_talle in les_feuilles_plante['id_talle'].unique():
       # Toutes les feuilles de la talle
@@ -998,42 +1000,39 @@ def EndEach(lstring,lscene):
       
       # Biomasse et surface des feuilles emergees uniquement
       Biomasse_aerienne[id_plante] += sum([x.biomass for x in les_feuilles_talle])
-      Surfoliairetotale[id_plante] += sum([x.surface for x in les_feuilles_talle])  #: N'ajoute que les surfaces de limbes emerges (cf. incrementation .surface dans regle production Feuille)
+      surface_foliaire_emergee[id_plante] += sum([x.surface_limbe for x in les_feuilles_talle])  #: N'ajoute que les surfaces de limbes emerges
       # ajoute les surfaces des gaines emergees à partir de Seuil
       seuil_talle = Seuil[id_plante][id_talle]
       diametre_seuil_talle = max((2 / pi) * (paramManagement['CoefDirLonLarAjust'] * log(max(seuil_talle * 5,1)) - paramManagement['OrdOriLonLarAjust']), 0.1)
       surface_gaine_emergee = seuil_talle * pi * diametre_seuil_talle
-      Surfoliairetotale[id_plante] += surface_gaine_emergee
+      surface_foliaire_emergee[id_plante] += surface_gaine_emergee
       
       ##### Remplissage du fichier surface_biomass #####
-      surface_biomass.writerow([TPS,Espacement,Densite,id_plante+1, id_talle+1, les_feuilles_talle[0].topology, len(les_feuilles_talle),sum(x.biomass for x in les_feuilles_talle),sum(x.surface for x in les_feuilles_talle) + surface_gaine_emergee])
+      surface_biomass.writerow([TPS,Espacement,Densite,id_plante+1, id_talle+1, les_feuilles_talle[0].topology, len(les_feuilles_talle),sum(x.biomass for x in les_feuilles_talle),sum(x.surface_limbe for x in les_feuilles_talle) + surface_gaine_emergee])
  
     # Mise a jour biomasse et pourcentage echelle plante
-    if Biomasse_aerienne[id_plante]>0 and t1[id_plante]*exp(TPS*t2[id_plante])-t1[id_plante]>0 and Surfoliairetotale[id_plante] > 0 and Demande_feuille[id_plante] != 0: #Verifie qu'il y a une partie aerienne et que TPS, t1 et t2 sont positifs          # Surfoliairetotale[ID] > 0 and Demande_feuille[ID] > 0 : ajout SIMON
+    if Biomasse_aerienne[id_plante]>0 and t1[id_plante]*exp(TPS*t2[id_plante])-t1[id_plante]>0 and surface_foliaire_emergee[id_plante] > 0 and Demande_feuille[id_plante] != 0: #Verifie qu'il y a une partie aerienne et que TPS, t1 et t2 sont positifs          # surface_foliaire_emergee[ID] > 0 and Demande_feuille[ID] > 0 : ajout SIMON
+      # Calcul biomasse creee
       if option_mophogenetic_regulation_by_carbone == True:
-        print "On"
+        # Approche RUE
         BiomassCree = BiomProd[id_plante]
       else:
-        print "Off"
+        # Approche croissance biomasse exponentielle (cf thèse Vincent Migault)
         BiomassCree=t2[id_plante]*(Biomasse_aerienne[id_plante]+t1[id_plante])*(1+Beta[id_plante]*Alpha[id_plante]*(Biomasse_aerienne[id_plante])**(Alpha[id_plante]-1))
-      if BiomassCree>0 and 0.99*BiomassCree-Demande_feuille[id_plante]>0:#Next_biom_feuil[ID]-Biomasse_aerienne[ID]>0 and 
-        RootBiomassCree=BiomassCree-Demande_feuille[id_plante]
-        Biomasse_racinaire[id_plante]+=RootBiomassCree
-        PourcentageFeuilGrowthRealized[id_plante]=1
-      else:
-        RootBiomassCree=0.01*BiomassCree
-        Biomasse_racinaire[id_plante]+=RootBiomassCree
-        BiomassFeuilCree=0.99*BiomassCree
-        PourcentageFeuilGrowthRealized[id_plante]=BiomassFeuilCree/Demande_feuille[id_plante]
-        if PourcentageFeuilGrowthRealized[id_plante]<0:
-          PourcentageFeuilGrowthRealized[id_plante]=0
+      
+      # Allocation aerien/racinaire + ratio offre/demande
+      if BiomassCree>0 and 0.99*BiomassCree > Demande_feuille[id_plante]:  # demande satisfaite
+        RootBiomassCree = BiomassCree - Demande_feuille[id_plante]  # Allocation surplus non utilise par parties aeriennes aux racines
+        Biomasse_racinaire[id_plante] += RootBiomassCree
+        PourcentageFeuilGrowthRealized[id_plante] = 1  # Pas de limitation croissance foliaire pour prochain pas de temps
+      else:  # Demande non satisafite
+        RootBiomassCree = 0.01*BiomassCree  # Racines ne prennent qu'1% de l'offre
+        Biomasse_racinaire[id_plante] += RootBiomassCree
+        BiomassFeuilCree = 0.99*BiomassCree
+        PourcentageFeuilGrowthRealized[id_plante] = max(0, BiomassFeuilCree/Demande_feuille[id_plante]) # Reduction croissance foliaire potentielle au prorata offre/demande pour prochain pas de temps
     else:
       RootBiomassCree=0
       BiomassCree=0
-    
-    #if TPS<=PREMIERCOUPE:
-    #  PourcentageRootGrowthRealized[ID]=1
-    #PourcentageFeuilGrowthRealized[ID]=1 #le temps de tester
     
     if RootPotentialNewBiomass[id_plante]==0:
       PourcentageRootGrowthRealized[id_plante]=0
@@ -1072,7 +1071,7 @@ def EndEach(lstring,lscene):
     
 
 def End(lstring,lscene): #Ecriture et fermeture des fichiers de sortie
-  global taille_finale_feuille,surface_biomass,simul_expe
+  global taille_finale_feuille,surface_biomass,simul_expe, outvarfile, Espacement
   global TPS,timing,chemin_fichier1,chemin_fichier2,chemin_fichier3,mtg,long_root, les_racines, apex_characteristics, internode_characteristics
   global df_induction, df_organ_lengths
   
@@ -1082,8 +1081,7 @@ def End(lstring,lscene): #Ecriture et fermeture des fichiers de sortie
     les_feuilles_emergees = les_feuilles[(les_feuilles['Plante'] == ID) & (les_feuilles['Phase'] == 'mature')]['ObjetOrgane'].tolist()
     for x in les_feuilles_emergees:
       taille_finale_feuille.writerow([TPS, Espacement, Densite,ID+1, x.id_talle+1, x.id_rang+1, x.Phase, x.Taillefeuille, x.Taillegaine, x.Taillelimbe])
-
-#  ##### Remplissage du fichier sortie_simul_ValidCoupe #####  
+  
   nb_racines=[0]*nb_plantes
   nb_racines_visible=[0]*nb_plantes
   longroottotal=[0]*nb_plantes
@@ -1136,9 +1134,13 @@ def End(lstring,lscene): #Ecriture et fermeture des fichiers de sortie
   
   if option_graphic_outputs == True:
     from lgrass import Lgrass_plot_functions
-    graphic = Lgrass_plot_functions.GraphicOutputs()
-    graphic.graph_induction(os.path.join(OUTPUTS_DIRPATH) + '/', output_induction_file_name)
-    graphic.graph_length(os.path.join(OUTPUTS_DIRPATH) + '/', output_organ_lengths_file_name)
+    graphic = Lgrass_plot_functions.GraphicOutputs(GRAPHS_DIRPATH)
+    graphic.graph_induction(os.path.join(OUTPUTS_DIRPATH, output_induction_file_name))
+    graphic.graph_length(os.path.join(OUTPUTS_DIRPATH, output_organ_lengths_file_name))
+    graphic.graph_tiller_number(os.path.join(OUTPUTS_DIRPATH, outvarfile))
+    graphic.graph_LAI(os.path.join(OUTPUTS_DIRPATH, outvarfile), Espacement)
+    graphic.graph_leaf_number(os.path.join(OUTPUTS_DIRPATH, outvarfile))
+    
   
   
   print 'Execution time :',t.time()-timing
@@ -1276,7 +1278,8 @@ phytomere(X, X_AP):
 
 Feuille(X, X_apex, X_phytomere):
   global NewShootBiomass,longueur_totale_feuille,les_feuilles, les_segments_feuilles, Surfoliaireencours,groupe
-  X.surface=0  # Ecriture surface seulement pour feuilles éemrgées
+  
+  X.surface_limbe = 0
   
   if groupe=='croissance':
     X.age+=dt
@@ -1444,6 +1447,7 @@ Feuille(X, X_apex, X_phytomere):
       else:
         numsteps=ceil((X.Taillegaine)/LSTEP)
       
+      # Calcul surfaces limbe et gaine
       for i in xrange(int(numsteps)):
         if (i>=numstepsg-1):
           taille=X.Taillelimbe+X.coupe
@@ -1455,9 +1459,12 @@ Feuille(X, X_apex, X_phytomere):
             large=largini-(((i-numstepsg)-((taille-Taillepointelineraire)/LSTEP))*((largini*LSTEP)/Taillepointelineraire))
           if(i<numstepsg-1):
             large=0.
-          
           Surfoliaireencours[X.id_plante]=Surfoliaireencours[X.id_plante]+large*2.*LSTEP  
-          X.surface=X.surface+large*2.*LSTEP  # Ecriture surface seulement pour feuilles émergées
+          X.surface_limbe += large*2.*LSTEP  # Ecriture surface seulement pour limbes emerges
+      
+      # Calcul surface gaine totale
+      diametre_gaine = max((2 / pi) * (paramManagement['CoefDirLonLarAjust'] * log(max(X.Taillegaine * 5,1)) - paramManagement['OrdOriLonLarAjust']), 0.1)
+      X.surface_gaine = X.Taillegaine * pi * diametre_gaine
       
       # Remplissage des hauteurs d organes
       X_apex.organ_lengths_dict[X.id_rang]['sheath'] = X.Taillegaine
@@ -1756,7 +1763,7 @@ apex(X):
 
 
 ApexTal(X):
-  global les_feuilles,Surfoliairetotale
+  global les_feuilles,surface_foliaire_emergee
   if option_tallage == True:
     if groupe=='croissance':
       feuille_ref = les_feuilles[(les_feuilles['Plante'] == X.id_plante) & (les_feuilles['id_talle'] == X.id_talle) & (les_feuilles['id_rang'] == X.id_rang+2)]['ObjetOrgane']  # Coordination demarrage ApexTal avec feuille n+2
@@ -1767,7 +1774,6 @@ ApexTal(X):
           produce F(0)
         Sitefillingproba = random.uniform(0, ParamP[X.id_plante]['STOPTALLAGE']) #Besoin de choisir des valeurs de tallage a laquelle arreter
         rapportS9_SSol=FonctionParamPlante.rapportS9_SSol(X.id_plante)
-        
         if (rapportS9_SSol<Sitefillingproba): #Pour la gestoin du site filling : plus la surface augmente et plus la probabilite de faire une talle diminue
           if (rapportS9_SSol<=ParamP[X.id_plante]['SENSETALLAGE']):
             nb_talle[X.id_plante]=nb_talle[X.id_plante]+1
@@ -1782,7 +1788,6 @@ ApexTal(X):
             YINT=ParamEntrenoeud(X.id_plante,id_talle=0,id_rang=1, topology=tiller_topology)      # AJOUT SIMON
             
             YA.organ_lengths_dict = {YP.id_rang: {'limb': YF.Taillelimbe, 'sheath': YF.Taillegaine, 'internode': YINT.length}}
-            
             produce SB phytomere(YP, YA) RollR(95) GetHead(0, 0, 0) bourgeonRoot(Yb, YINT) ApexTal(YAT) Entrenoeud(YINT, YA, YF, YP) FLW SB Feuille(YF, YA, YP) FLW EB apex(YA) EB
           
           if (rapportS9_SSol>ParamP[X.id_plante]['SENSETALLAGE']):
@@ -1800,7 +1805,6 @@ ApexTal(X):
               YINT=ParamEntrenoeud(X.id_plante,id_talle=0,id_rang=1, topology=tiller_topology)      # AJOUT SIMON
               
               YA.organ_lengths_dict = {YP.id_rang: {'limb': YF.Taillelimbe, 'sheath': YF.Taillegaine, 'internode': YINT.length}}
-              
               produce SB phytomere(YP, YA) RollR(95) GetHead(0, 0, 0) bourgeonRoot(Yb, YINT) ApexTal(YAT) Entrenoeud(YINT, YA, YF, YP) FLW SB Feuille(YF, YA, YP) FLW EB apex(YA) EB
             else:
               produce
@@ -2162,7 +2166,7 @@ Entrenoeud(X, Y, Z, U):
 
 
 Feuille(X, Y, Z):
-  global Surfoliairetotale,Surfoliaireencours,les_feuilles
+  global surface_foliaire_emergee,Surfoliaireencours,les_feuilles
   if groupe=='croissance':
     surfacefeuille=0
     Torsiongaine=ParamP[X.id_plante]['Torsiongaine']
