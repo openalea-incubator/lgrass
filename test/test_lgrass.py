@@ -94,7 +94,10 @@ def test_run(overwrite_desired_data=False):
     compare_actual_to_desired(OUTPUTS_DIRPATH, output_induction, DESIRED_OUTPUT_INDUCTION_FILENAME, output_induction_file_path, overwrite_desired_data)
     compare_actual_to_desired(OUTPUTS_DIRPATH, output_organ_lengths, DESIRED_OUTPUT_ORGAN_LENGTHS_FILENAME, output_organ_lengths_file_path, overwrite_desired_data)
 
-    print "Test passed successfully"
+    if overwrite_desired_data:
+        print ("New desired files written")
+    else:
+        print ("Test passed successfully")
 
 if __name__ == '__main__':
     test_run(overwrite_desired_data=False)

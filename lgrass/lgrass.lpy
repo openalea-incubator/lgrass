@@ -51,7 +51,6 @@ OptionRacine='SansRacines'
 
 Densite=400 #en nb de plante par m2
 Espacement=10*sqrt(10000/Densite) #en mm
-#Espacement=200. # Distance entre chaque plante
 NBlignes=int(ceil(sqrt(nb_plantes)))
 NBcolonnes=int(floor(sqrt(nb_plantes)))
 posPlante=[[i,j] for i,j in zip(sorted(range(NBlignes)*NBcolonnes),range(NBcolonnes)*NBlignes)]
@@ -794,12 +793,6 @@ def Start():
   nb_talle=[]  # nombre_de_talle-1 pour chaque plante afin d'identifier les talles
   ligule_height_dict = {}
   
-  ##### Parametres scene #####
-  NBlignes=int(ceil(sqrt(nb_plantes)))
-  NBcolonnes=int(floor(sqrt(nb_plantes)))
-  posPlante=[[i,j] for i,j in zip(sorted(range(NBlignes)*NBcolonnes),range(NBcolonnes)*NBlignes)]
-  Espacement=10*sqrt(10000/Densite) #en mm
-  
   ##### Definition des groupes de production #####
   surface_foliaire_emergee =[0.]*(nb_plantes) # Surface foliaire émergée totale obtenue a la fin d'un pas
   Surfoliaireencours=[0.]*(nb_plantes) # variable de calcul de la surface foliaire totale
@@ -998,7 +991,7 @@ def EndEach(lstring, lscene):
       # ajoute les surfaces des gaines emergees à partir de Seuil
       seuil_talle = Seuil[id_plante][id_talle]
       diametre_seuil_talle = max((2 / pi) * (paramManagement['CoefDirLonLarAjust'] * log(max(seuil_talle * 5,1)) - paramManagement['OrdOriLonLarAjust']), 0.1)
-      surface_gaine_emergee = seuil_talle * pi * diametre_seuil_talle
+      surface_gaine_emergee = (seuil_talle * pi * diametre_seuil_talle) / 2  # Surface projetee
       surface_foliaire_emergee[id_plante] += surface_gaine_emergee
       
       ##### Remplissage du fichier surface_biomass #####
@@ -1789,7 +1782,7 @@ ApexTal(X):
           
           if (rapportS9_SSol>ParamP[X.id_plante]['SENSETALLAGE']):
             deuxiemede = random.uniform(0, 5)
-            if (deuxiemede>=2):
+            if (deuxiemede <= 2): #  Proba de 0.4
               nb_talle[X.id_plante]=nb_talle[X.id_plante]+1
               Seuil[X.id_plante].append(seuil)
               Taille_finale_gaine[X.id_plante].append([5.5,5.5])
