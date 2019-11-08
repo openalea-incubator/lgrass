@@ -5,6 +5,7 @@ from openalea.mtg.mtg import *
 from alinea.caribu.CaribuScene import CaribuScene
 from alinea.caribu.sky_tools import turtle
 import random
+import itertools
 from math import *
 import numpy as np
 import time as t
@@ -159,62 +160,10 @@ scales['CouvertVegetal']=1
 parameters['CouvertVegetal']=[]
 
 class ParamPlante:
-  def __init__(self,id_plante=0,id_geno=0, tiller_appeareance={}):
+  def __init__(self,id_plante=0,id_geno=0):
     self.id_plante=id_plante
     self.id_geno=id_geno
-    self.TEMPORAIRE=0
-    self.surfolPlante=[0 for i in xrange((NBlignes)*(NBcolonnes))]
-    self.tiller_appeareance = tiller_appeareance
   
-  ### Fonctions utilisees pour le calcul du LAI local ###
-  def posTOnum(self, pos): #Determination de l'id de la plante a partir de la position
-    ret=-1
-    for i in xrange((NBlignes)*(NBcolonnes)):
-      if (posPlante[i]==pos):
-        ret=i
-    return ret
-  
-  def numTOpos(self, id_plante): #Determination de la position de la plante a partir de l'id
-    return posPlante[id_plante]
-  
-  def deplacPos(self, pos, depl): #Selectionne la plante adjacente donnee
-    ret=list(pos)  #Cree une copie de pos
-    if ((depl[0]==-1 or depl[0]==0 or depl[0]==1) and (depl[1]==-1 or depl[1]==0 or depl[1]==1)): #Valeurs entre -1 et 1 : plantes adjacentes et non a 2 espacements
-      ret[0]=pos[0] + depl[0]
-      ret[1]=pos[1] + depl[1]
-      #Simulation d'un couvert de taille infini:
-      if (ret[0] == -1): ret[0] = NBlignes-1
-      if (ret[0] == NBlignes): ret[0] = 0
-      if (ret[1] == -1): ret[1] = NBcolonnes-1
-      if (ret[1] == NBcolonnes): ret[1] = 0
-    return ret
-  
-  def adj9Plantes(self, pos): #Fait la liste des plantes adjacentes
-    ret=[[0,0] for i in xrange(8)]
-    ret[0]=self.deplacPos(pos, [-1,-1])
-    ret[1]=self.deplacPos(pos, [ 0,-1])
-    ret[2]=self.deplacPos(pos, [ 1,-1])
-    ret[3]=self.deplacPos(pos, [ 1, 0])
-    ret[4]=self.deplacPos(pos, [ 1, 1])
-    ret[5]=self.deplacPos(pos, [ 0, 1])
-    ret[6]=self.deplacPos(pos, [-1, 1])
-    ret[7]=self.deplacPos(pos, [-1, 0])
-    return ret
-  
-  def surfol9Plantes(self, id_plante): #Calcule la surface foliaires des 8 plantes adjacentes
-    adj=self.adj9Plantes(self.numTOpos(id_plante)) #liste des positions des plantes adjacentes
-    ret=0    
-    for p in adj:
-      if self.posTOnum(p)>-1:
-        ret+=surface_foliaire_emergee[self.posTOnum(p)]
-    return ret
-  
-  def rapportS9_SSol(self, id_plante): #Utilise pour simuler l'impact des voisins
-    ret=self.surfol9Plantes(id_plante)/(Espacement**2*9) #Rapport surface foliaires des 9 plantes/surface au sol occupee par les 9 plantes
-    if (self.TEMPORAIRE <> self.surfol9Plantes(id_plante)):
-      self.TEMPORAIRE=self.surfol9Plantes(id_plante)
-    return ret
-FonctionParamPlante=ParamPlante()
 scales['Plante']=2
 parameters['Plante']=['ParamPlante']
 
@@ -749,11 +698,55 @@ def BiomassFeuille(long,coupe,geno):
       MS=paramManagement['FacBiom2']*(paramManagement['b0']*exp(paramManagement['b1']*(long+coupe)**2+paramManagement['b2']*(long+coupe))-paramManagement['b0'])*(long/(long+coupe))
   return MS
 
+# --------------------------------------------
+#  ---------- LAI proximite ------------------
+# --------------------------------------------
+def LAI_proximite(id_plante):
+  """
+  calcul du LAI proximite a partir surface plante cible (auto-ombrage) + surface des 8 plantes adjacentes
+  """
+  
+  def posTOnum(pos): #Determination de l'id de la plante a partir de la position
+    id_plante = -1
+    for i in xrange((NBlignes)*(NBcolonnes)):
+      if (posPlante[i] == pos):
+        id_plante = i
+    return id_plante
+  
+  def numTOpos(id_plante): #Determination de la position de la plante a partir de l'id
+    return posPlante[id_plante]
+  
+  def deplacPos(pos, depl): #Selectionne la plante adjacente donnee
+    ret=list(pos)  #Cree une copie de pos
+    if ((depl[0]==-1 or depl[0]==0 or depl[0]==1) and (depl[1]==-1 or depl[1]==0 or depl[1]==1)): #Valeurs entre -1 et 1 : plantes adjacentes et non a 2 espacements
+      ret[0]=pos[0] + depl[0]
+      ret[1]=pos[1] + depl[1]
+      #Simulation d'un couvert de taille infini:
+      if (ret[0] == -1): ret[0] = NBlignes-1
+      if (ret[0] == NBlignes): ret[0] = 0
+      if (ret[1] == -1): ret[1] = NBcolonnes-1
+      if (ret[1] == NBcolonnes): ret[1] = 0
+    return ret
+  
+  def adj9Plantes(pos): #Fait la liste des plantes adjacentes + plante cible
+    position_plantes_adjacentes = []
+    for p in itertools.product([-1,0,1], [-1,0,1]):
+      position_plantes_adjacentes.append(deplacPos(pos, p))
+    return position_plantes_adjacentes
+  
+  def surfol9Plantes(id_plante): #Calcule la surface foliaires des 9 plantes adjacentes
+    position_plantes_adjacentes = adj9Plantes(numTOpos(id_plante)) # liste des positions des plantes adjacentes
+    surface_9_plantes = 0
+    for p in position_plantes_adjacentes:
+      if posTOnum(p)>-1:
+        surface_9_plantes += surface_foliaire_emergee[posTOnum(p)]
+    return surface_9_plantes
+  
+  nb_plantes = 9
+  LAI_proximite = surfol9Plantes(id_plante) / (Espacement**2 * nb_plantes)
+  return LAI_proximite
 
-
-
-
-
+# --------------------------------------------
 
 def Start():
   global timing,growth_realized,dt,TPS,TPS_expe #Parametres de temps
@@ -911,7 +904,7 @@ def StartEach(lstring):
 
 def EndEach(lstring, lscene):
   global simul_expe,surface_biomass,taille_finale_feuille
-  global TPS,dt,mtg,surface_foliaire_emergee,les_pointes,les_primordiums,RootPotentialNewBiomass,les_feuilles,les_feuilles_emergees, les_segments_feuilles, les_racines, Reserve,Biomasse_aerienne,Surfoliaireencours,Biomasse_racinaire,fichier_test,groupe,PourcentageRootGrowthRealized,PourcentageFeuilGrowthRealized,Demande_feuille,C,reprise_coupe,Ray,BiomProd,option_caribu
+  global TPS,dt,mtg,surface_foliaire_emergee,les_pointes,les_primordiums,RootPotentialNewBiomass,les_feuilles,les_feuilles_emergees, les_segments_feuilles, les_racines, Reserve,Biomasse_aerienne,Surfoliaireencours,Biomasse_racinaire,fichier_test,groupe,PourcentageRootGrowthRealized,PourcentageFeuilGrowthRealized,Demande_feuille,C,reprise_coupe,Ray,BiomProd,option_caribu, rapportS9_SSol_dict
   global current_day, meteo
   global df_induction, df_organ_lengths, radiation_interception, tiller_appearance, tiller_to_remove
 #  global apex_characteristics, internode_characteristics # AJOUT SIMON
@@ -986,6 +979,7 @@ def EndEach(lstring, lscene):
   
   les_feuilles = df_organes[(df_organes['Organe'] == 'Feuille')] # Toutes les feuilles de toutes les plantes
   
+  rapportS9_SSol_dict = {}
   for id_plante in les_feuilles['Plante'].unique():
     les_feuilles_plante = les_feuilles[les_feuilles['Plante'] == id_plante]
     Biomasse_aerienne[id_plante] = 0
@@ -1009,7 +1003,10 @@ def EndEach(lstring, lscene):
       
       ##### Remplissage du fichier surface_biomass #####
       surface_biomass.writerow([TPS,Espacement,Densite,id_plante+1, id_talle+1, les_feuilles_talle[0].topology, len(les_feuilles_talle),sum(x.biomass for x in les_feuilles_talle),sum(x.surface_limbe for x in les_feuilles_talle) + surface_gaine_emergee])
- 
+    
+    # Calcul LAI proximite
+    rapportS9_SSol_dict[id_plante] = LAI_proximite(id_plante)    
+    
     # Mise a jour biomasse et pourcentage echelle plante
     if Biomasse_aerienne[id_plante]>0 and t1[id_plante]*exp(TPS*t2[id_plante])-t1[id_plante]>0 and surface_foliaire_emergee[id_plante] > 0 and Demande_feuille[id_plante] != 0: #Verifie qu'il y a une partie aerienne et que TPS, t1 et t2 sont positifs          # surface_foliaire_emergee[ID] > 0 and Demande_feuille[ID] > 0 : ajout SIMON
       # Calcul biomasse creee
@@ -1029,7 +1026,7 @@ def EndEach(lstring, lscene):
         RootBiomassCree = 0.01*BiomassCree  # Racines ne prennent qu'1% de l'offre
         Biomasse_racinaire[id_plante] += RootBiomassCree
         BiomassFeuilCree = 0.99*BiomassCree
-        PourcentageFeuilGrowthRealized[id_plante] = max(0, BiomassFeuilCree/Demande_feuille[id_plante]) # Reduction croissance foliaire potentielle au prorata offre/demande pour prochain pas de temps
+        PourcentageFeuilGrowthRealized[id_plante] = max(0, BiomassFeuilCree / Demande_feuille[id_plante]) # Reduction croissance foliaire potentielle au prorata offre/demande pour prochain pas de temps
     else:
       RootBiomassCree=0
       BiomassCree=0
@@ -1763,7 +1760,7 @@ apex(X):
 
 
 ApexTal(X):
-  global les_feuilles,surface_foliaire_emergee
+  global les_feuilles, rapportS9_SSol_dict
   if option_tallage == True:
     if groupe=='croissance':
       feuille_ref = les_feuilles[(les_feuilles['Plante'] == X.id_plante) & (les_feuilles['id_talle'] == X.id_talle) & (les_feuilles['id_rang'] == X.id_rang+2)]['ObjetOrgane']  # Coordination demarrage ApexTal avec feuille n+2
@@ -1773,7 +1770,7 @@ ApexTal(X):
         if X.id_rang==0 and X.id_talle==0:
           produce F(0)
         Sitefillingproba = random.uniform(0, ParamP[X.id_plante]['STOPTALLAGE']) #Besoin de choisir des valeurs de tallage a laquelle arreter
-        rapportS9_SSol=FonctionParamPlante.rapportS9_SSol(X.id_plante)
+        rapportS9_SSol = rapportS9_SSol_dict[X.id_plante]
         if (rapportS9_SSol<Sitefillingproba): #Pour la gestoin du site filling : plus la surface augmente et plus la probabilite de faire une talle diminue
           if (rapportS9_SSol<=ParamP[X.id_plante]['SENSETALLAGE']):
             nb_talle[X.id_plante]=nb_talle[X.id_plante]+1
@@ -2166,7 +2163,7 @@ Entrenoeud(X, Y, Z, U):
 
 
 Feuille(X, Y, Z):
-  global surface_foliaire_emergee,Surfoliaireencours,les_feuilles
+  global Surfoliaireencours,les_feuilles
   if groupe=='croissance':
     surfacefeuille=0
     Torsiongaine=ParamP[X.id_plante]['Torsiongaine']
