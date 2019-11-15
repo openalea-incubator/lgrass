@@ -48,16 +48,15 @@ photoperiod_max_list = np.arange(16, 17, 10)
 max_photo_ind_rate_list = np.arange(1, 2, 10)
 coeff_primordia_emission_vegetative_list = np.arange(1, 2, 10)
 coeff_primordia_emission_reproductive_list = np.arange(2, 3, 10)
-#conditions = pd.read_csv('D:/Simon/Comites_de_these/Comite_de_these_2/Modelisation/site_sowing_date_bronsyn.csv', sep=';')
-#combination_site_sowing_date = np.array([("LUSIGNAN", "2007_10_15")])
-combination_site_sowing_date = np.array([("LUSIGNAN", "2012_10_15"),
-                                         ("LUSIGNAN", "2017_10_15"),
-                                         ("THEIX", "2007_10_15"),
-                                         ("THEIX", "2012_10_15"),
-                                         ("THEIX", "2017_10_15"),
-                                         ("PLOUDANIEL", "2007_10_15"),
-                                         ("PLOUDANIEL", "2012_10_15"),
-                                         ("PLOUDANIEL", "2017_10_15")])
+combination_site_sowing_date = np.array([("treatment_1", "2018_11_13")])
+# combination_site_sowing_date = np.array([("LUSIGNAN", "2012_10_15"),
+#                                          ("LUSIGNAN", "2017_10_15"),
+#                                          ("THEIX", "2007_10_15"),
+#                                          ("THEIX", "2012_10_15"),
+#                                          ("THEIX", "2017_10_15"),
+#                                          ("PLOUDANIEL", "2007_10_15"),
+#                                          ("PLOUDANIEL", "2012_10_15"),
+#                                          ("PLOUDANIEL", "2017_10_15")])
 
 
 for x in itertools.product(temp_vern_min_list, temp_vern_inter_list, temp_vern_max_list, daily_vern_rate_list,
@@ -83,8 +82,9 @@ for x in itertools.product(temp_vern_min_list, temp_vern_inter_list, temp_vern_m
     names.append(name)
     lpy_filename = os.path.join('lgrass.lpy')
     testsim[name] = Lsystem(lpy_filename)
-    testsim[name].derivationLength = 200
-    testsim[name].meteo_path = 'D:/Simon/Comites_de_these/Comite_de_these_2/Modelisation/Meteo_sites_GEVES_daylength.csv'
+    testsim[name].derivationLength = 3500
+    testsim[name].option_tallage = False
+    testsim[name].meteo_path = os.path.join('inputs/meteo_controlled_conditions.csv')
     testsim[name].sowing_date = x[10][1]
     testsim[name].site = x[10][0]
     testsim[name].flowering_model = flowering_param
