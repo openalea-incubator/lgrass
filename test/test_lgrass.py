@@ -40,7 +40,6 @@ RELATIVE_TOLERANCE = 10**-PRECISION
 ABSOLUTE_TOLERANCE = RELATIVE_TOLERANCE
 
 DESIRED_SERIE_FOLIAIRE_FILENAME = 'desired_sorties_feuilles_finales_50_{}_30.csv'.format(NSTEP)
-DESIRED_SORTIE_SIMULVALIDCOUPE_FILENAME = 'desired_sortie_simul_ValidCoupe_50_{}_30.csv'.format(NSTEP)
 DESIRED_SORTIE_SURFACE_BIOMASS_FILENAME = 'desired_surface_biomass_50_{}_30.csv'.format(NSTEP)
 DESIRED_OUTPUT_INDUCTION_FILENAME = 'desired_output_induction.csv'.format(NSTEP)
 DESIRED_OUTPUT_ORGAN_LENGTHS_FILENAME = 'output_organ_lengths.csv'.format(NSTEP)
@@ -75,14 +74,15 @@ def test_run(overwrite_desired_data=False):
     lsys = Lsystem(lpy_filename)
     axiom = lsys.axiom
 
-    lsys.INPUTS = INPUTS_DIRPATH
-    lsys.OUTPUTS = OUTPUTS_DIRPATH
+    lsys.INPUTS_DIRPATH = INPUTS_DIRPATH
+    lsys.OUTPUTS_DIRPATH = OUTPUTS_DIRPATH
+    lsys.derivationLength = NSTEP
+    lsys.DureeExp = NSTEP
     lstring = lsys.derive(axiom, NSTEP)
 
     # convert the outputs to Pandas dataframe
     surface_biomass = pd.read_csv(lsys.chemin_fichier1.name)
-    sortie_simul_ValidCoupe = pd.read_csv(lsys.chemin_fichier2.name)
-    evol = pd.read_csv(lsys.chemin_fichier3.name)
+    evol = pd.read_csv(lsys.chemin_fichier2.name)
     output_induction_file_path = os.path.join(OUTPUTS_DIRPATH, 'output_induction.csv')
     output_induction = pd.read_csv(output_induction_file_path)
     output_organ_lengths_file_path = os.path.join(OUTPUTS_DIRPATH, 'output_organ_lengths.csv')
@@ -90,12 +90,14 @@ def test_run(overwrite_desired_data=False):
 
     # # compare outputs
     compare_actual_to_desired(OUTPUTS_DIRPATH, surface_biomass, DESIRED_SORTIE_SURFACE_BIOMASS_FILENAME, lsys.chemin_fichier1.name, overwrite_desired_data)
-    compare_actual_to_desired(OUTPUTS_DIRPATH, sortie_simul_ValidCoupe, DESIRED_SORTIE_SIMULVALIDCOUPE_FILENAME, lsys.chemin_fichier2.name, overwrite_desired_data)
-    compare_actual_to_desired(OUTPUTS_DIRPATH, evol, DESIRED_SERIE_FOLIAIRE_FILENAME, lsys.chemin_fichier3.name, overwrite_desired_data)
+    compare_actual_to_desired(OUTPUTS_DIRPATH, evol, DESIRED_SERIE_FOLIAIRE_FILENAME, lsys.chemin_fichier2.name, overwrite_desired_data)
     compare_actual_to_desired(OUTPUTS_DIRPATH, output_induction, DESIRED_OUTPUT_INDUCTION_FILENAME, output_induction_file_path, overwrite_desired_data)
     compare_actual_to_desired(OUTPUTS_DIRPATH, output_organ_lengths, DESIRED_OUTPUT_ORGAN_LENGTHS_FILENAME, output_organ_lengths_file_path, overwrite_desired_data)
 
-    print "Test passed successfully"
+    if overwrite_desired_data:
+        print ("New desired files written")
+    else:
+        print ("Test passed successfully")
 
 if __name__ == '__main__':
     test_run(overwrite_desired_data=False)
