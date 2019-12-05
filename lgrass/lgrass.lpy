@@ -36,14 +36,14 @@ paramP2=dict(zip(TableParamP2['name'],TableParamP2['value']))
 
 TableManagement=pd.read_excel(path_param,sheetname='Management')
 paramManagement=dict(zip(TableManagement['name'],TableManagement['value']))
-ParamP=[paramP2] #liste des parametres plante
+ParamP=[paramP1] #liste des parametres plante
 nb_plantes=len(ParamP) 
 
 num_pointe=0
 num_primordium=0
 
 LSTEP=1
-DureeExp = 1000
+DureeExp = 1200
 
 ##### Parametre scene #####
 OptionRacine='SansRacines' 
@@ -77,7 +77,7 @@ seed=0
 random.seed(seed)
 
 ##### Activation du tallage
-option_tallage = True
+option_tallage = False
 
 ##### Activation de la senescence
 option_senescence = True
@@ -108,9 +108,9 @@ flowering_model = flowering_functions.FloweringFunctions()
 # ------------------------------------------------------------------------------------------------
 
 from lgrass import meteo_ephem
-sowing_date = "2007_04_01"
-site = 'LUSIGNAN'
-meteo_path = os.path.join(INPUTS_DIRPATH,'meteo_file.csv')
+sowing_date = "2018_11_13"
+site = 'treatment_1'
+meteo_path = os.path.join(INPUTS_DIRPATH,'meteo_controlled_conditions.csv')
 
 
 
@@ -1237,7 +1237,7 @@ Plante(X):
       YF=ParamFeuille(age=0, Agecroiss=0, Taillefeuille=0, id_plante=X.id_plante ,id_rang=1, Ymax=Premiecroiss[X.id_plante], Taillefinalelimbe=0.8*Premiecroiss[X.id_plante], Taillefinalegaine=0.2*Premiecroiss[X.id_plante])
       Yb=ParambourgeonRoot(X.id_plante,id_talle=0,id_rang=1,id_geno=X.id_geno)
       YAT=ParamApexTal(X.id_plante,id_talle=0,id_rang=1,id_geno=X.id_geno)
-      YA=ParamApex(X.id_plante,id_talle=0,id_rang=1,id_geno=X.id_geno)
+      YA=ParamApex(X.id_plante,id_talle=0,id_rang=1,id_geno=X.id_geno, total_created_leaves=1)
       YINT=ParamEntrenoeud(X.id_plante,id_talle=0,id_rang=1)      # AJOUT SIMON
       
       # Remplissage des hauteurs d organes
@@ -1656,6 +1656,17 @@ apex(X):
   
   if groupe=='croissance':     
     if (X.phenological_state == 'vegetative' or X.phenological_state == 'vernalized' or (X.phenological_state == 'reproductive' and (X.total_created_leaves < X.final_leaf_number or X.final_leaf_number is None))):
+      print X.phenological_state == 'vegetative'
+      print X.phenological_state == 'vernalized'
+      print X.phenological_state == 'reproductive'
+      print X.total_created_leaves < X.final_leaf_number
+      print X.final_leaf_number is None
+      print X.id_talle
+      print X.id_rang
+      print X.total_created_leaves
+      print X.final_leaf_number
+      print les_feuilles
+      print les_feuilles[(les_feuilles['Plante'] == X.id_plante) & (les_feuilles['id_talle'] == X.id_talle) & (les_feuilles['id_rang'] == X.id_rang)]
       feuille_ref = les_feuilles[(les_feuilles['Plante'] == X.id_plante) & (les_feuilles['id_talle'] == X.id_talle) & (les_feuilles['id_rang'] == X.id_rang)].iloc[0]['ObjetOrgane']
       if X.retard==2:
         #Seuil[X.id_plante][X.id_talle]=Seuil[X.id_plante][X.id_talle] * 1.15
