@@ -1424,7 +1424,7 @@ Feuille(X, X_apex, X_phytomere):
       
       ####### Senescence #######
       Agesenesc = paramManagement['T0sen'] + X.Ymax * 1.5
-      if X.age > Agesenesc:
+      if X.age > Agesenesc and option_senescence:
         produce Cut() # Pour que la feuille soit vraiment coupee supprimee de la chaine, en ENTIER
         
     longueur_totale_feuille=longueur_totale_feuille+X.Taillefeuille
@@ -2232,7 +2232,7 @@ Feuille(X, Y, Z):
           
           surfacefeuille=surfacefeuille+large*2.*LSTEP
           #Surfoliaireencours=Surfoliaireencours+large*2.*LSTEP
-          Agesenesc=paramManagement['T0sen']+(X.Ymax/20)*paramManagement['Lpot']
+          Agesenesc = paramManagement['T0sen'] + X.Ymax * 1.5
           
           if(i==numstepsg):
             if X.id_rang>4:
@@ -2313,11 +2313,10 @@ Feuille(X, Y, Z):
                   nproduce StartGC()SetContour(foldlimbo)SetWidth(large)SetColor(2)F(LSTEP)EndGC()
           # Pour avoir feuille courbee et "s'ouvre" que quand en dehors de la gaine precedente la plus grande
           else:
-            if (X.age>Agesenesc and X.age<=Agesenesc+50):                  # IMPOSSIBLE
-              #print("limite senescence")
+            if X.age<=Agesenesc or not option_senescence:
               if large<=0:
                 large=0.01
-              nproduce StartGC() SetContour(limbo) SetWidth(large)Left(curve)SetColor(2)F(LSTEP)EndGC()
+              nproduce StartGC() SetContour(limbo) SetWidth(large)Left(curve)SetColor(1)F(LSTEP)EndGC()
       produce
 
 
