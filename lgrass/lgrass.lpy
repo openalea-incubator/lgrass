@@ -36,14 +36,14 @@ paramP2=dict(zip(TableParamP2['name'],TableParamP2['value']))
 
 TableManagement=pd.read_excel(path_param,sheetname='Management')
 paramManagement=dict(zip(TableManagement['name'],TableManagement['value']))
-ParamP=[paramP1] #liste des parametres plante
-nb_plantes=len(ParamP) 
+ParamP=[paramP2] #liste des parametres plante
+nb_plantes=len(ParamP)
 
 num_pointe=0
 num_primordium=0
 
 LSTEP=1
-DureeExp = 1200
+DureeExp = 300
 
 ##### Parametre scene #####
 OptionRacine='SansRacines' 
@@ -80,7 +80,7 @@ random.seed(seed)
 option_tallage = False
 
 ##### Activation de la senescence
-option_senescence = True
+option_senescence = False
 
 
 ##### Activation de la floraison #####
@@ -97,7 +97,7 @@ flowering_model = flowering_functions.FloweringFunctions()
 
 
 # ------------------------------------------------------------------------------------------------
-# -------------------------------- Meteorological data ----------------------------------------
+# -------------------------------- Meteorological data -------------------------------------------
 # ------------------------------------------------------------------------------------------------
 # Import of meteorological data from a .csv file with separator ';'
 # Column names should be:
@@ -115,9 +115,8 @@ meteo_path = os.path.join(INPUTS_DIRPATH,'meteo_controlled_conditions.csv')
 
 
 
-
 # ------------------------------------------------------------------------------------------------
-# -------------------------------- Radiations, Caribu ----------------------------------------
+# -------------------------------- Radiations, Caribu --------------------------------------------
 # ------------------------------------------------------------------------------------------------
 # - option_caribu: Caribu activation ('On'/'Off')
 #        par_incident:
@@ -149,6 +148,12 @@ if option_mophogenetic_regulation_by_carbone == True:
   option_caribu = 'On'
   RUE = 2  # g MJ-1
 
+
+# ------------------------------------------------------------------------------------------------
+# -------------------------------------------- Coupe ---------------------------------------------
+# ------------------------------------------------------------------------------------------------
+cutting_dates = []
+changing_day_cutting = True # Allow that cutting occurs only once in a day (the first GDD)
 
 
 #########   Definition Plante   #########
@@ -771,6 +776,7 @@ def Start():
   
   
   
+  
   # ------------------------------------------------------------------------------------------------
   # -------------------------------- Thermal time calculation --------------------------------------
   # ------------------------------------------------------------------------------------------------
@@ -834,14 +840,26 @@ def Start():
 def StartEach(lstring):
   global RootPotentialNewBiomass,longueur_totale_feuille,Rootbiom,groupe,dt,reprise_coupe,CoupeTaille
   global df_induction, df_organ_lengths
-  global current_day, meteo, tiller_appearance, tiller_to_remove, mortality_zone
+  global current_day, meteo, tiller_appearance, tiller_to_remove, mortality_zone, changing_day_cutting
 #  global apex_characteristics, internode_characteristics
+  
+  
+  
+  
   
   RootPotentialNewBiomass=[0]*(nb_plantes)
   longueur_totale_feuille=0
   Rootbiom=0
   
   for ID in xrange(nb_plantes):
+    # AJOUT SIMON 24-12-2019
+    
+    if current_day in cutting_dates and changing_day_cutting == True:
+      ParamP[ID]['DCOUP'] = TPS
+      changing_day_cutting = False
+    if current_day not in cutting_dates:
+      changing_day_cutting = True
+    
     ### Declenchement de la coupe selon la date ###
     if TPS==ParamP[ID]['DCOUP']:
       if groupe=='croissance':
@@ -862,6 +880,7 @@ def StartEach(lstring):
       for i in xrange(len(Seuil)):
         for j in xrange(len(Seuil[i])):
           Seuil[i][j]=5.5
+          
   
   
   #### Régression des talles : Détermination des zones où appliquer le Cut
@@ -1237,7 +1256,7 @@ Plante(X):
       YF=ParamFeuille(age=0, Agecroiss=0, Taillefeuille=0, id_plante=X.id_plante ,id_rang=1, Ymax=Premiecroiss[X.id_plante], Taillefinalelimbe=0.8*Premiecroiss[X.id_plante], Taillefinalegaine=0.2*Premiecroiss[X.id_plante])
       Yb=ParambourgeonRoot(X.id_plante,id_talle=0,id_rang=1,id_geno=X.id_geno)
       YAT=ParamApexTal(X.id_plante,id_talle=0,id_rang=1,id_geno=X.id_geno)
-      YA=ParamApex(X.id_plante,id_talle=0,id_rang=1,id_geno=X.id_geno, total_created_leaves=1)
+      YA=ParamApex(X.id_plante, id_talle=0 ,id_rang=1, id_geno=X.id_geno, total_created_leaves=1)
       YINT=ParamEntrenoeud(X.id_plante,id_talle=0,id_rang=1)      # AJOUT SIMON
       
       # Remplissage des hauteurs d organes
@@ -1284,7 +1303,7 @@ Feuille(X, X_apex, X_phytomere):
       ##### Modif potentiel apres coupe ######
       if reprise_coupe==True and X.Phase=='visible':
         LEDGAINE=((0.2*110*5)*2)-110
-        TrueAge=TpourY2(Seuil[X.id_plante][X.id_talle],paramManagement['YFinit'], paramManagement['Jled']*LEDGAINE,paramManagement['Kled']*paramManagement['Jled']*LEDGAINE) #Jled*LEDGAINE correspond a te, Kled*Jled*LEDGAINE correspond a tm (These Alban Verdenal)
+        TrueAge=TpourY2(Seuil[X.id_plante][X.id_talle],paramManagement['Yfinit'], paramManagement['Jled']*LEDGAINE,paramManagement['Kled']*paramManagement['Jled']*LEDGAINE) #Jled*LEDGAINE correspond a te, Kled*Jled*LEDGAINE correspond a tm (These Alban Verdenal)
         NewYmax=ParamP[X.geno]['C']*((pow(paramManagement['T01'],(TrueAge+paramManagement['tb1'])*paramManagement['k1'])-paramManagement['Lpot'])-(pow(paramManagement['T02'],(TrueAge+paramManagement['tb2'])*paramManagement['k2']))) # Fonction potentiel de croissance
         if NewYmax>X.Ymax:
           NewYmax=X.Ymax
@@ -1295,7 +1314,7 @@ Feuille(X, X_apex, X_phytomere):
           NewTaillefinaleg=X.rapportK * NewYmax
           LED2=((NewTaillefinaleg*5)*2)-NewYmax
           X.Difftps=TpourY2(X.Taillefeuille+X.coupe,NewYmax,paramManagement['Jled']*LED2,paramManagement['Kled']*paramManagement['Jled']*LED2)-X.age
-          #TpourY2(Seuil[X.id_plante][X.id_talle], X.Ymax,paramManagement['Jled']*LED,paramManagement['Kled']*paramManagement['Jled']*LED)-X.age#TpourY2(X.Taillefeuille+X.coupe,paramManagement['YFinit'], paramManagement['Jled']*LEDGAINE,paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)
+          #TpourY2(Seuil[X.id_plante][X.id_talle], X.Ymax,paramManagement['Jled']*LED,paramManagement['Kled']*paramManagement['Jled']*LED)-X.age#TpourY2(X.Taillefeuille+X.coupe,paramManagement['Yfinit'], paramManagement['Jled']*LEDGAINE,paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)
           X.Agecroiss=X.Difftps+X.age
           X.Ymax=NewYmax
         
@@ -1307,13 +1326,16 @@ Feuille(X, X_apex, X_phytomere):
         if X.Taillefeuille > Seuil[X.id_plante][X.id_talle]:
           X.Phase='visible'
           X_apex.total_emerged_leaves += 1                                                      # Ajoute une feuille visible a l apex
-          Seuil[X.id_plante][X.id_talle] *= 1.15
+          Seuil[X.id_plante][X.id_talle] *= 1.
           LEDGAINE=((0.2*Premiecroiss[X.id_plante]*5)*2)-Premiecroiss[X.id_plante]
           X.TailleEmergence=Seuil[X.id_plante][X.id_talle]
           TrueAge=X.age-dt #On pourrait affiner la determination de TrueAge qui en realite a eu lieu entre age-dt et age-2dt (soit on prend la moyenne soit au prorata des longueurs)
           
           genotype=X.geno
-          X.Ymax=ParamP[genotype]['C']*((pow(paramManagement['T01'],(TrueAge+paramManagement['tb1'])*paramManagement['k1'])-paramManagement['Lpot'])-(pow(paramManagement['T02'],(TrueAge+paramManagement['tb2'])*paramManagement['k2']))); #Alban
+          if TrueAge < 118:
+            X.Ymax = ParamP[genotype]['C']*((pow(paramManagement['T01'],(TrueAge+paramManagement['tb1'])*paramManagement['k1'])-paramManagement['Lpot'])-(pow(paramManagement['T02'],(TrueAge+paramManagement['tb2'])*paramManagement['k2']))) #Alban
+          else:
+            X.Ymax = ParamP[genotype]['C']*338.5554
           #X.Ymax=ParamP[genotype]['C']*(1*exp(0.032*(TrueAge+paramManagement['tb1']))-1*exp(0.047*(TrueAge+paramManagement['tb2']))-paramManagement['Lpot'])  #TF
           
           #else:
@@ -1349,6 +1371,7 @@ Feuille(X, X_apex, X_phytomere):
       if(X.Phase=='mature'):
         AccroissDemande=0
       
+      
       if Pourcent==1:
         Accroiss=AccroissDemande
       else:
@@ -1366,15 +1389,16 @@ Feuille(X, X_apex, X_phytomere):
       #taillefictive=TpourY()
       limbefictif=0.973*FoncCroiss(X.Agecroiss-1, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)
       
-      if X.R==0.973 and limbefictif>(0.75*X.Taillefinalelimbe):
-        X.R=0.965
-      if X.R==0.965 and limbefictif>X.Taillefinalelimbe:
-        X.R=0
-      #R=0
-      #if ((X.Taillelimbe+X.coupe)<(0.75*X.Taillefinalelimbe)):
-      #  R=0.973
-      #if (((X.Taillelimbe+X.coupe)>(0.75*X.Taillefinalelimbe)) and ((X.Taillelimbe+X.coupe)<X.Taillefinalelimbe)):
-      #  R=0.965
+      #if X.R==0.973 and limbefictif>(0.75*X.Taillefinalelimbe):
+      #  X.R=0.965
+      #if X.R==0.965 and limbefictif>X.Taillefinalelimbe:
+      #  X.R=0
+      if ((X.Taillelimbe+X.coupe)<(0.75*X.Taillefinalelimbe)):
+        X.R = 0.973
+      elif (((X.Taillelimbe+X.coupe)>(0.75*X.Taillefinalelimbe)) and ((X.Taillelimbe+X.coupe)<X.Taillefinalelimbe)):
+        X.R = 0.965
+      else:
+        X.R = 0
       
       if X.Cutstatus!='entierementcoupee': #le limbe n'est pas entierement coupe
         X.Taillefeuille=X.Taillefeuille+Accroiss
@@ -1389,6 +1413,11 @@ Feuille(X, X_apex, X_phytomere):
         X.Phase='mature'
       
       X.biomass=BiomassFeuille(X.Taillefeuille,X.coupe,X.geno)
+      
+      # Remplissage des hauteurs d organes
+      X_apex.organ_lengths_dict[X.id_rang]['sheath'] = X.Taillegaine
+      X_apex.organ_lengths_dict[X.id_rang]['limb'] = X.Taillelimbe
+      
       
       if X.Phase!='mature':
         if (X.Taillegaine< Taille_finale_gaine[X.id_plante][X.id_talle][X.id_rang-1] +13):
@@ -1423,9 +1452,11 @@ Feuille(X, X_apex, X_phytomere):
         #Next_feuil=1.554*(paramManagement['b0']*exp(paramManagement['b1']*(long)**2+paramManagement['b2']*(long))-paramManagement['b0'])*(long/(long+X.coupe))
       
       ####### Senescence #######
+      
       Agesenesc = paramManagement['T0sen'] + X.Ymax * 1.5
-      if X.age > Agesenesc:
-        produce Cut() # Pour que la feuille soit vraiment coupee supprimee de la chaine, en ENTIER
+      if X.age > Agesenesc and option_senescence:
+        # Pour que la feuille soit vraiment coupee supprimee de la chaine, en ENTIER
+        produce Cut()
         
     longueur_totale_feuille=longueur_totale_feuille+X.Taillefeuille
     
@@ -1570,7 +1601,7 @@ Feuille(X, X_apex, X_phytomere):
     
     ### Recalcul de la biomasse foliaire ###
     elif TPS==ParamP[X.id_plante]['DCOUP']+0.75:
-      if X.Taillegaine*1.15>Seuil[X.id_plante][X.id_talle]:
+      if X.Taillegaine*1.>Seuil[X.id_plante][X.id_talle]:
         Seuil[X.id_plante][X.id_talle]=X.Taillegaine
       
       Taille_finale_gaine[X.id_plante][X.id_talle][X.id_rang]=X.Taillegaine
@@ -1598,16 +1629,16 @@ SegFeuille(X):
 
 
 Entrenoeud(X_EN, X_AP, X_F, X_phytomere):
-  if (X_AP.phenological_state == 'reproductive' and X_F.Phase <> 'mature'):
+  if (X_EN.internode_type <> 'long_internode' and X_AP.phenological_state == 'reproductive' and X_F.Phase <> 'mature'):
     X_EN.internode_type = 'long_internode'
   if (X_F.Phase == 'mature' and X_EN.internode_type == 'long_internode' and X_EN.length < X_F.Taillefinalegaine + 5):              # condition pour arreter la croissance des entrenoeuds
-    X_EN.length += 0.01    # Remplissage des hauteurs d organes
+    X_EN.length += 10    # Remplissage des hauteurs d organes
     X_AP.organ_lengths_dict[X_EN.id_rang]['internode'] = X_EN.length
-    produce Entrenoeud(X_EN, X_AP, X_F, X_phytomere)
+    #produce Entrenoeud(X_EN, X_AP, X_F, X_phytomere)
   elif (X_F.Phase == 'mature' and ((X_EN.internode_type == 'long_internode' and X_EN.length >= X_F.Taillefinalegaine + 5) or X_EN.internode_type == 'short_internode')):
     # Remplissage des hauteurs d organes
     X_AP.organ_lengths_dict[X_EN.id_rang]['internode'] = X_EN.length
-    produce Entrenoeud(X_EN, X_AP, X_F, X_phytomere)
+    #produce Entrenoeud(X_EN, X_AP, X_F, X_phytomere)
 
 
 apex(X):
@@ -1627,13 +1658,17 @@ apex(X):
   # When the secondary induction is completed (index>1), the apex become reproductive.
   # The two inductions are irreversible.
   # ------------------------------------------------------------------------------------------------
-  if option_floraison == True:
-    if X.day < current_day:
-      X.day = current_day
-      date = meteo.date[meteo.experimental_day == current_day].iloc[0]
-      daily_temperature = meteo.mean_temperature[meteo.experimental_day == current_day].iloc[0]
-      daily_daylength = meteo.daylength[meteo.experimental_day == current_day].iloc[0]
-      
+  if X.day < current_day:
+    X.day = current_day
+    date = meteo.date[meteo.experimental_day == current_day].iloc[0]
+    daily_temperature = meteo.mean_temperature[meteo.experimental_day == current_day].iloc[0]
+    daily_daylength = meteo.daylength[meteo.experimental_day == current_day].iloc[0]
+    
+    for phytomere_rank in X.organ_lengths_dict.keys():
+      for organ in X.organ_lengths_dict[phytomere_rank].keys():
+        df_organ_lengths = df_organ_lengths.append({'GDD': TPS, 'Date': date, 'Site': site, 'Day': current_day, 'Id_plante': X.id_plante, 'Id_talle': X.id_talle, 'Id_rang': phytomere_rank, 'Organ': organ, 'Length': X.organ_lengths_dict[phytomere_rank][organ]}, ignore_index = True)
+    
+    if option_floraison == True:
       if X.phenological_state == 'vegetative':
         X.primary_induction_index += flowering_model.vernalisation_function(daily_temperature)
         
@@ -1647,26 +1682,12 @@ apex(X):
         print X.secondary_induction_index
         if X.secondary_induction_index >= 1:
           X.phenological_state = 'reproductive'
+          print 'reproductive'
           
-      df_induction = df_induction.append({'GDD': TPS, 'Date': date, 'Site': site, 'Day': current_day, 'Daily_mean_temperature': daily_temperature, 'Daily_daylength': daily_daylength, 'Id_plante': X.id_plante, 'Id_talle': X.id_talle, 'Leaf_produced': X.total_created_leaves, 'Primordia_on_apex': X.primordia_number, 'Spikelet_number': X.spikelet_created, 'Vernalisation_rate': X.primary_induction_index, 'Secondary_induction_rate': X.secondary_induction_index, 'Heading_date': X.heading_date}, ignore_index = True)
-      
-      for phytomere_rank in X.organ_lengths_dict.keys():
-        for organ in X.organ_lengths_dict[phytomere_rank].keys():
-          df_organ_lengths = df_organ_lengths.append({'GDD': TPS, 'Date': date, 'Site': site, 'Day': current_day, 'Id_plante': X.id_plante, 'Id_talle': X.id_talle, 'Id_rang': phytomere_rank, 'Organ': organ, 'Length': X.organ_lengths_dict[phytomere_rank][organ]}, ignore_index = True)
+    df_induction = df_induction.append({'GDD': TPS, 'Date': date, 'Site': site, 'Day': current_day, 'Daily_mean_temperature': daily_temperature, 'Daily_daylength': daily_daylength, 'Id_plante': X.id_plante, 'Id_talle': X.id_talle, 'Leaf_produced': X.total_created_leaves, 'Primordia_on_apex': X.primordia_number, 'Spikelet_number': X.spikelet_created, 'Vernalisation_rate': X.primary_induction_index, 'Secondary_induction_rate': X.secondary_induction_index, 'Heading_date': X.heading_date}, ignore_index = True)
   
   if groupe=='croissance':     
     if (X.phenological_state == 'vegetative' or X.phenological_state == 'vernalized' or (X.phenological_state == 'reproductive' and (X.total_created_leaves < X.final_leaf_number or X.final_leaf_number is None))):
-      print X.phenological_state == 'vegetative'
-      print X.phenological_state == 'vernalized'
-      print X.phenological_state == 'reproductive'
-      print X.total_created_leaves < X.final_leaf_number
-      print X.final_leaf_number is None
-      print X.id_talle
-      print X.id_rang
-      print X.total_created_leaves
-      print X.final_leaf_number
-      print les_feuilles
-      print les_feuilles[(les_feuilles['Plante'] == X.id_plante) & (les_feuilles['id_talle'] == X.id_talle) & (les_feuilles['id_rang'] == X.id_rang)]
       feuille_ref = les_feuilles[(les_feuilles['Plante'] == X.id_plante) & (les_feuilles['id_talle'] == X.id_talle) & (les_feuilles['id_rang'] == X.id_rang)].iloc[0]['ObjetOrgane']
       if X.retard==2:
         #Seuil[X.id_plante][X.id_talle]=Seuil[X.id_plante][X.id_talle] * 1.15
@@ -1697,14 +1718,13 @@ apex(X):
         # When flag leaf is produced (emergence of the penultimate leaf), apex stop to produce spikelets
         # -------------------------------------------------------------------------------------------------
         if X.secondary_induction_index == 0:
-          X.primordia_number += flowering_model.param.coeff_primordia_emission_vegetative - 1
-        elif (X.phenological_state == 'vernalized' and 0 < X.secondary_induction_index):
+          X.primordia_number += flowering_model.param.coeff_primordia_emission_vegetative - 1    # 1 correspond to the new leaf produced
+        elif X.phenological_state == 'vernalized' and 0 < X.secondary_induction_index:
           X.primordia_number += flowering_model.param.coeff_primordia_emission_reproductive - 1
-        elif X.phenological_state == 'reproductive':
-          X.primordia_number += flowering_model.param.coeff_primordia_emission_reproductive - 1
+        elif X.phenological_state == 'reproductive' or X.secondary_induction_index >= 1:
           if X.final_leaf_number is None:
             X.final_leaf_number = X.total_created_leaves + X.primordia_number
-            
+          X.primordia_number += flowering_model.param.coeff_primordia_emission_reproductive - 1
         produce RollR(180) phytomere(YP, X) bourgeonRoot(Yb, YINT) ApexTal(YAT) Entrenoeud(YINT, X, YF, YP) FLW SB Feuille(YF, X, YP) FLW EB apex(X)
         
       elif X.retard==1:
@@ -1721,10 +1741,10 @@ apex(X):
         X.final_spikelet_number = X.primordia_number
         
       if (X.spikelet_created < X.final_spikelet_number):
-        YEntrenoeudEpi = ParamEntrenoeudEpi(id_plante = X.id_plante, id_talle = X.id_talle, id_rang = X.id_rang, topology=X.topology, long_entrenoeud = 0)      # ATTENTION il faudra donner une orientation au premier epillet
-        YEpillet = ParamEpillet(id_plante = X.id_plante, id_talle = X.id_talle, id_rang = X.id_rang, topology=X.topology, long_epillet = 0)
+        YEntrenoeudEpi = ParamEntrenoeudEpi(id_plante = X.id_plante, id_talle = X.id_talle, id_rang = X.id_rang + 1, topology=X.topology, long_entrenoeud = 0)      # ATTENTION il faudra donner une orientation au premier epillet
+        YEpillet = ParamEpillet(id_plante = X.id_plante, id_talle = X.id_talle, id_rang = X.id_rang + 1, topology=X.topology, long_epillet = 0)
         X.spikelet_created += 1
-        X.organ_lengths_dict[X.id_rang] = {'internode' : YEntrenoeudEpi.long_entrenoeud, 'spikelet' : YEpillet.long_epillet}
+        X.organ_lengths_dict[X.id_rang +1] = {'internode' : YEntrenoeudEpi.long_entrenoeud, 'spikelet' : YEpillet.long_epillet}
         X.id_rang += 1
         produce RollR(180) EntrenoeudEpi(YEntrenoeudEpi, X) SB +(20) Epillet(YEpillet, X) EB apex(X)   
         
@@ -1820,9 +1840,13 @@ ApexTal(X):
     produce ApexTal(X)
 
 
-EntrenoeudEpi(X, X_apex):                      # Compter les entrenoeuds de l epi et appliquer une regle de croissance differente pour le pedoncule
-  if X.long_entrenoeud < 5:            # PARAMETRE
-     X.long_entrenoeud += 0.1            # PARAMETRE
+EntrenoeudEpi(X, X_apex):
+  if X.id_rang == X_apex.final_leaf_number +1:                     # Compter les entrenoeuds de l epi et appliquer une regle de croissance differente pour le pedoncule
+    if X.long_entrenoeud < 100:
+      X.long_entrenoeud += 10
+  else:
+    if X.long_entrenoeud < 5:            # PARAMETRE
+      X.long_entrenoeud += 0.5            # PARAMETRE
   # Remplissage des longueurs d organes
   X_apex.organ_lengths_dict[X.id_rang]['internode'] = X.long_entrenoeud
   produce EntrenoeudEpi(X, X_apex)
@@ -1830,7 +1854,7 @@ EntrenoeudEpi(X, X_apex):                      # Compter les entrenoeuds de l ep
 
 Epillet(X, X_apex):
   if X.long_epillet < 5:                 # PARAMETRE
-    X.long_epillet += 0.2                # PARAMETRE
+    X.long_epillet += 0.2               # PARAMETRE
   # Remplissage des longueurs d organes
   X_apex.organ_lengths_dict[X.id_rang]['spikelet'] = X.long_epillet
   produce Epillet(X, X_apex)
