@@ -42,6 +42,7 @@ nb_plantes=len(ParamP)
 num_pointe=0
 num_primordium=0
 
+
 LSTEP=1
 DureeExp = 300
 
@@ -1302,7 +1303,7 @@ Feuille(X, X_apex, X_phytomere):
     if X.Phase!='mature':
       ##### Modif potentiel apres coupe ######
       if reprise_coupe==True and X.Phase=='visible':
-        LEDGAINE=((0.2*110*5)*2)-110
+        LEDGAINE=((0.2*Premiecroiss[X.id_plante]*5)*2)-Premiecroiss[X.id_plante]
         TrueAge=TpourY2(Seuil[X.id_plante][X.id_talle],paramManagement['Yfinit'], paramManagement['Jled']*LEDGAINE,paramManagement['Kled']*paramManagement['Jled']*LEDGAINE) #Jled*LEDGAINE correspond a te, Kled*Jled*LEDGAINE correspond a tm (These Alban Verdenal)
         NewYmax=ParamP[X.geno]['C']*((pow(paramManagement['T01'],(TrueAge+paramManagement['tb1'])*paramManagement['k1'])-paramManagement['Lpot'])-(pow(paramManagement['T02'],(TrueAge+paramManagement['tb2'])*paramManagement['k2']))) # Fonction potentiel de croissance
         if NewYmax>X.Ymax:
@@ -1332,10 +1333,16 @@ Feuille(X, X_apex, X_phytomere):
           TrueAge=X.age-dt #On pourrait affiner la determination de TrueAge qui en realite a eu lieu entre age-dt et age-2dt (soit on prend la moyenne soit au prorata des longueurs)
           
           genotype=X.geno
-          if TrueAge < 118:
-            X.Ymax = ParamP[genotype]['C']*((pow(paramManagement['T01'],(TrueAge+paramManagement['tb1'])*paramManagement['k1'])-paramManagement['Lpot'])-(pow(paramManagement['T02'],(TrueAge+paramManagement['tb2'])*paramManagement['k2']))) #Alban
-          else:
-            X.Ymax = ParamP[genotype]['C']*338.5554
+          
+          X.Ymax = ParamP[genotype]['C']*((pow(paramManagement['T01'],(TrueAge+paramManagement['tb1'])*paramManagement['k1'])-paramManagement['Lpot'])-(pow(paramManagement['T02'],(TrueAge+paramManagement['tb2'])*paramManagement['k2']))) #Alban
+          
+          # A REMETTRE SIMON
+          #if TrueAge < 118:
+          #  X.Ymax = ParamP[genotype]['C']*((pow(paramManagement['T01'],(TrueAge+paramManagement['tb1'])*paramManagement['k1'])-paramManagement['Lpot'])-(pow(paramManagement['T02'],(TrueAge+paramManagement['tb2'])*paramManagement['k2']))) #Alban
+          #else:
+          #  X.Ymax = ParamP[genotype]['C']*338.5554
+            
+          
           #X.Ymax=ParamP[genotype]['C']*(1*exp(0.032*(TrueAge+paramManagement['tb1']))-1*exp(0.047*(TrueAge+paramManagement['tb2']))-paramManagement['Lpot'])  #TF
           
           #else:
@@ -1632,7 +1639,7 @@ Entrenoeud(X_EN, X_AP, X_F, X_phytomere):
   if (X_EN.internode_type <> 'long_internode' and X_AP.phenological_state == 'reproductive' and X_F.Phase <> 'mature'):
     X_EN.internode_type = 'long_internode'
   if (X_F.Phase == 'mature' and X_EN.internode_type == 'long_internode' and X_EN.length < X_F.Taillefinalegaine + 5):              # condition pour arreter la croissance des entrenoeuds
-    X_EN.length += 10    # Remplissage des hauteurs d organes
+    X_EN.length += 5    # Remplissage des hauteurs d organes
     X_AP.organ_lengths_dict[X_EN.id_rang]['internode'] = X_EN.length
     #produce Entrenoeud(X_EN, X_AP, X_F, X_phytomere)
   elif (X_F.Phase == 'mature' and ((X_EN.internode_type == 'long_internode' and X_EN.length >= X_F.Taillefinalegaine + 5) or X_EN.internode_type == 'short_internode')):
@@ -1843,10 +1850,10 @@ ApexTal(X):
 EntrenoeudEpi(X, X_apex):
   if X.id_rang == X_apex.final_leaf_number +1:                     # Compter les entrenoeuds de l epi et appliquer une regle de croissance differente pour le pedoncule
     if X.long_entrenoeud < 100:
-      X.long_entrenoeud += 10
+      X.long_entrenoeud += 0.2
   else:
     if X.long_entrenoeud < 5:            # PARAMETRE
-      X.long_entrenoeud += 0.5            # PARAMETRE
+      X.long_entrenoeud += 0.005            # PARAMETRE
   # Remplissage des longueurs d organes
   X_apex.organ_lengths_dict[X.id_rang]['internode'] = X.long_entrenoeud
   produce EntrenoeudEpi(X, X_apex)
