@@ -1,8 +1,8 @@
-'''
-Created on 11/10/2018
-
-@author: modelisation - SR
-'''
+# '''
+# Created on 11/10/2018
+#
+# @author: modelisation - SR
+# '''
 # batch pour L-grass with flowering
 
 # import the modules necessary to initiate the L-systems

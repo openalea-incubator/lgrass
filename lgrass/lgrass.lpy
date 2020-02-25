@@ -921,7 +921,7 @@ def EndEach(lstring, lscene):
   global current_day, meteo
   global df_induction, df_organ_lengths, radiation_interception, tiller_appearance, tiller_to_remove
 #  global apex_characteristics, internode_characteristics # AJOUT SIMON
-  print(lstring)
+  
   TPS=TPS+dt
   print 'TPS :',TPS , 'Current day :', current_day # AJOUT SIMON
   
@@ -1231,7 +1231,6 @@ GetPos(a,b,c)<tip(X):
 CouvertVegetal(X):
   global groupe,NBlignes,NBcolonnes,genotype
   if groupe=='croissance':
-    print("toto ",X,X==1,NBlignes,NBcolonnes)
     if X==1:
       nproduce CouvertVegetal(2)
       for i in xrange(NBlignes):
