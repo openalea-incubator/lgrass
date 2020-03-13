@@ -1,8 +1,8 @@
-'''
-Created on 11/10/2018
-
-@author: modelisation - SR
-'''
+# '''
+# Created on 11/10/2018
+#
+# @author: modelisation - SR
+# '''
 # batch pour L-grass with flowering
 
 # import the modules necessary to initiate the L-systems
@@ -19,11 +19,14 @@ import os
 # from generateScene import *
 import numpy as np
 from lgrass import flowering_functions
+from lgrass import meteo_ephem
+from lgrass import caribu
 from openalea.lpy import Lsystem
 import itertools
 import pandas as pd
 
-#path_ = r'D:\Simon\Python\lgrass\lgrass'
+
+# path_ = r'D:\Simon\Python\lgrass\lgrass'
 
 INPUTS_DIRPATH = 'inputs'
 OUTPUTS_DIRPATH = r'outputs'
@@ -34,31 +37,21 @@ OUTPUTS_DIRPATH = r'outputs'
 
 
 # path_param = os.path.join(INPUTS_DIRPATH,'Parametre_plante_Lgrass.xls') # Fichier contenant les parametres
-#path_param = 'D:\Simon\Python\lgrass\lgrass\inputs\Parametre_plante_Lgrass.xls'
-path_param = 'inputs/Parametre_plante_Lgrass.xls'
+# path_param = 'D:\Simon\Python\lgrass\lgrass\inputs\Parametre_plante_Lgrass.xls'
 
-onglet1 = 'FL'
-onglet2 = 'FC'
-TableParamP1 = pd.read_excel(path_param, sheetname=onglet1)
-TableParamP2 = pd.read_excel(path_param, sheetname=onglet2)
-paramP1 = dict(zip(TableParamP1['name'], TableParamP1['value']))
-paramP2 = dict(zip(TableParamP2['name'], TableParamP2['value']))
+TableParamP = pd.read_excel('inputs/Parametre_plante_Lgrass.xls', sheet_name='ParamP')
+simul_conditions = pd.read_csv(os.path.join("inputs/plan_simulation.csv"))
+value_C = pd.read_csv(os.path.join("inputs/donnees_C.csv"))
+param_name = list(TableParamP['name'])
+param_value = list(TableParamP['value'])
+
+# dict(zip(TableParamP['name'], TableParamP['value']))
 
 # cree la liste de L-systems et liste des noms
 testsim = {}
 names = []
 
-nb_simul = 0
-temp_vern_min_list = np.arange(0, 1, 10)
-temp_vern_inter_list = np.arange(8, 9, 10)
-temp_vern_max_list = np.arange(13, 18, 10)
-daily_vern_rate_list = np.arange(0.001, 0.002, 10)
-basic_vern_rate_list = np.arange(0.01, 0.11, 10)
-photoperiod_min_list = np.arange(10, 11, 10)
-photoperiod_max_list = np.arange(16, 17, 10)
-max_photo_ind_rate_list = np.arange(1, 2, 10)
-coeff_primordia_emission_vegetative_list = np.arange(1, 2, 10)
-coeff_primordia_emission_reproductive_list = np.arange(1, 6, 10)
+
 combination_site_sowing_date = np.array([("treatment_1", "2018_11_13")])
 # combination_site_sowing_date = np.array([("LUSIGNAN", "2017_10_15")])
 # combination_site_sowing_date = np.array([("LUSIGNAN", "2012_10_15"),
@@ -69,8 +62,9 @@ combination_site_sowing_date = np.array([("treatment_1", "2018_11_13")])
 #                                          ("PLOUDANIEL", "2007_10_15"),
 #                                          ("PLOUDANIEL", "2012_10_15"),
 #                                          ("PLOUDANIEL", "2017_10_15")])
-#value_C = np.array([0.7, 1.2])
+# value_C = np.array([0.7, 1.2])
 Premiecroiss = np.array([90, 110, 150, 170])
+
 
 # column_names = ["name", "temp_vern_min", "temp_vern_inter", "temp_vern_max", "daily_vern_rate",
 #                 "basic_vern_rate", "photoperiod_min", "photoperiod_max", "max_photo_ind_rate",
@@ -80,57 +74,128 @@ Premiecroiss = np.array([90, 110, 150, 170])
 
 # simul_conditions = pd.DataFrame(columns=column_names)
 
-#simul_conditions = pd.read_csv(r"D:\Simon\Python\lgrass\lgrass\inputs\plan_simulation.csv")
-simul_conditions = pd.read_csv(os.path.join("inputs/plan_simulation.csv"))
-value_C = pd.read_csv(os.path.join("inputs/donnees_C.csv"))
+# simul_conditions = pd.read_csv(r"D:\Simon\Python\lgrass\lgrass\inputs\plan_simulation.csv")
 
-for x in range(simul_conditions.shape[0]):
-    row = simul_conditions.iloc[x]
-    print(row)
+def runlsystem(opt_caribu):
+    for x in range(simul_conditions.shape[0]):
+        row = simul_conditions.iloc[x]
+        name = str(row["name"])
+        print(name)
+        names.append(name)
+        lpy_filename = os.path.join('lgrass.lpy')
+        testsim[name] = Lsystem(lpy_filename)
+        # ecriture du fichier des parametres d'entree
+        path_param = 'inputs/' + row[0] + '.csv'
+        param_init = open(path_param, 'w')
+        # ecriture des parametres variables
+        Geno = []
+        C = []
+        Geno.append(param_name[0])
+        C.append(param_name[1])
+        for geno in range(len(value_C['geno'])):
+            Geno.append(str(value_C['geno'].iloc[geno]))
+            C.append(str(value_C['C'].iloc[geno]))
+        param_init.write(";".join(Geno) + "\n")
+        param_init.write(";".join(C) + "\n")
+        # ecriture des parametres constants
+        for par in range(2, len(param_name)):
+            L = []
+            L.append(param_name[par])
+            for geno in range(len(value_C['geno'])):
+                L.append(str(param_value[par]))
+            param_init.write(";".join(L) + "\n")
+        param_init.close()
+        # lecture du fichier, creation de ParamP et des parametres de floraison
+        param_plante = pd.read_csv(os.path.join(path_param), sep=";", header=None)
+        testsim[name].ParamP = []
+        flowering_param = flowering_functions.FloweringFunctions()
+        for par in range(1, len(param_plante.columns)):
+            L = dict(zip(param_plante.iloc[:, 0], param_plante.iloc[:, par]))
+            testsim[name].ParamP.append(L)
+            flowering_param.param.temp_vern_min.append(L["temp_vern_min"])
+            flowering_param.param.temp_vern_inter.append(L["temp_vern_inter"])
+            flowering_param.param.temp_vern_max.append(L["temp_vern_max"])
+            flowering_param.param.daily_vern_rate.append(L["daily_vern_rate"])
+            flowering_param.param.basic_vern_rate.append(L["basic_vern_rate"])
+            flowering_param.param.photoperiod_min.append(L["photoperiod_min"])
+            flowering_param.param.photoperiod_max.append(L["photoperiod_max"])
+            flowering_param.param.max_photo_ind_rate.append(L["max_photo_ind_rate"])
+            flowering_param.param.coeff_primordia_emission_vegetative.append(L["coeff_primordia_emission_vegetative"])
+            flowering_param.param.coeff_primordia_emission_reproductive.append(L["coeff_primordia_emission_reproductive"])
+        # Creation des matrices d'identifiant des plantes et de leur genotype
+        testsim[name].nb_plantes = len(testsim[name].ParamP)
+        testsim[name].NBlignes = int(math.ceil(np.sqrt(testsim[name].nb_plantes)))
+        testsim[name].NBcolonnes = int(math.floor(np.sqrt(testsim[name].nb_plantes)))
+        testsim[name].posPlante = [[i, j] for i, j in
+                                   zip(sorted(range(testsim[name].NBlignes) * testsim[name].NBcolonnes),
+                                       range(testsim[name].NBcolonnes) * testsim[name].NBlignes)]
+        testsim[name].Plantes = np.arange(testsim[name].nb_plantes).reshape(testsim[name].NBlignes,
+                                                                            testsim[name].NBcolonnes)
+        testsim[name].Genotypes = np.array([i for i in value_C['geno']]).reshape(testsim[name].NBlignes,
+                                                                                 testsim[name].NBcolonnes)
+        # Donnees meteo
+        sowing_date = "2018_11_13"
+        site = 'treatment_1'
+        testsim[name].meteo = meteo_ephem.import_meteo_data('inputs/meteo_controlled_conditions.csv', sowing_date,site)
+        # Gestion caribu
+        if (opt_caribu == 'On'):
+            dico_caribu = {}
+            dico_caribu['azimuths'] = 4
+            dico_caribu['zeniths'] = 5
+            dico_caribu['diffuse_model'] = 'soc'
+            dico_caribu['scene_unit'] = 'mm'
+            dico_caribu['RUE'] = 2
+            dico_caribu['period_considered_tiller_regression'] = 10
+            dico_caribu['radiation_threshold'] = 100000
+            dico_caribu['Ray'] = [0.] * (testsim[name].nb_plantes)
+            dico_caribu['radiation_interception'] = pd.DataFrame()
+            dico_caribu['meteo'] = testsim[name].meteo
+            dico_caribu['option_tiller_regression'] = testsim[name].option_tiller_regression
+            dico_caribu['option_mophogenetic_regulation_by_carbone'] = testsim[name].option_mophogenetic_regulation_by_carbone
+        # Parametres de simulation
+        # testsim[name].axiom = "CouvertVegetal(2)"
+        testsim[name].derivationLength = int(row["derivationLength"])
+        testsim[name].option_tallage = row["option_tallage"]
+        testsim[name].meteo_path = os.path.join(row["meteo_path"])
+        testsim[name].sowing_date = row["sowing_date"]
+        testsim[name].site = row["site"]
+        testsim[name].flowering_model = flowering_param
+        testsim[name].output_induction_file_name = name + '_' + 'induction'
+        testsim[name].output_organ_lengths_file_name = name + '_' + 'organ_lengths'
+        testsim[name].cutting_dates = [] if pd.isna(row["cutting_dates"]) \
+            else [row["cutting_dates"]] if isinstance(row["cutting_dates"], int) \
+            else [int(i) for i in row["cutting_dates"].split("_")]
+        # Lancement du lsystem
+        lstring = testsim[name].axiom
+        for dd in range(testsim[name].derivationLength):
+            try :
+                day = testsim[name].current_day
+            except :
+                day = 1
+            lstring = testsim[name].derive(lstring, dd, 1)
+            lscene = testsim[name].sceneInterpretation(lstring)
+            if (opt_caribu == 'On'):
+                testsim[name].BiomProd, dico_caribu['radiation_interception'], dico_caribu['Ray'] = caribu.apply_caribu_lgrass(lstring, lscene, testsim[name].TPS,
+                                                                    testsim[name].current_day,
+                                                                    testsim[name].tiller_appearance,
+                                                                    testsim[name].nb_plantes, dico_caribu, day)
+            Viewer.display(lscene)
 
-    flowering_param = flowering_functions.FloweringFunctions()
-    flowering_param.param.temp_vern_min = row["temp_vern_min"]
-    flowering_param.param.temp_vern_inter = row["temp_vern_inter"]
-    flowering_param.param.temp_vern_max = row["temp_vern_max"]
-    flowering_param.param.daily_vern_rate = row["daily_vern_rate"]
-    flowering_param.param.basic_vern_rate = row["basic_vern_rate"]
-    flowering_param.param.photoperiod_min = row["photoperiod_min"]
-    flowering_param.param.photoperiod_max = row["photoperiod_max"]
-    flowering_param.param.max_photo_ind_rate = row["max_photo_ind_rate"]
-    flowering_param.param.coeff_primordia_emission_vegetative = row["coeff_primordia_emission_vegetative"]
-    flowering_param.param.coeff_primordia_emission_reproductive = row["coeff_primordia_emission_reproductive"]
+        # testsim[names[n]].derive() # permet le declenchement de la fonction "End" du script lpy
+        # testsim[names[x]].animate()
+        # print(testsim[names[n]].output_dict)
+        # with open(os.path.join(OUTPUTS_DIRPATH, 'sortie_test_path', str(n) + '.csv'), 'wb') as sortie_test_path:
+        #     sortie_test = csv.writer(sortie_test_path)
+        #     sortie_test.writerows(testsim[names[n]].output_dict.items())
+        testsim[names[x]].clear()
+        print(''.join((names[x], " - done")))
 
-    name = str(row["name"])
-    print(name)
-    names.append(name)
-    lpy_filename = os.path.join('lgrass.lpy')
-    testsim[name] = Lsystem(lpy_filename)
-    #testsim[name].axiom = "CouvertVegetal(2)"
-    testsim[name].derivationLength = int(row["derivationLength"])
-    testsim[name].option_tallage = row["option_tallage"]
-    testsim[name].meteo_path = os.path.join(row["meteo_path"])
-    testsim[name].sowing_date = row["sowing_date"]
-    testsim[name].site = row["site"]
-    testsim[name].flowering_model = flowering_param
-    testsim[name].output_induction_file_name = name + '_' + 'induction'
-    testsim[name].output_organ_lengths_file_name = name + '_' + 'organ_lengths'
-    testsim[name].cutting_dates = [] if pd.isna(row["cutting_dates"]) \
-        else [row["cutting_dates"]] if isinstance(row["cutting_dates"], int) \
-        else [int(i) for i in row["cutting_dates"].split("_")]
-    testsim[name].ParamP = []
-    testsim[name].ParamP.append(paramP1)
-    testsim[name].ParamP.append(paramP2)
-    testsim[name].nb_plantes = len(testsim[name].ParamP)
-    testsim[name].NBlignes = int(math.ceil(np.sqrt(testsim[name].nb_plantes)))
-    testsim[name].NBcolonnes = int(math.floor(np.sqrt(testsim[name].nb_plantes)))
-    testsim[name].posPlante = [[i, j] for i, j in zip(sorted(range(testsim[name].NBlignes) * testsim[name].NBcolonnes), range(testsim[name].NBcolonnes) * testsim[name].NBlignes)]
-    # Creation des matrices d'identifiant des plantes et de leur genotype
-    testsim[name].Plantes = np.arange(testsim[name].nb_plantes).reshape(testsim[name].NBlignes, testsim[name].NBcolonnes)
-    testsim[name].Genotypes = np.array([i for i in value_C['geno']]).reshape(testsim[name].NBlignes, testsim[name].NBcolonnes)
-    for i in range(len(value_C["geno"])):
-        testsim[name].ParamP[i]["genotype"] = value_C['geno'].iloc[i]
-        testsim[name].ParamP[i]["C"] = value_C['C'].iloc[i]
-        testsim[name].ParamP[i]["Premiecroiss"] = row["Premiecroiss"]
+        # print(testsim[names[n]].output_dict)
+
+# try:
+runlsystem('On')
+# except:
+#    print(simul_conditions.iloc[i]["name"] + " " + "failed")
 
 
 # for x in itertools.product(temp_vern_min_list, temp_vern_inter_list, temp_vern_max_list, daily_vern_rate_list,
@@ -170,25 +235,6 @@ for x in range(simul_conditions.shape[0]):
 #     testsim[name].ParamP[0]["Premiecroiss"] = x[12]
 
 #    simul_conditions = simul_conditions.append(pd.DataFrame([a, ], columns=column_names))
-
-# function to run an L-system from the 'testsim' dictionnary
-def runlsystem(n):
-    testsim[names[n]].derive()  # permet le declenchement de la fonction "End" du script lpy
-    # print(testsim[names[n]].output_dict)
-    # with open(os.path.join(OUTPUTS_DIRPATH, 'sortie_test_path', str(n) + '.csv'), 'wb') as sortie_test_path:
-    #     sortie_test = csv.writer(sortie_test_path)
-    #     sortie_test.writerows(testsim[names[n]].output_dict.items())
-    testsim[names[n]].clear()
-    print(''.join((names[n], " - done")))
-
-    # print(testsim[names[n]].output_dict)
-
-
-for i in range(simul_conditions.shape[0]):
-    #try:
-    runlsystem(i)
-    #except:
-    #    print(simul_conditions.iloc[i]["name"] + " " + "failed")
 
 
 # for i in range(nb_simul):
