@@ -33,7 +33,7 @@ OUTPUTS_DIRPATH = r'outputs'
 
 
 # path_param = os.path.join(INPUTS_DIRPATH,'Parametre_plante_Lgrass.xls') # Fichier contenant les parametres
-path_param = 'D:\Simon\Python\lgrass\lgrass\inputs\Parametre_plante_Lgrass.xls'
+path_param = os.path.join(INPUTS_DIRPATH, 'Parametre_plante_Lgrass.xls')
 onglet1 = 'FL'
 onglet2 = 'FC'
 TableParamP1 = pd.read_excel(path_param, sheetname=onglet1)
