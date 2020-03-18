@@ -1,2 +1,2 @@
-name,temp_vern_min,temp_vern_inter,temp_vern_max,daily_vern_rate,basic_vern_rate,photoperiod_min,photoperiod_max,max_photo_ind_rate,coeff_primordia_emission_vegetative,coeff_primordia_emission_reproductive,derivationLength,option_tallage,meteo_path,sowing_date,site,cutting_dates,value_C,Premiecroiss
-simulation_1,0,8,13,0.001,0.01,10,16,1,1,2,300,False,inputs/meteo_controlled_conditions_bloc_1.csv,2019_01_16,treatment_4,,0.7,90
+Scenario,name,temp_vern_min,temp_vern_inter,temp_vern_max,daily_vern_rate,basic_vern_rate,photoperiod_min,photoperiod_max,max_photo_ind_rate,coeff_primordia_emission_vegetative,coeff_primordia_emission_reproductive,derivationLength,option_tallage,meteo_filename,sowing_date,site,cutting_dates,value_C,Premiecroiss
+1,simulation_1,0,8,13,0.001,0.01,10,16,1,1,2,300,False,meteo_controlled_conditions_bloc_1.csv,2019_01_16,treatment_4,,0.7,90
