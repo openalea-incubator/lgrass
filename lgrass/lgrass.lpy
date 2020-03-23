@@ -129,9 +129,9 @@ flowering_model = flowering_functions.FloweringFunctions()
 
 
 
-option_tiller_regression = False
+#option_tiller_regression = False
 
-option_mophogenetic_regulation_by_carbone = False
+#option_mophogenetic_regulation_by_carbone = False
 
 
 # ------------------------------------------------------------------------------------------------
@@ -749,7 +749,7 @@ def Start():
   ##### Creation de parametres vides #####
   Biomasse_aerienne=[0.]*(nb_plantes) # Biomasse foliaire totale
   Biomasse_racinaire=[0.]*(nb_plantes) # Biomasse racinaire
-  BiomProd=[0.]*(nb_plantes)
+  #BiomProd=[0.]*(nb_plantes)
   PourcentageRootGrowthRealized=[0]*(nb_plantes)
   Reserve=[0]*(nb_plantes) # Reserve de "biomass"
   Demande_feuille=[0]*(nb_plantes)
@@ -931,7 +931,7 @@ def EndEach(lstring, lscene):
       else:
         # Approche croissance biomasse exponentielle (cf thèse Vincent Migault)
         BiomassCree=t2[id_plante]*(Biomasse_aerienne[id_plante]+t1[id_plante])*(1+Beta[id_plante]*Alpha[id_plante]*(Biomasse_aerienne[id_plante])**(Alpha[id_plante]-1))
-      
+        
       # Allocation aerien/racinaire + ratio offre/demande
       if BiomassCree>0 and 0.99*BiomassCree > Demande_feuille[id_plante]:  # demande satisfaite
         RootBiomassCree = BiomassCree - Demande_feuille[id_plante]  # Allocation surplus non utilise par parties aeriennes aux racines

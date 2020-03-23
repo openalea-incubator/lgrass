@@ -33,6 +33,7 @@ class FloweringFunctions:
             secondary_induction_increment = (daylength - self.param.photoperiod_min[i]) / (self.param.photoperiod_max[i] - self.param.photoperiod_min[i])
         return secondary_induction_increment
 
+
 #    def final_phytomer_number
 
 

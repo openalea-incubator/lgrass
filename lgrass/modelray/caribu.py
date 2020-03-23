@@ -83,5 +83,5 @@ def apply_caribu_lgrass(lstring,lscene,TPS,current_day,tiller_appearance,nb_plan
             for ID in xrange(nb_plantes):
                 BiomProd[ID] = dico_caribu['Ray'][ID] * dico_caribu['RUE']  # Ray: MJ PAR ; RUE : g MJ-1
                 print('Plante %s, Ray: %s, BiomProd: %s' % (ID, dico_caribu['Ray'][ID], BiomProd[ID]))
-        print(BiomProd, dico_caribu['radiation_interception'], dico_caribu['Ray'])
     return BiomProd, dico_caribu['radiation_interception'], dico_caribu['Ray']
+
