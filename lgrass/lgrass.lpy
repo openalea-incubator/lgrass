@@ -247,7 +247,7 @@ scales['Entrenoeud']=4
 parameters['Entrenoeud']=['ParamEntrenoeud']
 
 class ParamApex:
-  def __init__(self, id_plante, id_talle, id_rang=1, topology=(0,), retard=0, total_emerged_leaves=0, total_created_leaves=0, day=0, primary_induction_index=0, secondary_induction_index=0, phenological_state='vegetative', primordia_number=3, spikelet_created=0, final_leaf_number=None, final_spikelet_number=None, organ_lengths_dict={}, terminal_spikelet_height=0, heading_date=None, appearance_date=None, id_geno=0):   # PARAMETRE
+  def __init__(self, id_plante, id_talle, id_rang=1, topology=(0,), retard=0, total_emerged_leaves=0, total_created_leaves=0, day=0, primary_induction_index=0, secondary_induction_index=0, phenological_state='vegetative', primordia_number=3, spikelet_created=0, final_leaf_number=None, final_spikelet_number=None, organ_lengths_dict={}, terminal_spikelet_height=0, heading_date=0, appearance_date=None, id_geno=0):   # PARAMETRE
     self.id_plante = id_plante
     self.id_talle = id_talle
     self.id_rang = id_rang
@@ -813,7 +813,7 @@ def Start():
   #t3=[ParamP[i]['t3'] for i in xrange(nb_plantes)]
   option_caribu="Off"
   
-  df_induction = pd.DataFrame(columns = ['GDD', 'Date', 'Site', 'Day', 'Daily_mean_temperature', 'Daily_daylength', 'Id_plante', 'Id_talle', 'Leaf_produced', 'Primordia_on_apex', 'Spikelet_number', 'Vernalisation_rate', 'Secondary_induction_rate', 'Heading_date'])
+  df_induction = pd.DataFrame(columns = ['GDD', 'Date', 'Site', 'Day', 'Daily_mean_temperature', 'Daily_daylength', 'Id_plante', 'Id_talle', 'topology', 'Leaf_produced', 'Primordia_on_apex', 'Spikelet_number', 'Vernalisation_rate', 'Secondary_induction_rate', 'Heading_date'])
   
   df_organ_lengths = pd.DataFrame(columns = ['GDD', 'Date', 'Site', 'Day', 'Id_plante', 'Id_talle', 'Id_rang', 'Organ', 'Length'])
   
@@ -949,31 +949,50 @@ def EndEach(lstring, lscene):
     # ------------------------------------------------------------------------------------------------
     # --------------------------- Conditions for tiller regression  ----------------------------------
     # ------------------------------------------------------------------------------------------------
-    # Principle: if a the youngest tiller of a plant does not intercept enough light radiations, it 
-    # will die.
-    # At the end of each day, radiations intercepted by the youngest tillers of each plant is
-    # calculated. The one of this tiller that intercept the less radiation and less radiation than the
-    # radiation_threshold will die.
+    # Principle: if a the youngest tillers irradiance under the compensation point of photosynthesis 
+    # (PS_compensation_point) and their mother-tiller does not provide their assimilate needs, 
+    # they will die.
+    # At the end of each day, mean irradiance of each non-autonomous tiller is calculated for each 
+    # plant.
+    # For tillers that irradiance is too low, the status of the mother tiller is studied.
+    # If the mother-tiller is vegetative, the young tiller will die only if the mother-tiller 
+    # irradiance is lower than Ic.
+    # If the mother-tiller is reproductive but flowers are not formed: the young tillers survive
+    # If the mother-tiller is reproductive and the formation of the flowers have start: the young 
+    # tillers die
+    # minimum number of leaf = 3 verifier comment est calculé Leaf_produced
     # ------------------------------------------------------------------------------------------------
     if option_tiller_regression == True and len(tiller_appearance) > 0:
       tiller_to_remove = pd.DataFrame()
       
-      for id_plante in np.unique(tiller_appearance.id_plante):
-        plant_tillers = tiller_appearance[tiller_appearance.id_plante == id_plante]
-        youngest_tillers = plant_tillers[plant_tillers.appearance_date == max(plant_tillers.appearance_date)]
-        youngest_tillers_radiations = pd.DataFrame()
-        
-        for id_talle in youngest_tillers.id_talle:
-          select_plant = radiation_interception.id_plante == id_plante
-          select_tiller = radiation_interception.id_talle == id_talle
-          time_condition = current_day - period_considered_tiller_regression <= radiation_interception.date
-          df = radiation_interception[select_plant & select_tiller & time_condition]
-          tiller_raditation = (df.Ei * df.area).sum() / df.area.sum()
-          youngest_tillers_radiations = youngest_tillers_radiations.append(pd.DataFrame({'id_talle': [id_talle], 'Ei_tiller': [tiller_raditation]}))
-        
-        potential_tiller_to_remove = youngest_tillers_radiations[youngest_tillers_radiations.Ei_tiller == min(youngest_tillers_radiations.Ei_tiller)]
-        if potential_tiller_to_remove.Ei_tiller.item() <= radiation_threshold:
-          tiller_to_remove = tiller_to_remove.append(pd.DataFrame({'id_plante': [id_plante], 'id_talle': [potential_tiller_to_remove.id_talle.item()]}))
+      for id_plante in df_induction.id_plante[df_induction.GDD == TPS]:
+        dependent_tillers = df_induction[(df_induction.GDD == TPS) & (df_induction.Leaf_produced <= 4)]
+        for id_talle in dependent_tillers.id_talle:
+          if radiation_interception.Ei[(radiation_interception.id_plante == id_plante) & (radiation_interception.id_talle == id_talle)] < ParamP[id_plante]['PS_compensation_point']:  #unite de Ei ???      + verifier ParamP(id_plante)
+            mother_tiller_id = df_induction.topology[(df_induction.GDD == TPS) & (df_induction.id_plante == id_plante) & (df_induction.id_talle == id_talle)][-2]
+            if df_induction.Secondary_induction_rate[(df_induction.GDD == TPS) & (df_induction.id_plante == id_plante) & (df_induction.id_talle == mother_tiller_id)] < 1:  # vegetative_tiller
+              if radiation_interception.Ei[(radiation_interception.id_plante == id_plante) & (radiation_interception.id_talle == id_talle)] < ParamP[id_plante]['PS_compensation_point'] :        #unite de Ei ???      + verifier ParamP(id_plante)
+                tiller_to_remove = tiller_to_remove.append(pd.DataFrame({'id_plante': [id_plante], 'id_talle': [id_talle]}))
+            elif df_induction.Heading_date[(df_induction.GDD == TPS) & (df_induction.id_plante == id_plante) & (df_induction.id_talle == mother_tiller_id)] > 0:  # headed
+                tiller_to_remove = tiller_to_remove.append(pd.DataFrame({'id_plante': [id_plante], 'id_talle': [id_talle]}))
+      
+      
+      #      for id_plante in np.unique(tiller_appearance.id_plante):
+      #        plant_tillers = tiller_appearance[tiller_appearance.id_plante == id_plante]
+      #        youngest_tillers = plant_tillers[plant_tillers.appearance_date == max(plant_tillers.appearance_date)]
+      #        youngest_tillers_radiations = pd.DataFrame()
+      #        
+      #        for id_talle in youngest_tillers.id_talle:
+      #          select_plant = radiation_interception.id_plante == id_plante
+      #          select_tiller = radiation_interception.id_talle == id_talle
+      #          time_condition = current_day - period_considered_tiller_regression <= radiation_interception.date
+      #          df = radiation_interception[select_plant & select_tiller & time_condition]
+      #          tiller_raditation = (df.Ei * df.area).sum() / df.area.sum()
+      #          youngest_tillers_radiations = youngest_tillers_radiations.append(pd.DataFrame({'id_talle': [id_talle], 'Ei_tiller': [tiller_raditation]}))
+      #        
+      #        potential_tiller_to_remove = youngest_tillers_radiations[youngest_tillers_radiations.Ei_tiller == min(youngest_tillers_radiations.Ei_tiller)]
+      #        if potential_tiller_to_remove.Ei_tiller.item() <= radiation_threshold:
+      #          tiller_to_remove = tiller_to_remove.append(pd.DataFrame({'id_plante': [id_plante], 'id_talle': [potential_tiller_to_remove.id_talle.item()]}))
     
     if option_mophogenetic_regulation_by_carbone == True:
       for ID in xrange(nb_plantes):
@@ -1691,7 +1710,7 @@ apex(X):
           X.phenological_state = 'reproductive'
           print 'reproductive'
           
-    df_induction = df_induction.append({'GDD': TPS, 'Date': date, 'Site': site, 'Day': current_day, 'Daily_mean_temperature': daily_temperature, 'Daily_daylength': daily_daylength, 'Id_plante': X.id_plante, 'Id_talle': X.id_talle, 'Leaf_produced': X.total_created_leaves, 'Primordia_on_apex': X.primordia_number, 'Spikelet_number': X.spikelet_created, 'Vernalisation_rate': X.primary_induction_index, 'Secondary_induction_rate': X.secondary_induction_index, 'Heading_date': X.heading_date}, ignore_index = True)
+    df_induction = df_induction.append({'GDD': TPS, 'Date': date, 'Site': site, 'Day': current_day, 'Daily_mean_temperature': daily_temperature, 'Daily_daylength': daily_daylength, 'Id_plante': X.id_plante, 'Id_talle': X.id_talle, 'topology':X.topology, 'Leaf_produced': X.total_created_leaves, 'Primordia_on_apex': X.primordia_number, 'Spikelet_number': X.spikelet_created, 'Vernalisation_rate': X.primary_induction_index, 'Secondary_induction_rate': X.secondary_induction_index, 'Heading_date': X.heading_date}, ignore_index = True)
   
   if groupe=='croissance':     
     if (X.phenological_state == 'vegetative' or X.phenological_state == 'vernalized' or (X.phenological_state == 'reproductive' and (X.total_created_leaves < X.final_leaf_number or X.final_leaf_number is None))):
@@ -1781,7 +1800,7 @@ apex(X):
           X.terminal_spikelet_height += X.organ_lengths_dict[phytomere_rank]['internode']
         print 'Le dernier epillet est a : ' + str(X.terminal_spikelet_height)
           
-        if (X.heading_date is None and X.terminal_spikelet_height > highest_ligule['height']):
+        if (X.heading_date == 0 and X.terminal_spikelet_height > highest_ligule['height']):
           X.heading_date = current_day
           
         produce apex(X)
