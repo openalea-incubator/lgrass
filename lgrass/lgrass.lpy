@@ -78,15 +78,15 @@ random.seed(seed)
 #option_tallage = False
 
 ##### Activation de la senescence
-option_senescence = True
+#option_senescence = False
 
 
 ##### Activation de la floraison #####
-option_floraison = False        # True or False
+#option_floraison = True        # True or False
 
 
 ##### Activation sorties graphiques
-option_graphic_outputs = True
+option_graphic_outputs = False
 
 
 #### Load flowering model

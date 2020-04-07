@@ -1,25 +1,24 @@
+# coding: utf8
 import pandas as pd
 import numpy as np
 import math
-import os
 from lgrass import flowering_functions
 
 
-def define_param(in_path='inputs', in_param_file='Parametre_plante_Lgrass.xls', in_genet_file='donnees_C.csv',
-                 out_param_file='Simulation_1.csv', sheet='ParamP'):
+def get_param(in_param_file='inputs/Parametre_plante_Lgrass.xls', sheet='ParamP'):
+    return pd.read_excel(in_param_file, sheet_name=sheet)
 
-    TableParamP = pd.read_excel(os.path.join(in_path, in_param_file), sheet_name=sheet)
-    value_C = pd.read_csv(os.path.join(in_path, in_genet_file))
 
-    param_init = open(os.path.join(in_path, out_param_file), 'w')
-    param_name = list(TableParamP['name'])
-    param_value = list(TableParamP['value'])
+def define_param(in_genet_file='inputs/donnees_C.csv', out_param_file='inputs/Simulation_1.csv', param=None):
+    value_C = pd.read_csv(in_genet_file)
+
+    param_init = open(out_param_file, 'w')
+    param_name = list(param['name'])
+    param_value = list(param['value'])
 
     # Ecriture des parametres de plante variables
-    Geno = []
-    C = []
-    Geno.append(param_name[0])
-    C.append(param_name[1])
+    Geno = [param_name[0]]
+    C = [param_name[1]]
     for geno in range(len(value_C['geno'])):
         Geno.append(str(value_C['geno'].iloc[geno]))
         C.append(str(value_C['C'].iloc[geno]))
@@ -28,15 +27,14 @@ def define_param(in_path='inputs', in_param_file='Parametre_plante_Lgrass.xls', 
 
     # Ecriture des parametres de plante constants
     for par in range(2, len(param_name)):
-        L = []
-        L.append(param_name[par])
+        L = [param_name[par]]
         for geno in range(len(value_C['geno'])):
             L.append(str(param_value[par]))
         param_init.write(";".join(L) + "\n")
     param_init.close()
 
     # lecture du fichier, creation de ParamP et des parametres de floraison
-    param_plante = pd.read_csv(os.path.join(in_path, out_param_file), sep=";", header=None, index_col=0)
+    param_plante = pd.read_csv(out_param_file, sep=";", header=None, index_col=0)
 
     flowering_param = flowering_functions.FloweringFunctions()
     flowering_param.param.__dict__.update(
