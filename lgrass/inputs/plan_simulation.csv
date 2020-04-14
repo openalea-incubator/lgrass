@@ -1,4 +1,5 @@
-name,derivationLength,option_tallage,option_caribu,option_senescence,option_floraison,option_tiller_regression,option_mophogenetic_regulation_by_carbone,num_gener,meteo_path,sowing_date,site,cutting_dates
-scenario_test,675,True,False,False,True,True,False,2,inputs/meteo_controlled_conditions.csv,2018_11_13,treatment_1,
-ray100_temp13_deg1001_biomoff_floroff,1005,False,False,False,False,False,False,1,inputs/meteo_controlled_conditions_ray.csv,2018_11_13,treatment_1,
-ray65_temp17_deg1273_biomoff_floroff,1309,False,False,False,False,False,False,1,inputs/meteo_controlled_conditions_temp.csv,2018_11_13,treatment_1,
+name,derivationLength,option_tallage,option_caribu,option_senescence,option_floraison,option_tiller_regression,option_mophogenetic_regulation_by_carbone,option_reproduction,num_gener,meteo_path,sowing_date,site,cutting_dates
+scenario_test,1000,False,False,False,True,True,False,True,4,inputs/meteo_controlled_conditions.csv,2018_11_13,treatment_1,
+espac200_effet_talle,1200,True,False,False,False,False,False,False,1,inputs/meteo_controlled_conditions.csv,2018_11_13,treatment_1,
+ray100_temp13_deg1001_biomoff_floroff,1005,False,False,False,False,False,False,False,1,inputs/meteo_controlled_conditions_ray.csv,2018_11_13,treatment_1,
+ray65_temp17_deg1273_biomoff_floroff,1309,False,False,False,False,False,False,False,1,inputs/meteo_controlled_conditions_temp.csv,2018_11_13,treatment_1,

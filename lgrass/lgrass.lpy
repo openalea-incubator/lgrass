@@ -47,7 +47,7 @@ DureeExp = 300
 OptionRacine='SansRacines' 
 #OptionRacine='AvecRacines'
 
-Densite=400 #en nb de plante par m2
+Densite=200 #en nb de plante par m2
 Espacement=10*sqrt(10000/Densite) #en mm
 #NBlignes=int(ceil(sqrt(nb_plantes)))
 #NBcolonnes=int(floor(sqrt(nb_plantes)))
@@ -1580,9 +1580,9 @@ apex(X):
       
       elif (X.phenological_state == 'vernalized' and X.total_created_leaves > 1):
         print 'vernalized'
-        print flowering_model.photoperiod_induction_function(daily_daylength,X.id_plante)
+        #print flowering_model.photoperiod_induction_function(daily_daylength,X.id_plante)
         X.secondary_induction_index += flowering_model.photoperiod_induction_function(daily_daylength,X.id_plante)
-        print X.secondary_induction_index
+        #print X.secondary_induction_index
         if X.secondary_induction_index >= 1:
           X.phenological_state = 'reproductive'
           print 'reproductive'
@@ -1632,11 +1632,11 @@ apex(X):
         
       elif X.retard==1:
         X.retard=2
-        print 'RETARD_1'
+        #print 'RETARD_1'
         produce apex(X)
       elif feuille_ref and abs(Seuil[X.id_plante][X.id_talle]-feuille_ref.Taillefeuille)<2: #Si |Seuil-Taillefeuille| <2mm
         X.retard=1
-        print 'RETARD_0'
+        #print 'RETARD_0'
         produce apex(X)
         
     if (X.phenological_state == 'reproductive' and X.total_created_leaves == X.final_leaf_number):
@@ -1670,12 +1670,12 @@ apex(X):
             height += X.organ_lengths_dict[i]['internode']
           if height >= highest_ligule['height']:
             highest_ligule = {'id_rang': phytomere_rank, 'height': height}
-        print 'La plus haute ligule est a : ' + str(highest_ligule['height'])
+        #print 'La plus haute ligule est a : ' + str(highest_ligule['height'])
             
         X.terminal_spikelet_height = X.organ_lengths_dict[max(X.organ_lengths_dict.keys())]['spikelet']
         for phytomere_rank in X.organ_lengths_dict.keys():
           X.terminal_spikelet_height += X.organ_lengths_dict[phytomere_rank]['internode']
-        print 'Le dernier epillet est a : ' + str(X.terminal_spikelet_height)
+        #print 'Le dernier epillet est a : ' + str(X.terminal_spikelet_height)
           
         if (X.heading_date is None and X.terminal_spikelet_height > highest_ligule['height']):
           X.heading_date = current_day
