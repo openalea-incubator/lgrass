@@ -25,18 +25,15 @@ def create_seeds(lstring, param, nb_plantes):
                     peres.remove(id_mere)
                     id_pere = random.Random().choice(peres)  # séléction aléatoire du père
                     seeds.append((id_mere, id_pere))
-    print ("seeds : ", seeds)
     # sélection aléatoire des graines pour la génération suivante et création de la matrice de croisement
     if len(seeds) < nb_plantes:
         raise NameError("Il n'y a pas eu suffisamment de graines produites pour établir une nouvelle génération.")
 
     for rand in range(nb_plantes):
         seed = random.Random().choice(seeds)
-        print("tirage :", seed)
         elected_seeds.append(seed)
         seeds.remove(seed)
         matrix[elected_seeds[rand][0], elected_seeds[rand][1]] += 1
-    print(matrix)
     return matrix
 
 
@@ -80,7 +77,7 @@ def calculate_C(n):
 
     ### A traiter ###
 
-    return str(1.5)
+    return str(2.0)
 
 
 # Création du fichier de paramètres d'entrée pour chaque plante et configuration du planteur lgrass

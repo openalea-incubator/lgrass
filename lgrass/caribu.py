@@ -12,13 +12,23 @@ def init(path_param='inputs', file='param_caribu.csv', meteo=None, nb_plantes=No
     df = pd.read_csv(os.path.join(path_param, file), sep=';', header=0)
     param_init = dict(zip(df, df.iloc[0, :]))
     param_init.update({'radiation_interception': pd.DataFrame(), 'meteo': meteo, 'Ray': [0.] * nb_plantes,
-                       'option_tiller_regression': scenario['option_tiller_regression'],
-                       'option_mophogenetic_regulation_by_carbone': scenario[
-                           "option_mophogenetic_regulation_by_carbone"]})
+                       'option_tiller_regression': scenario['option_tiller_regression'],})
     return param_init
 
 
 # Calcul du rayonnement diffus via Caribu
+# ------------------------------------------------------------------------------------------------
+# -------------------------------- Radiations, Caribu --------------------------------------------
+# ------------------------------------------------------------------------------------------------
+#        par_incident:
+#        azimuths: number of light sources depending on azimuth
+#        zeniths: number of light sources depending on zenith
+#        diffuse_model: sky type
+#        scene_unit: unit used in the lscene
+# - option_tiller_regression: allow tiller regression if it does not intercept enough radiation
+# - option_mophogenetic_regulation_by_carbon: activate limitation of of growth in radiation
+#   interception is to low
+# ------------------------------------------------------------------------------------------------
 def apply_caribu(lscene, energy=1, azimuths=4, zeniths=5, diffuse_model='soc', scene_unit='mm', espacement=50,
                  NBlignes=1, NBcolonnes=1):
     # generation des sources
@@ -103,8 +113,4 @@ def runcaribu(lstring, lscene, current_day, tiller_appearance, nb_plantes, dico_
                             {'id_plante': [id_plante], 'id_talle': [potential_tiller_to_remove.id_talle.item()]}))
         for ID in xrange(nb_plantes):
             BiomProd[ID] = dico_caribu['Ray'][ID] * dico_caribu['RUE']  # Ray: MJ PAR ; RUE : g MJ-1
-        if dico_caribu['option_mophogenetic_regulation_by_carbone']:
-            for ID in xrange(nb_plantes):
-                BiomProd[ID] = dico_caribu['Ray'][ID] * dico_caribu['RUE']  # Ray: MJ PAR ; RUE : g MJ-1
-                print('Plante %s, Ray: %s, BiomProd: %s' % (ID, dico_caribu['Ray'][ID], BiomProd[ID]))
     return BiomProd, dico_caribu['radiation_interception'], dico_caribu['Ray']
