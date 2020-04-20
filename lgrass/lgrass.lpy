@@ -47,8 +47,8 @@ DureeExp = 300
 OptionRacine='SansRacines' 
 #OptionRacine='AvecRacines'
 
-Densite=400 #en nb de plante par m2
-Espacement=10*sqrt(10000/Densite) #en mm
+#Densite=400 #en nb de plante par m2
+#Espacement=10*sqrt(10000/Densite) #en mm
 #NBlignes=int(ceil(sqrt(nb_plantes)))
 #NBcolonnes=int(floor(sqrt(nb_plantes)))
 #posPlante=[[i,j] for i,j in zip(sorted(range(NBlignes)*NBcolonnes),range(NBcolonnes)*NBlignes)]
@@ -62,6 +62,8 @@ gaino=profilegaine.deepcopy()
 ##### Parametres coupe #####
 groupe='croissance' # Permet de realiser les coupes
 reprise_coupe=False
+#cutting_dates = []
+changing_day_cutting = True # Allow that cutting occurs only once in a day (the first GDD)
 #CoupeTaille=600000.
 
 # Default name of the output
@@ -89,9 +91,9 @@ random.seed(seed)
 option_graphic_outputs = False
 
 
-#### Load flowering model
-from lgrass import flowering_functions
-flowering_model = flowering_functions.FloweringFunctions()
+##### Load flowering model
+#from lgrass import flowering_functions
+#flowering_model = flowering_functions.FloweringFunctions()
 
 
 # ------------------------------------------------------------------------------------------------
@@ -110,35 +112,11 @@ flowering_model = flowering_functions.FloweringFunctions()
 #site = 'treatment_1'
 #meteo_path = os.path.join(INPUTS_DIRPATH,'meteo_controlled_conditions.csv')
 
-
-
-
 # ------------------------------------------------------------------------------------------------
-# -------------------------------- Radiations, Caribu --------------------------------------------
+# --------------------------------- Run with caribu model ----------------------------------------
 # ------------------------------------------------------------------------------------------------
-# - option_caribu: Caribu activation ('On'/'Off')
-#        par_incident:
-#        azimuths: number of light sources depending on azimuth
-#        zeniths: number of light sources depending on zenith
-#        diffuse_model: sky type
-#        scene_unit: unit used in the lscene
-# - option_tiller_regression: allow tiller regression if it does not intercept enough radiation
-# - option_mophogenetic_regulation_by_carbon: activate limitation of of growth in radiation 
-#   interception is to low
-# ------------------------------------------------------------------------------------------------
-
-
-
 #option_tiller_regression = False
-
 #option_mophogenetic_regulation_by_carbone = False
-
-
-# ------------------------------------------------------------------------------------------------
-# -------------------------------------------- Coupe ---------------------------------------------
-# ------------------------------------------------------------------------------------------------
-cutting_dates = []
-changing_day_cutting = True # Allow that cutting occurs only once in a day (the first GDD)
 
 
 #########   Definition Plante   #########
@@ -652,7 +630,7 @@ def DetermineAccroiss(Pourcentage,X,AccroissDemande):
 
 def BiomassFeuille(long,coupe,id_geno):
   coupe=0
-  if id_geno<2:
+  if id_geno<2:  # Thibault (20/04/2020) : cette condition n'est plus valable, il faut remplacer id_geno par l'identifiant de la ligne sur laquelle se trouve la plante
     if long==0:
       MS=0
     else:
@@ -828,9 +806,10 @@ def StartEach(lstring):
     
     if (TPS==ParamP[ID]['DCOUP']+1.):
       if groupe=='defoliation':
-        if ParamP[ID]['DCOUP']+ParamP[ID]['FREQUCOUPE'] < ParamP[ID]['PREMIERCOUPE']+ParamP[ID]['DUREECOUPE']:
-          ParamP[ID]['DCOUP']=ParamP[ID]['DCOUP']+ParamP[ID]['FREQUCOUPE']
-          print 'prochaine_coupe',ParamP[ID]['DCOUP']
+        if cutting_dates is None:  #Ajout Thibault (17/04/2020) pour éviter de confondre les 2 méthodes de gestion des coupes
+          if ParamP[ID]['DCOUP']+ParamP[ID]['FREQUCOUPE'] < ParamP[ID]['PREMIERCOUPE']+ParamP[ID]['DUREECOUPE']:
+            ParamP[ID]['DCOUP']=ParamP[ID]['DCOUP']+ParamP[ID]['FREQUCOUPE']
+            print 'prochaine_coupe',ParamP[ID]['DCOUP']
         reprise_coupe=True
         groupe='croissance'
         dt=1
@@ -1208,7 +1187,7 @@ Feuille(X, X_apex, X_phytomere):
       if reprise_coupe==True and X.Phase=='visible':
         LEDGAINE=((0.2*110*5)*2)-110
         TrueAge=TpourY2(Seuil[X.id_plante][X.id_talle],paramManagement['Yfinit'], paramManagement['Jled']*LEDGAINE,paramManagement['Kled']*paramManagement['Jled']*LEDGAINE) #Jled*LEDGAINE correspond a te, Kled*Jled*LEDGAINE correspond a tm (These Alban Verdenal)
-        NewYmax=ParamP[X.id_geno]['C']*((pow(paramManagement['T01'],(TrueAge+paramManagement['tb1'])*paramManagement['k1'])-paramManagement['Lpot'])-(pow(paramManagement['T02'],(TrueAge+paramManagement['tb2'])*paramManagement['k2']))) # Fonction potentiel de croissance
+        NewYmax=ParamP[X.id_plante]['C']*((pow(paramManagement['T01'],(TrueAge+paramManagement['tb1'])*paramManagement['k1'])-paramManagement['Lpot'])-(pow(paramManagement['T02'],(TrueAge+paramManagement['tb2'])*paramManagement['k2']))) # Fonction potentiel de croissance
         if NewYmax>X.Ymax:
           NewYmax=X.Ymax
         elif NewYmax<X.Taillefeuille+X.coupe:
@@ -1334,27 +1313,18 @@ Feuille(X, X_apex, X_phytomere):
           if(X.Phase=='visible'):
             NextAccroiss=0
           else:          
-            NextAccroiss=1
-        if X.id_geno==0:
-          long=X.Taillefeuille+NextAccroiss
-          Next_feuil=BiomassFeuille(long,X.coupe,X.id_geno)
-        else:
-          long=X.Taillefeuille+NextAccroiss
-          Next_feuil=BiomassFeuille(long,X.coupe,X.id_geno)
+            NextAccroiss=1  #Modification Thibault pour résoudre une absence de déclaration de NextAcroiss, aucun sens morpho
+        long=X.Taillefeuille+NextAccroiss
+        Next_feuil=BiomassFeuille(long,X.coupe,X.id_geno)
         X.Besoinencroiss=Next_feuil-X.biomass
         #Next_biom_feuil[mtg.property('ParamPlante').get(plante).id_plante]=Next_biom_feuil[mtg.property('ParamPlante').get(plante).id_plante]+Next_feuil
       #NewShootBiomass=NewShootBiomass+Accroiss*0.0001
       
     else:      
-      if X.id_geno==0:
-        long=X.Taillefeuille
-        coupe=X.coupe
-        Next_feuil=paramManagement['FacBiom1']*(paramManagement['b0']*exp(paramManagement['b1']*(long+coupe)**2+paramManagement['b2']*(long+coupe))-paramManagement['b0'])*(long/(long+coupe))
-      else:
-        long=X.Taillefeuille
-        coupe=X.coupe
-        Next_feuil=paramManagement['FacBiom1']*(paramManagement['b0']*exp(paramManagement['b1']*(long+coupe)**2+paramManagement['b2']*(long+coupe))-paramManagement['b0'])*(long/(long+coupe))
-        #Next_feuil=1.554*(paramManagement['b0']*exp(paramManagement['b1']*(long)**2+paramManagement['b2']*(long))-paramManagement['b0'])*(long/(long+X.coupe))
+      long=X.Taillefeuille
+      coupe=X.coupe
+      Next_feuil=paramManagement['FacBiom1']*(paramManagement['b0']*exp(paramManagement['b1']*(long+coupe)**2+paramManagement['b2']*(long+coupe))-paramManagement['b0'])*(long/(long+coupe))
+      #Next_feuil=1.554*(paramManagement['b0']*exp(paramManagement['b1']*(long)**2+paramManagement['b2']*(long))-paramManagement['b0'])*(long/(long+X.coupe))
       
       ####### Senescence #######
       
