@@ -1,6 +1,12 @@
 # coding: utf8
+# '''
+# Created on 10/03/2020
+#
+# @author: modelisation - TR
+# '''
+
 from alinea.caribu.CaribuScene import CaribuScene
-from alinea.caribu.sky_tools import turtle
+# from alinea.caribu.sky_tools import turtle
 import time as t
 import pandas as pd
 import numpy as np
@@ -8,11 +14,11 @@ import os
 
 
 # Initialisation des parametres de caribu
-def init(path_param='inputs', file='param_caribu.csv', meteo=None, nb_plantes=None, scenario=None):
-    df = pd.read_csv(os.path.join(path_param, file), sep=';', header=0)
+def init(path_param='inputs', in_file='param_caribu.csv', meteo=None, nb_plantes=None, scenario=None):
+    df = pd.read_csv(os.path.join(path_param, in_file), sep=';', header=0)
     param_init = dict(zip(df, df.iloc[0, :]))
     param_init.update({'radiation_interception': pd.DataFrame(), 'meteo': meteo, 'Ray': [0.] * nb_plantes,
-                       'option_tiller_regression': scenario['option_tiller_regression'],})
+                       'option_tiller_regression': scenario['option_tiller_regression'], })
     return param_init
 
 
@@ -61,8 +67,7 @@ def runcaribu(lstring, lscene, current_day, tiller_appearance, nb_plantes, dico_
     if current_day > day:
         BiomProd = [0.] * nb_plantes
         timing_method1 = t.time()
-        res = apply_caribu(lscene, energy=
-        dico_caribu['meteo'][dico_caribu['meteo'].experimental_day == current_day].PAR_incident.iloc[0],
+        res = apply_caribu(lscene, energy=dico_caribu['meteo'][dico_caribu['meteo'].experimental_day == current_day].PAR_incident.iloc[0],
                            azimuths=dico_caribu['azimuths'], zeniths=dico_caribu['zeniths'],
                            diffuse_model=dico_caribu['diffuse_model'],
                            scene_unit=dico_caribu['scene_unit'])
@@ -99,8 +104,7 @@ def runcaribu(lstring, lscene, current_day, tiller_appearance, nb_plantes, dico_
                     for id_talle in youngest_tillers.id_talle:
                         select_plant = dico_caribu['radiation_interception'].id_plante == id_plante
                         select_tiller = dico_caribu['radiation_interception'].id_talle == id_talle
-                        time_condition = current_day - dico_caribu['period_considered_tiller_regression'] <= dico_caribu[
-                            'radiation_interception'].date
+                        time_condition = current_day - dico_caribu['period_considered_tiller_regression'] <= dico_caribu['radiation_interception'].date
                         df = dico_caribu['radiation_interception'][select_plant & select_tiller & time_condition]
                         tiller_raditation = (df.Ei * df.area).sum() / df.area.sum()
                         youngest_tillers_radiations = youngest_tillers_radiations.append(

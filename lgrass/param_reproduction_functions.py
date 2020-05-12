@@ -1,30 +1,65 @@
 # coding: utf8
+# '''
+# Created on 05/04/2020
+#
+# @author: modelisation - TR
+# '''
+
 import random
 import numpy as np
 import pandas as pd
 import math
 import shutil
 import os
-from lgrass import flowering_functions
+import flowering_functions
 
 
 # Créer la matrice de croisement des plantes pour établir une nouvelle génération de nb_plantes
-def create_seeds(lstring, param, nb_plantes):
+def create_seeds(lstring, param, nb_plantes, opt_repro, cutting_freq):
     seed_number = int(param.loc[param['name'] == 'seeds_by_spikelet', :]['value'])
     matrix = np.zeros((nb_plantes, nb_plantes))
     seeds = []
     elected_seeds = []
 
     # construction des graines et de leurs parents
+    mothers = []
     for mod in lstring:
         if mod.name in ('apex',):
             if mod[0].final_spikelet_number is not None:
-                for i in range(int(mod[0].final_spikelet_number * seed_number)):
-                    id_mere = mod[0].id_plante  # séléction de la mère
-                    peres = [j for j in range(nb_plantes)]
-                    peres.remove(id_mere)
-                    id_pere = random.Random().choice(peres)  # séléction aléatoire du père
-                    seeds.append((id_mere, id_pere))
+                mothers.append((mod[0].id_plante, mod[0].final_spikelet_number))
+
+    # Méthode de calcul du nombre de graines via les regressions graines/tiges du rapport de Pierre Guinard (2012)
+    if opt_repro == "SPPR_2012":
+        if cutting_freq <= 21:  # Coupes fréquentes
+            nb_seeds = int(9.73*len(mothers) - 38.19)
+        else:   # Coupes peu fréquentes
+            nb_seeds = int(6.35*len(mothers) - 13.79)
+        if nb_seeds >= 1:
+            for i in range(nb_seeds):
+                id_mother = random.Random().choice(mothers)[0]
+                fathers = [j for j in range(nb_plantes)]
+                fathers.remove(id_mother)
+                if fathers is not None:
+                    id_father = random.Random().choice(fathers)  # séléction aléatoire du père
+                    seeds.append((id_mother, id_father))
+                else:
+                    raise NameError("La génération ne comporte qu'une seule plante, la reproduction est impossible.")
+        else:
+            raise NameError("Il n'y a pas eu suffisamment de graines produites pour établir une nouvelle génération.")
+
+    # Méthode de calcul via un nombre de graines par épillet
+    elif opt_repro == "spikelets":
+        for k in range(len(mothers)):
+            for i in range(int(mothers[k][1] * seed_number)):
+                id_mother = mothers[k][0]  # séléction de la mère
+                fathers = [j for j in range(nb_plantes)]
+                fathers.remove(id_mother)
+                if fathers is not None:
+                    id_father = random.Random().choice(fathers)  # séléction aléatoire du père
+                    seeds.append((id_mother, id_father))
+                else:
+                    raise NameError("La génération ne comporte qu'une seule plante, la reproduction est impossible.")
+
     # sélection aléatoire des graines pour la génération suivante et création de la matrice de croisement
     if len(seeds) < nb_plantes:
         raise NameError("Il n'y a pas eu suffisamment de graines produites pour établir une nouvelle génération.")
@@ -81,14 +116,14 @@ def calculate_C(n):
 
 
 # Création du fichier de paramètres d'entrée pour chaque plante et configuration du planteur lgrass
-def define_param(in_genet_file=None, out_param_file=None, param=None, id_gener=1, opt_repro=False):
+def define_param(in_genet_file=None, out_param_file=None, param=None, id_gener=1, opt_repro=None):
     if in_genet_file is None:
         in_genet_file = 'inputs/donnees_C.csv'
     if out_param_file is None:
         out_param_file = 'inputs/Simulation_G' + str(id_gener) + '.csv'
     if param is None:
         param = get_param()
-    if opt_repro:
+    if opt_repro != "False":
         infile = get_genet_file(in_genet_file=in_genet_file)
         data = infile.loc[infile['D'] == str(id_gener), :]
     else:
@@ -102,7 +137,7 @@ def define_param(in_genet_file=None, out_param_file=None, param=None, id_gener=1
     C = [param_name[1]]
     for i in range(len(data)):
         Geno.append(str(data['geno'].iloc[i]))
-        if opt_repro:
+        if opt_repro != "False":
             C.append(calculate_C(float(data['C'].iloc[i])))
         else:
             C.append(str(data['C'].iloc[i]))

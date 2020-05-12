@@ -42,6 +42,7 @@ num_primordium=0
 
 LSTEP=1
 DureeExp = 300
+#name_sim = Simulation
 
 ##### Parametre scene #####
 OptionRacine='SansRacines' 
@@ -760,8 +761,8 @@ def Start():
   tiller_to_remove = pd.DataFrame()
   
 #  ##### Ecriture des fichiers de sortie #####
-  outvarfile='surface_biomass_%s_%s_%s.csv'%(int(Espacement),DureeExp,ParamP[0]['HCOUP'])
-  outvarfile2='sorties_feuilles_finales_%s_%s_%s.csv'%(int(Espacement),DureeExp,ParamP[0]['HCOUP'])
+  outvarfile='%s_surface_biomass.csv'%(name_sim)
+  outvarfile2='%s_feuilles_finales.csv'%(name_sim)
 ##output_apex = 'output_apex_%s_%s_%s.csv'%(int(Espacement),DureeExp,ParamP[0]['HCOUP'])                  # Ajout SIMON
 #output_organ_characteristics = 'output_organ_characteristics%s_%s_%s.csv'%(int(Espacement),DureeExp,ParamP[0]['HCOUP'])    
 #outimage='Scene\scene_'+str(int(Espacement))+'_'+t.strftime('%d-%m-%y_%Hh%M',t.localtime())+'.bmp'
@@ -833,18 +834,19 @@ def StartEach(lstring):
     
     
     ### Declenchement de la coupe selon la taille de la plante ###
-    #if TPS>1 and groupe=='croissance':
-    #  for x in les_feuilles:
-    #    if mtg.property('ParamFeuille').get(x).Taillefeuille>(1.5*ParamP[ID]['HCOUP']):
-    #      groupe='defoliation'
-    #      dt=0.25
-    #      CoupeTaille=TPS
-    #      print CoupeTaille
-    # 
-    #if (TPS==CoupeTaille+1) and groupe=='defoliation':
-    #  reprise_coupe=True
-    #  groupe='croissance'
-    #  dt=1
+#    if TPS>1 and groupe=='croissance':
+#      for x in les_feuilles:
+#        if mtg.property('ParamFeuille').get(x).Taillefeuille>(1.5*ParamP[ID]['HCOUP']):
+#          
+#            groupe='defoliation'
+#            dt=0.25
+#            CoupeTaille=TPS
+#            print CoupeTaille
+#     
+#    if (TPS==CoupeTaille+1) and groupe=='defoliation':
+#      reprise_coupe=True
+#      groupe='croissance'
+#      dt=1
     
     ### Declenchement de la coupe selon la lumiere transmise ###
     
@@ -1087,11 +1089,23 @@ def TpourY2(Y, Ym, Te, Tm):  # retrouver le temps T auquel la taille de la feuil
     else:
       curs2=newt
   return curs1+(curs2-curs1)/2
-
-
+  
+  
+  
+def gen_lstring(modulenamelist, moduleparam):
+    for n,p in zip(modulenamelist, moduleparam):
+      if p == 'nan':
+        nproduce new(n)
+      else:
+        nproduce new(n,p)
+        
 
 
 Axiom: CouvertVegetal(0)
+#  modulenamelist = ['CouvertVegetal']
+#  moduleparam = [0]
+#  gen_lstring(modulenamelist, moduleparam)
+  
 
 derivation length: DureeExp
 
@@ -1313,7 +1327,7 @@ Feuille(X, X_apex, X_phytomere):
           if(X.Phase=='visible'):
             NextAccroiss=0
           else:          
-            NextAccroiss=1  #Modification Thibault pour résoudre une absence de déclaration de NextAcroiss, aucun sens morpho
+            NextAccroiss=0  #Modification Thibault pour résoudre une absence de déclaration de NextAcroiss, aucun sens morpho
         long=X.Taillefeuille+NextAccroiss
         Next_feuil=BiomassFeuille(long,X.coupe,X.id_geno)
         X.Besoinencroiss=Next_feuil-X.biomass
