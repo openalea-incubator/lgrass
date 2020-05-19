@@ -920,7 +920,7 @@ def EndEach(lstring, lscene):
     res=apply_caribu(lscene, energy=meteo[meteo.experimental_day == current_day].PAR_incident.iloc[0], azimuths=azimuths, zeniths=zeniths, diffuse_model=diffuse_model, scene_unit=scene_unit)
     print('temps d exec de caribu:',t.time()-timing_method1)
     for id, v in res['Ei'].items():
-       Ray[lstring[id][0].id_plante] += (v * (res['area'][id] * 1E-6))  # v: MJ m-2, area: mm2, Ray: MJ PAR
+       Ray[lstring[id][0].id_plante] += (v * (res['area'][id]))  # v: MJ m-2, area: m2(auto-converted), Ray: MJ PAR
        id_plante = lstring[id][0].id_plante
        id_talle = lstring[id][0].id_talle
        area = res['area'][id]
