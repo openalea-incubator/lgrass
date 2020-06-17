@@ -15,8 +15,7 @@ import flowering_functions
 
 
 # Créer la matrice de croisement des plantes pour établir une nouvelle génération de nb_plantes
-def create_seeds(lstring, param, nb_plantes, opt_repro, cutting_freq):
-    seed_number = int(param.loc[param['name'] == 'seeds_by_spikelet', :]['value'])
+def create_seeds(lstring, nb_plantes, opt_repro, cutting_freq, ParamP):
     matrix = np.zeros((nb_plantes, nb_plantes))
     seeds = []
     elected_seeds = []
@@ -50,7 +49,7 @@ def create_seeds(lstring, param, nb_plantes, opt_repro, cutting_freq):
     # Méthode de calcul via un nombre de graines par épillet
     elif opt_repro == "spikelets":
         for k in range(len(mothers)):
-            for i in range(int(mothers[k][1] * seed_number)):
+            for i in range(int(mothers[k][1] * int(ParamP[mothers[k][0]]['seeds_by_spikelet']))):   #nb_epillets de la plante * nb_graines/épillet
                 id_mother = mothers[k][0]  # séléction de la mère
                 fathers = [j for j in range(nb_plantes)]
                 fathers.remove(id_mother)
@@ -68,6 +67,7 @@ def create_seeds(lstring, param, nb_plantes, opt_repro, cutting_freq):
         seed = random.Random().choice(seeds)
         elected_seeds.append(seed)
         seeds.remove(seed)
+        # id_mère/ligne et id_pere/colonne
         matrix[elected_seeds[rand][0], elected_seeds[rand][1]] += 1
     return matrix
 
@@ -100,13 +100,6 @@ def get_genet_file(in_genet_file=None):
     return df
 
 
-# Récupérer les paramètres de plante constants
-def get_param(in_param_file=None, sheet='ParamP'):
-    if in_param_file is None:
-        in_param_file = 'inputs/Parametre_plante_Lgrass.xls'
-    return pd.read_excel(in_param_file, sheet_name=sheet)
-
-
 # La formule pour convertir la donnée génétique en paramètre C
 def calculate_C(n):
 
@@ -116,57 +109,52 @@ def calculate_C(n):
 
 
 # Création du fichier de paramètres d'entrée pour chaque plante et configuration du planteur lgrass
-def define_param(in_genet_file=None, out_param_file=None, param=None, id_gener=1, opt_repro=None):
-    if in_genet_file is None:
-        in_genet_file = 'inputs/donnees_C.csv'
+def define_param(in_param_file=None, in_genet_file=None, out_param_file=None, id_gener=1, opt_repro=None):
+    if in_param_file is None:
+        # un fichier de remplacement générant une population de C
+        in_param_file = 'inputs/liste_plantes.csv'
     if out_param_file is None:
-        out_param_file = 'inputs/Simulation_G' + str(id_gener) + '.csv'
-    if param is None:
-        param = get_param()
+        out_param_file = 'outputs/Simulation_G' + str(id_gener) + '.csv'
     if opt_repro != "False":
         infile = get_genet_file(in_genet_file=in_genet_file)
-        data = infile.loc[infile['D'] == str(id_gener), :]
-    else:
-        data = pd.read_csv(in_genet_file)
-
+        genet_data = infile.loc[infile['D'] == str(id_gener), :]
+    data = pd.read_csv(in_param_file)
+    # Création du fichier de paramètres d'entrée de chaque plante
     param_init = open(out_param_file, 'w')
-    param_name = list(param['name'])
-    param_value = list(param['value'])
-
-    Geno = [param_name[0]]
-    C = [param_name[1]]
-    for i in range(len(data)):
-        Geno.append(str(data['geno'].iloc[i]))
-        if opt_repro != "False":
-            C.append(calculate_C(float(data['C'].iloc[i])))
-        else:
-            C.append(str(data['C'].iloc[i]))
-    param_init.write(";".join(Geno) + "\n")
-    param_init.write(";".join(C) + "\n")
-
-    for par in range(2, len(param_name)):
+    param_name = list(data.columns)
+    for par in range(len(param_name)):
         L = [param_name[par]]
         for i in range(len(data)):
-            L.append(str(param_value[par]))
+            L.append(str(data[param_name[par]].iloc[i]))
         param_init.write(";".join(L) + "\n")
     param_init.close()
 
     # lecture du fichier, creation de ParamP et des parametres de floraison
     param_plante = pd.read_csv(out_param_file, sep=";", header=None, index_col=0)
 
+    # Conversion du paramètre génétique en valeur de C
+    if opt_repro != 'False':
+        if len(param_plante.columns) < len(genet_data):
+            print "Attention, des plantes sont manquantes dans le fichier de paramètres pour l'application du modèle génétique"
+            print "Des copies de la dernière plante enregistrée ont été ajoutées pour completer la simulation"
+            for line in range(len(param_plante.columns), len(genet_data)):
+                param_plante[line+1] = param_plante[line]
+        for i in range(len(genet_data)):
+            param_plante.loc['C'].iloc[i] = calculate_C(float(genet_data['C'].iloc[i]))
+
     flowering_param = flowering_functions.FloweringFunctions()
     flowering_param.param.__dict__.update(
         (k, list(param_plante.loc[k, :])) for k in param_plante.index.intersection(flowering_param.param.__dict__))
 
     ParamP = list(dict(zip(param_plante.index, param_plante.iloc[:, col])) for col in range(len(param_plante.columns)))
-
     # Creation des matrices d'identifiant des plantes et de leur genotype
     nb_plantes = len(ParamP)
     NBlignes = int(math.ceil(np.sqrt(nb_plantes)))
     NBcolonnes = int(math.floor(np.sqrt(nb_plantes)))
+
     posPlante = [[i, j] for i, j in zip(sorted(range(NBlignes) * NBcolonnes), range(NBcolonnes) * NBlignes)]
     Plantes = np.arange(nb_plantes).reshape(NBlignes, NBcolonnes)
-    Genotypes = np.array([i for i in data['geno']]).reshape(NBlignes, NBcolonnes)
+    Genotypes = np.array([i for i in param_plante.loc['geno']]).reshape(NBlignes, NBcolonnes)
     return ParamP, nb_plantes, NBlignes, NBcolonnes, posPlante, Plantes, Genotypes, flowering_param
 
 
@@ -191,6 +179,7 @@ def rungenet(src, dst, exe, mat):
                     break
         for i in mat:
             for j in i:
+                # écriture de la matrice de croisement ligne par ligne
                 destination.write(str(int(j)) + '\n')
         destination.close()
     os.chdir(dst)

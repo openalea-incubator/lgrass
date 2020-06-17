@@ -63,58 +63,57 @@ def apply_caribu(lscene, energy=1, azimuths=4, zeniths=5, diffuse_model='soc', s
 
 
 # Application de caribu spécifique à lgrass
-def runcaribu(lstring, lscene, current_day, tiller_appearance, nb_plantes, dico_caribu, day):
-    if current_day > day:
-        BiomProd = [0.] * nb_plantes
-        timing_method1 = t.time()
-        res = apply_caribu(lscene, energy=dico_caribu['meteo'][dico_caribu['meteo'].experimental_day == current_day].PAR_incident.iloc[0],
-                           azimuths=dico_caribu['azimuths'], zeniths=dico_caribu['zeniths'],
-                           diffuse_model=dico_caribu['diffuse_model'],
-                           scene_unit=dico_caribu['scene_unit'])
-        print('temps d exec de caribu:', t.time() - timing_method1)
-        for ide, v in res['Ei'].items():
-            dico_caribu['Ray'][lstring[ide][0].id_plante] += (
-                    v * (res['area'][ide] * 1E-6))  # v: MJ m-2, area: mm2, Ray: MJ PAR
-            id_plante = lstring[ide][0].id_plante
-            id_talle = lstring[ide][0].id_talle
-            area = res['area'][ide]
-            dico_caribu['radiation_interception'] = dico_caribu['radiation_interception'].append(pd.DataFrame(
-                {'id_plante': [id_plante], 'id_talle': [id_talle], 'date': [current_day],
-                 'organ': lstring[ide].name, 'Ei': [v], 'area': [area]}))
+def runcaribu(lstring, lscene, current_day, tiller_appearance, nb_plantes, dico_caribu):
+    BiomProd = [0.] * nb_plantes
+    timing_method1 = t.time()
+    res = apply_caribu(lscene, energy=dico_caribu['meteo'][dico_caribu['meteo'].experimental_day == current_day].PAR_incident.iloc[0],
+                       azimuths=dico_caribu['azimuths'], zeniths=dico_caribu['zeniths'],
+                       diffuse_model=dico_caribu['diffuse_model'],
+                       scene_unit=dico_caribu['scene_unit'])
+    print('temps d exec de caribu:', t.time() - timing_method1)
+    for ide, v in res['Ei'].items():
+        dico_caribu['Ray'][lstring[ide][0].id_plante] += (
+                v * (res['area'][ide]))  # v: MJ m-2, area: m2(auto-converted), Ray: MJ PAR
+        id_plante = lstring[ide][0].id_plante
+        id_talle = lstring[ide][0].id_talle
+        area = res['area'][ide]
+        dico_caribu['radiation_interception'] = dico_caribu['radiation_interception'].append(pd.DataFrame(
+            {'id_plante': [id_plante], 'id_talle': [id_talle], 'date': [current_day],
+             'organ': lstring[ide].name, 'Ei': [v], 'area': [area]}))
 
-        # ------------------------------------------------------------------------------------------------
-        # --------------------------- Conditions for tiller regression  ----------------------------------
-        # ------------------------------------------------------------------------------------------------
-        # Principle: if a the youngest tiller of a plant does not intercept enough light radiations, it
-        # will die.
-        # At the end of each day, radiations intercepted by the youngest tillers of each plant is
-        # calculated. The one of this tiller that intercept the less radiation and less radiation than the
-        # radiation_threshold will die.
-        # ------------------------------------------------------------------------------------------------
-        if dico_caribu['option_tiller_regression']:
-            if len(tiller_appearance) > 0:
-                tiller_to_remove = pd.DataFrame()
+    # ------------------------------------------------------------------------------------------------
+    # --------------------------- Conditions for tiller regression  ----------------------------------
+    # ------------------------------------------------------------------------------------------------
+    # Principle: if a the youngest tiller of a plant does not intercept enough light radiations, it
+    # will die.
+    # At the end of each day, radiations intercepted by the youngest tillers of each plant is
+    # calculated. The one of this tiller that intercept the less radiation and less radiation than the
+    # radiation_threshold will die.
+    # ------------------------------------------------------------------------------------------------
+    if dico_caribu['option_tiller_regression']:
+        if len(tiller_appearance) > 0:
+            tiller_to_remove = pd.DataFrame()
 
-                for id_plante in np.unique(tiller_appearance.id_plante):
-                    plant_tillers = tiller_appearance[tiller_appearance.id_plante == id_plante]
-                    youngest_tillers = plant_tillers[
-                        plant_tillers.appearance_date == max(plant_tillers.appearance_date)]
-                    youngest_tillers_radiations = pd.DataFrame()
+            for id_plante in np.unique(tiller_appearance.id_plante):
+                plant_tillers = tiller_appearance[tiller_appearance.id_plante == id_plante]
+                youngest_tillers = plant_tillers[
+                    plant_tillers.appearance_date == max(plant_tillers.appearance_date)]
+                youngest_tillers_radiations = pd.DataFrame()
 
-                    for id_talle in youngest_tillers.id_talle:
-                        select_plant = dico_caribu['radiation_interception'].id_plante == id_plante
-                        select_tiller = dico_caribu['radiation_interception'].id_talle == id_talle
-                        time_condition = current_day - dico_caribu['period_considered_tiller_regression'] <= dico_caribu['radiation_interception'].date
-                        df = dico_caribu['radiation_interception'][select_plant & select_tiller & time_condition]
-                        tiller_raditation = (df.Ei * df.area).sum() / df.area.sum()
-                        youngest_tillers_radiations = youngest_tillers_radiations.append(
-                            pd.DataFrame({'id_talle': [id_talle], 'Ei_tiller': [tiller_raditation]}))
+                for id_talle in youngest_tillers.id_talle:
+                    select_plant = dico_caribu['radiation_interception'].id_plante == id_plante
+                    select_tiller = dico_caribu['radiation_interception'].id_talle == id_talle
+                    time_condition = current_day - dico_caribu['period_considered_tiller_regression'] <= dico_caribu['radiation_interception'].date
+                    df = dico_caribu['radiation_interception'][select_plant & select_tiller & time_condition]
+                    tiller_raditation = (df.Ei * df.area).sum() / df.area.sum()
+                    youngest_tillers_radiations = youngest_tillers_radiations.append(
+                        pd.DataFrame({'id_talle': [id_talle], 'Ei_tiller': [tiller_raditation]}))
 
-                    potential_tiller_to_remove = youngest_tillers_radiations[
-                        youngest_tillers_radiations.Ei_tiller == min(youngest_tillers_radiations.Ei_tiller)]
-                    if potential_tiller_to_remove.Ei_tiller.item() <= dico_caribu['radiation_threshold']:
-                        tiller_to_remove = tiller_to_remove.append(pd.DataFrame(
-                            {'id_plante': [id_plante], 'id_talle': [potential_tiller_to_remove.id_talle.item()]}))
-        for ID in xrange(nb_plantes):
-            BiomProd[ID] = dico_caribu['Ray'][ID] * dico_caribu['RUE']  # Ray: MJ PAR ; RUE : g MJ-1
+                potential_tiller_to_remove = youngest_tillers_radiations[
+                    youngest_tillers_radiations.Ei_tiller == min(youngest_tillers_radiations.Ei_tiller)]
+                if potential_tiller_to_remove.Ei_tiller.item() <= dico_caribu['radiation_threshold']:
+                    tiller_to_remove = tiller_to_remove.append(pd.DataFrame(
+                        {'id_plante': [id_plante], 'id_talle': [potential_tiller_to_remove.id_talle.item()]}))
+    for ID in xrange(nb_plantes):
+        BiomProd[ID] = dico_caribu['Ray'][ID] * dico_caribu['RUE']  # Ray: MJ PAR ; RUE : g MJ-1
     return BiomProd, dico_caribu['radiation_interception'], dico_caribu['Ray']

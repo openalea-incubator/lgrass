@@ -47,9 +47,10 @@ DureeExp = 300
 ##### Parametre scene #####
 OptionRacine='SansRacines' 
 #OptionRacine='AvecRacines'
+OptionAxiom=False  #Ajout Thibault 02/06/2020 partir d'un axiom déjà existant
 
-#Densite=400 #en nb de plante par m2
-#Espacement=10*sqrt(10000/Densite) #en mm
+Densite=400 #en nb de plante par m2
+Espacement=10*sqrt(10000/Densite) #en mm
 #NBlignes=int(ceil(sqrt(nb_plantes)))
 #NBcolonnes=int(floor(sqrt(nb_plantes)))
 #posPlante=[[i,j] for i,j in zip(sorted(range(NBlignes)*NBcolonnes),range(NBcolonnes)*NBlignes)]
@@ -89,7 +90,7 @@ random.seed(seed)
 
 
 ##### Activation sorties graphiques
-option_graphic_outputs = False
+option_graphic_outputs = True
 
 
 ##### Load flowering model
@@ -117,7 +118,7 @@ option_graphic_outputs = False
 # --------------------------------- Run with caribu model ----------------------------------------
 # ------------------------------------------------------------------------------------------------
 #option_tiller_regression = False
-#option_mophogenetic_regulation_by_carbone = False
+#option_morphogenetic_regulation_by_carbone = False
 
 
 #########   Definition Plante   #########
@@ -702,6 +703,8 @@ def Start():
   global surface_foliaire_emergee,Surfoliaireencours,Premiecroiss #Definition des groupes de production
   global Alpha,Beta,t1,t2,t3 #Relation allometrique
   global current_day, meteo, tiller_appearance, tiller_to_remove
+  #Ajout variables globales pour sauvegarde de lstring 03/06/2020
+  global les_feuilles
   
   # Camera setting
   Viewer.camera.lookAt((250,250,50),(-100,-100,50))#((Position),(direction))
@@ -725,24 +728,31 @@ def Start():
   
   current_day = meteo.experimental_day.tolist()[0]
   
-  ##### Creation de parametres vides #####
-  Biomasse_aerienne=[0.]*(nb_plantes) # Biomasse foliaire totale
-  Biomasse_racinaire=[0.]*(nb_plantes) # Biomasse racinaire
-  #BiomProd=[0.]*(nb_plantes)
-  PourcentageRootGrowthRealized=[0]*(nb_plantes)
-  Reserve=[0]*(nb_plantes) # Reserve de "biomass"
-  Demande_feuille=[0]*(nb_plantes)
-  #Next_biom_feuil=[0]*(nb_plantes)
-  PourcentageFeuilGrowthRealized=[1]*(nb_plantes)
-  les_diametres=[]
-  Seuil=[] # Taille a partir de laquelle la plante est consideree comme hors de la gaine
-  Taille_finale_gaine=[]
-  nb_talle=[]  # nombre_de_talle-1 pour chaque plante afin d'identifier les talles
-  ligule_height_dict = {}
+  # Ajout Thibault 03/06/2020
+  # Recuperation des variables issues de la simulation sauvegardee
+  if OptionAxiom: 
+    import gen_lstring
+    Biomasse_aerienne, Biomasse_racinaire, PourcentageRootGrowthRealized, Reserve, Demande_feuille, PourcentageFeuilGrowthRealized, les_diametres, Seuil, Taille_finale_gaine, nb_talle, surface_foliaire_emergee, Surfoliaireencours, les_feuilles = gen_lstring.load_variables()
+    
+  else:
+    ##### Creation de parametres vides #####
+    Biomasse_aerienne=[0.]*(nb_plantes) # Biomasse foliaire totale
+    Biomasse_racinaire=[0.]*(nb_plantes) # Biomasse racinaire
+    PourcentageRootGrowthRealized=[0]*(nb_plantes)
+    Reserve=[0]*(nb_plantes) # Reserve de "biomass"
+    Demande_feuille=[0]*(nb_plantes)
+    #Next_biom_feuil=[0]*(nb_plantes)
+    PourcentageFeuilGrowthRealized=[1]*(nb_plantes)
+    les_diametres=[]
+    Seuil=[] # Taille a partir de laquelle la plante est consideree comme hors de la gaine
+    Taille_finale_gaine=[]
+    nb_talle=[]  # nombre_de_talle-1 pour chaque plante afin d'identifier les talles
+    ligule_height_dict = {}
+    
+    ##### Definition des groupes de production #####
+    surface_foliaire_emergee =[0.]*(nb_plantes) # Surface foliaire émergée totale obtenue a la fin d'un pas
+    Surfoliaireencours=[0.]*(nb_plantes) # variable de calcul de la surface foliaire totale
   
-  ##### Definition des groupes de production #####
-  surface_foliaire_emergee =[0.]*(nb_plantes) # Surface foliaire émergée totale obtenue a la fin d'un pas
-  Surfoliaireencours=[0.]*(nb_plantes) # variable de calcul de la surface foliaire totale
   Premiecroiss=[ParamP[i]['Premiecroiss'] for i in xrange(nb_plantes)]
   
   ##### Relation allometrique #####
@@ -752,7 +762,7 @@ def Start():
   t2=[ParamP[i]['t2'] for i in xrange(nb_plantes)]
   #t3=[ParamP[i]['t3'] for i in xrange(nb_plantes)]
   
-  df_induction = pd.DataFrame(columns = ['GDD', 'Date', 'Site', 'Day', 'Daily_mean_temperature', 'Daily_daylength', 'Id_plante', 'Id_talle', 'Leaf_produced', 'Primordia_on_apex', 'Spikelet_number', 'Vernalisation_rate', 'Secondary_induction_rate', 'Heading_date'])
+  df_induction = pd.DataFrame(columns = ['GDD', 'Date', 'Site', 'Day', 'Daily_mean_temperature', 'Daily_daylength', 'Id_plante', 'Id_talle', 'Leaf_produced', 'Primordia_on_apex', 'Spikelet_number', 'Vernalisation_rate', 'Secondary_induction_rate', 'Heading_date', 'Retard'])
   
   df_organ_lengths = pd.DataFrame(columns = ['GDD', 'Date', 'Site', 'Day', 'Id_plante', 'Id_talle', 'Id_rang', 'Organ', 'Length'])
   
@@ -773,7 +783,6 @@ def Start():
   chemin_fichier2=open(os.path.join(OUTPUTS_DIRPATH,outvarfile2),"wb")
   taille_finale_feuille=csv.writer(chemin_fichier2)
   taille_finale_feuille.writerow(["TPS","Espacement","Densite","id plante","talle","rang","Phase","taille feuille","taille gaine","taille limbe"])
-
 
 def StartEach(lstring):
   global RootPotentialNewBiomass,longueur_totale_feuille,Rootbiom,groupe,dt,reprise_coupe,CoupeTaille
@@ -906,7 +915,7 @@ def EndEach(lstring, lscene):
     # Mise a jour biomasse et pourcentage echelle plante
     if Biomasse_aerienne[id_plante]>0 and t1[id_plante]*exp(TPS*t2[id_plante])-t1[id_plante]>0 and surface_foliaire_emergee[id_plante] > 0 and Demande_feuille[id_plante] != 0: #Verifie qu'il y a une partie aerienne et que TPS, t1 et t2 sont positifs          # surface_foliaire_emergee[ID] > 0 and Demande_feuille[ID] > 0 : ajout SIMON
       # Calcul biomasse creee
-      if option_mophogenetic_regulation_by_carbone == True:
+      if option_morphogenetic_regulation_by_carbone == True:
         # Approche RUE
         BiomassCree = BiomProd[id_plante]
         #print(BiomassCree)
@@ -1026,13 +1035,13 @@ def End(lstring,lscene): #Ecriture et fermeture des fichiers de sortie
   df_organ_lengths.to_csv(os.path.join(OUTPUTS_DIRPATH, output_organ_lengths_file_name + '.csv'), index = False)
 
   if option_graphic_outputs == True:
-    from lgrass import Lgrass_plot_functions
+    import Lgrass_plot_functions
     graphic = Lgrass_plot_functions.GraphicOutputs(GRAPHS_DIRPATH)
-#    graphic.graph_induction(os.path.join(OUTPUTS_DIRPATH, output_induction_file_name))
-#    graphic.graph_length(os.path.join(OUTPUTS_DIRPATH, output_organ_lengths_file_name))
-#    graphic.graph_tiller_number(os.path.join(OUTPUTS_DIRPATH, outvarfile))
-#    graphic.graph_LAI(os.path.join(OUTPUTS_DIRPATH, outvarfile), Espacement)
-#    graphic.graph_leaf_number(os.path.join(OUTPUTS_DIRPATH, outvarfile))
+    graphic.graph_induction(os.path.join(OUTPUTS_DIRPATH, output_induction_file_name))
+    graphic.graph_length(os.path.join(OUTPUTS_DIRPATH, output_organ_lengths_file_name))
+    graphic.graph_tiller_number(os.path.join(OUTPUTS_DIRPATH, outvarfile))
+    graphic.graph_LAI(os.path.join(OUTPUTS_DIRPATH, outvarfile), Espacement)
+    graphic.graph_leaf_number(os.path.join(OUTPUTS_DIRPATH, outvarfile))
     
   
   print 'Execution time :',t.time()-timing
@@ -1092,19 +1101,30 @@ def TpourY2(Y, Ym, Te, Tm):  # retrouver le temps T auquel la taille de la feuil
   
   
   
-def gen_lstring(modulenamelist, moduleparam):
+def gener_lstring():  #Ajout Thibault 02/06/2020 Initialiser l'axiom avec une chaine existante ou non
+  if OptionAxiom:
+    import gen_lstring
+    modulenamelist, moduleparam = gen_lstring.load_lstring()
     for n,p in zip(modulenamelist, moduleparam):
-      if p == 'nan':
+      if p == None:
         nproduce new(n)
-      else:
-        nproduce new(n,p)
-        
+      elif len(p) == 1:
+        nproduce new(n,p[0])
+      elif len(p) == 2:
+        nproduce new(n,p[0],p[1])
+      elif len(p) == 3:
+        nproduce new(n,p[0],p[1],p[2])
+      elif len(p) == 4:
+        nproduce new(n,p[0],p[1],p[2],p[3])
+  else:
+    produce CouvertVegetal(0)
+  
+  
 
 
-Axiom: CouvertVegetal(0)
-#  modulenamelist = ['CouvertVegetal']
-#  moduleparam = [0]
-#  gen_lstring(modulenamelist, moduleparam)
+Axiom: 
+  #CouvertVegetal(0)
+  gener_lstring()
   
 
 derivation length: DureeExp
@@ -1326,8 +1346,9 @@ Feuille(X, X_apex, X_phytomere):
         if (X.Taillegaine>=Taille_finale_gaine[X.id_plante][X.id_talle][X.id_rang-1] +13):
           if(X.Phase=='visible'):
             NextAccroiss=0
-          else:          
-            NextAccroiss=0  #Modification Thibault pour résoudre une absence de déclaration de NextAcroiss, aucun sens morpho
+          else:
+            NextAccroiss=0  #Ajout Thibault resoudre un bug d absence de declaration de NextAccroiss
+            print 'cas theoriquement improbable '+str(X.id_plante)+' '+str(X.id_talle)
         long=X.Taillefeuille+NextAccroiss
         Next_feuil=BiomassFeuille(long,X.coupe,X.id_geno)
         X.Besoinencroiss=Next_feuil-X.biomass
@@ -1562,7 +1583,7 @@ apex(X):
         X.primary_induction_index += flowering_model.vernalisation_function(daily_temperature,X.id_plante)
         
         if X.primary_induction_index >= 1:
-          X.phenological_state = 'vernalized'          
+          X.phenological_state = 'vernalized'       
       
       elif (X.phenological_state == 'vernalized' and X.total_created_leaves > 1):
         print 'vernalized'
@@ -1572,7 +1593,7 @@ apex(X):
         if X.secondary_induction_index >= 1:
           X.phenological_state = 'reproductive'
           print 'reproductive'
-          
+            
     df_induction = df_induction.append({'GDD': TPS, 'Date': date, 'Site': site, 'Day': current_day, 'Daily_mean_temperature': daily_temperature, 'Daily_daylength': daily_daylength, 'Id_plante': X.id_plante, 'Id_talle': X.id_talle, 'Leaf_produced': X.total_created_leaves, 'Primordia_on_apex': X.primordia_number, 'Spikelet_number': X.spikelet_created, 'Vernalisation_rate': X.primary_induction_index, 'Secondary_induction_rate': X.secondary_induction_index, 'Heading_date': X.heading_date}, ignore_index = True)
   
   if groupe=='croissance':     
@@ -1620,11 +1641,12 @@ apex(X):
         X.retard=2
         #print 'RETARD_1'
         produce apex(X)
+      
       elif feuille_ref and abs(Seuil[X.id_plante][X.id_talle]-feuille_ref.Taillefeuille)<2: #Si |Seuil-Taillefeuille| <2mm
         X.retard=1
         #print 'RETARD_0'
         produce apex(X)
-        
+      #print X.id_talle, X.id_rang, Seuil[X.id_plante][X.id_talle], feuille_ref.Taillefeuille, feuille_ref.Ymax
     if (X.phenological_state == 'reproductive' and X.total_created_leaves == X.final_leaf_number):
       if (X.final_spikelet_number is None):
         X.final_spikelet_number = X.primordia_number

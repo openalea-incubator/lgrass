@@ -12,7 +12,7 @@ import lgrass_batch_simpraise as batch
 
 if __name__ == '__main__':
     timing = time.time()
-    plan = pd.read_csv("inputs/plan_simulation.csv", sep=';')
+    plan = pd.read_csv("inputs/plan_simulation.csv", sep=',')
 
     # for i in range(9,17):
     #     batch.runlsystem(plan, i, 1)
@@ -21,8 +21,8 @@ if __name__ == '__main__':
 
     multiprocessing.freeze_support()
     CPUnb = int(multiprocessing.cpu_count()) # nombre de processeurs utilises
-    pool = multiprocessing.Pool(processes=3)
-    for j in range(1,3):
+    pool = multiprocessing.Pool(processes=7)
+    for j in range(6,13):
         pool.apply_async(batch.runlsystem, args=(plan, j, 1))
     pool.close()
     pool.join()
