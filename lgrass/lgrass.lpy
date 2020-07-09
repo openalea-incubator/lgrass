@@ -44,7 +44,7 @@ num_primordium=0
 
 
 LSTEP=1
-DureeExp = 2000
+DureeExp = 500
 
 ##### Parametre scene #####
 OptionRacine='SansRacines' 
@@ -78,10 +78,10 @@ seed=0
 random.seed(seed)
 
 ##### Activation du tallage
-option_tallage = False
+option_tallage = True
 
 ##### Activation de la senescence
-option_senescence = False
+option_senescence = True
 
 
 ##### Activation de la floraison #####
@@ -110,8 +110,8 @@ flowering_model = flowering_functions.FloweringFunctions()
 
 from lgrass import meteo_ephem
 sowing_date = "2018_11_13"
-site = 'treatment_1'
-meteo_path = os.path.join(INPUTS_DIRPATH,'meteo_controlled_conditions.csv')
+site = 'LUSIGNAN'
+meteo_path = os.path.join('inputs', 'meteo_file.csv')
 
 
 
@@ -836,7 +836,7 @@ def Start():
 #outimage='Scene\scene_'+str(int(Espacement))+'_'+t.strftime('%d-%m-%y_%Hh%M',t.localtime())+'.bmp'
   chemin_fichier1=open(os.path.join(OUTPUTS_DIRPATH,outvarfile),"wb")
   surface_biomass=csv.writer(chemin_fichier1)
-  surface_biomass.writerow(["TPS","Espacement","Densite","id plante","id talle","topologie","nb_feuille_emergees","Biomasse_feuilles_emergees","Surface_feuilles_emergees"])
+  surface_biomass.writerow(["TPS","Espacement","Densite","id plante","id talle","topology","nb_feuille_emergees","Biomasse_feuilles_emergees","Surface_feuilles_emergees"])
   
   chemin_fichier2=open(os.path.join(OUTPUTS_DIRPATH,outvarfile2),"wb")
   taille_finale_feuille=csv.writer(chemin_fichier2)
@@ -1178,6 +1178,7 @@ def End(lstring,lscene): #Ecriture et fermeture des fichiers de sortie
   
   
   print 'Execution time :',t.time()-timing
+
 
 
 
@@ -1661,8 +1662,6 @@ Entrenoeud(X_EN, X_AP, X_F, X_phytomere):
 
 apex(X):
   global les_feuilles, current_day, meteo, df_induction, df_organ_lengths, tiller_appearance
-  print X.Premiecroiss
-  print X.C
   
   if X.day < current_day:
     X.day = current_day

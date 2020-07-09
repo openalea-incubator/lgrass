@@ -14,14 +14,6 @@
     .. seealso:: Verdenal et al, 2008.
 """
 
-"""
-    Information about this versioned file:
-        $LastChangedBy: cchambon $
-        $LastChangedDate: 2016-10-24 17:11:32 +0200 (lun., 24 oct. 2016) $
-        $LastChangedRevision: 29 $
-        $URL: https://subversion.renater.fr/senesc-wheat/trunk/test/test_senescwheat.py $
-        $Id: test_senescwheat.py 29 2016-10-24 15:11:32Z cchambon $
-"""
 
 import os
 
@@ -34,7 +26,7 @@ import lgrass
 INPUTS_DIRPATH = 'inputs'
 OUTPUTS_DIRPATH = 'outputs'
 
-NSTEP = 500
+NSTEP = 800
 PRECISION = 3
 RELATIVE_TOLERANCE = 10**-PRECISION
 ABSOLUTE_TOLERANCE = RELATIVE_TOLERANCE
@@ -60,7 +52,7 @@ def compare_actual_to_desired(data_dirpath, actual_data_df, desired_data_filenam
         desired_data_df = pd.read_csv(desired_data_filepath)
 
         # keep only numerical data
-        for column in ('topologie', 'Phase', 'Date', 'Site', 'Organ'):
+        for column in ('topology', 'Phase', 'Date', 'Site', 'Organ'):
             if column in desired_data_df.columns:
                 del desired_data_df[column]
                 del actual_data_df[column]
@@ -74,11 +66,18 @@ def test_run(overwrite_desired_data=False):
     lsys = Lsystem(lpy_filename)
     axiom = lsys.axiom
 
+    lsys.meteo_path = os.path.join(INPUTS_DIRPATH, 'meteo_file.csv')
     lsys.INPUTS_DIRPATH = INPUTS_DIRPATH
     lsys.OUTPUTS_DIRPATH = OUTPUTS_DIRPATH
     lsys.derivationLength = NSTEP
     lsys.DureeExp = NSTEP
-    lstring = lsys.derive(axiom, NSTEP)
+    lsys.option_tallage = True
+    lsys.option_senescence = True
+    lsys.option_floraison = True
+    lsys.option_caribu = 'Off'
+    lsys.option_tiller_regression = False
+    lsys.option_mophogenetic_regulation_by_carbone = False
+    lsys.derive(axiom, NSTEP)
 
     # convert the outputs to Pandas dataframe
     surface_biomass = pd.read_csv(lsys.chemin_fichier1.name)
