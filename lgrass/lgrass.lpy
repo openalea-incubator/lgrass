@@ -193,7 +193,7 @@ parameters['Entrenoeud']=[]
 
 
 class ParamFeuille:
-  def __init__(self,age=0, Agecroiss=0, Taillefeuille=0, id_plante=0, id_talle=0, id_rang=1, topology=(0,), Ymax=0, Difftps=0,  Taillefinalelimbe=0, Taillefinalegaine=0., Taillelimbe=0, Taillegaine=0, Phase='cachee', rapportK=0.2, coupe=0.,Cutstatus='intact', angleinsert=0,angletal=0., geno=0, surface_limbe=0, surface_gaine=0, biomass=0., Besoinencroiss=0,TailleEmergence=0.,R=0.973):
+  def __init__(self,age=0, Agecroiss=0, Taillefeuille=0, id_plante=0, id_talle=0, id_rang=1, topology=(0,), Ymax=0, Difftps=0,  Taillefinalelimbe=0, Taillefinalegaine=0., Taillelimbe=0, Taillegaine=0, Phase='cachee', rapportK=0.2, coupe=0.,Cutstatus='intact', angleinsert=0,angletal=0., id_geno=0, surface_limbe=0, surface_gaine=0, biomass=0., Besoinencroiss=0,TailleEmergence=0.,R=0.973):
     self.age=age                             # Age de la feuille
     self.Agecroiss=Agecroiss                 # 
     self.Taillefeuille=Taillefeuille         # Taille de la feuille au temps t
@@ -208,12 +208,12 @@ class ParamFeuille:
     self.Taillelimbe=Taillelimbe             # Taille du limbe au temps t
     self.Taillegaine=Taillegaine             # Taille de la gaine au temps t
     self.Phase=Phase                         # Stade de la feuille : cachee, visible, 0 0
-    self.rapportK=rapportK                   # Rapport gaine/limbe
+    self.rapportK=rapportK                   # Rapport gaine/feuille
     self.coupe=coupe                         # Longueur de coupe
     self.Cutstatus=Cutstatus                 # Quantite de coupe : intact, partiellementcoupee(=feuille coupee et gaine intacte), entierementcoupee(=feuille et gaine coupee)
     self.angleinsert=angleinsert             # Angle limbe
     self.angletal=angletal                   # Angle de la talle qui ecarte la feuille
-    self.geno=geno
+    self.id_geno=id_geno
     self.surface_limbe=surface_limbe         # Surface limbe (mm2)
     self.surface_gaine=surface_gaine         # Surface gaine (mm2)
     self.biomass=biomass
@@ -685,10 +685,10 @@ def DetermineAccroiss(Pourcentage,X,AccroissDemande):
   newbiomass=X.biomass+X.Besoinencroiss*Pourcentage
   if newbiomass>X.biomass:
     newtaille=X.Taillefeuille
-    while BiomassFeuille(newtaille,X.coupe,X.geno)<newbiomass and newtaille<(X.Taillefeuille+AccroissDemande):
+    while BiomassFeuille(newtaille,X.coupe,X.id_geno)<newbiomass and newtaille<(X.Taillefeuille+AccroissDemande):
       newtaille+=0.1
     newtaille=newtaille-0.1
-    while BiomassFeuille(newtaille,X.coupe,X.geno)<newbiomass and newtaille<(X.Taillefeuille+AccroissDemande):
+    while BiomassFeuille(newtaille,X.coupe,X.id_geno)<newbiomass and newtaille<(X.Taillefeuille+AccroissDemande):
       newtaille+=0.01
     return newtaille-0.005-X.Taillefeuille
   else:
@@ -945,7 +945,7 @@ def EndEach(lstring, lscene):
     res=apply_caribu(lscene, energy=meteo[meteo.experimental_day == current_day].PAR_incident.iloc[0], azimuths=azimuths, zeniths=zeniths, diffuse_model=diffuse_model, scene_unit=scene_unit)
     print('temps d exec de caribu:',t.time()-timing_method1)
     for id, v in res['Ei'].items():
-       Ray[lstring[id][0].id_plante] += (v * (res['area'][id] * 1E-6))  # v: MJ m-2, area: mm2, Ray: MJ PAR
+       Ray[lstring[id][0].id_plante] += (v * (res['area'][id]))  # v: MJ m-2, area: m2(auto-converted), Ray: MJ PAR
        id_plante = lstring[id][0].id_plante
        id_talle = lstring[id][0].id_talle
        area = res['area'][id]
@@ -1260,9 +1260,9 @@ CouvertVegetal(X):
       for i in xrange(NBlignes):
         for j in xrange(NBcolonnes):
           id_plante=i*NBcolonnes+j
-          geno=i
-          genotype.append(geno)
-          param=ParamPlante(id_plante,geno)
+          id_geno=i
+          genotype.append(id_geno)
+          param=ParamPlante(id_plante,id_geno)
           nb_talle.append(0)
           Seuil.append([5.5])
           Taille_finale_gaine.append([[5.5,5.5]])
@@ -1278,7 +1278,7 @@ Plante(X):
   if groupe=='croissance':
     if TPS ==2:
       Y1=ParamPhytomere(id_plante = X.id_plante, id_talle = 0, id_rang=1)
-      YF=ParamFeuille(age=0, Agecroiss=0, Taillefeuille=0, id_plante=X.id_plante ,id_rang=1, Ymax=Premiecroiss[X.id_plante], Taillefinalelimbe=0.8*Premiecroiss[X.id_plante], Taillefinalegaine=0.2*Premiecroiss[X.id_plante])
+      YF=ParamFeuille(age=0, Agecroiss=0, Taillefeuille=0, id_plante=X.id_plante ,id_rang=1, Ymax=Premiecroiss[X.id_plante], Taillefinalelimbe=0.8*Premiecroiss[X.id_plante], Taillefinalegaine=0.2*Premiecroiss[X.id_plante],id_geno=X.id_geno)
       Yb=ParambourgeonRoot(X.id_plante,id_talle=0,id_rang=1,id_geno=X.id_geno)
       YAT=ParamApexTal(X.id_plante,id_talle=0,id_rang=1,id_geno=X.id_geno)
       YA=ParamApex(X.id_plante, id_talle=0 ,id_rang=1, id_geno=X.id_geno, total_created_leaves=1, Premiecroiss=ParamP[X.id_plante]['Premiecroiss'], C=ParamP[X.id_plante]['C'])
@@ -1356,7 +1356,7 @@ Feuille(X, X_apex, X_phytomere):
           X.TailleEmergence=Seuil[X.id_plante][X.id_talle]
           TrueAge=X.age-dt #On pourrait affiner la determination de TrueAge qui en realite a eu lieu entre age-dt et age-2dt (soit on prend la moyenne soit au prorata des longueurs)
           
-          genotype=X.geno
+          genotype=X.id_geno
           
           X.Ymax = X_apex.C*((pow(paramManagement['T01'],(TrueAge+paramManagement['tb1'])*paramManagement['k1'])-paramManagement['Lpot'])-(pow(paramManagement['T02'],(TrueAge+paramManagement['tb2'])*paramManagement['k2']))) #Alban
           
@@ -1443,7 +1443,7 @@ Feuille(X, X_apex, X_phytomere):
         X.Besoinencroiss=0
         X.Phase='mature'
       
-      X.biomass=BiomassFeuille(X.Taillefeuille,X.coupe,X.geno)
+      X.biomass=BiomassFeuille(X.Taillefeuille,X.coupe,X.id_geno)
       
       # Remplissage des hauteurs d organes
       X_apex.organ_lengths_dict[X.id_rang]['sheath'] = X.Taillegaine
@@ -1461,33 +1461,20 @@ Feuille(X, X_apex, X_phytomere):
         if (X.Taillegaine>=Taille_finale_gaine[X.id_plante][X.id_talle][X.id_rang-1] +13 and X.Phase=='visible'):
           NextAccroiss=0          
           
-        if X.geno==0:
-          long=X.Taillefeuille+NextAccroiss
-          Next_feuil=BiomassFeuille(long,X.coupe,X.geno)
-        else:
-          long=X.Taillefeuille+NextAccroiss
-          Next_feuil=BiomassFeuille(long,X.coupe,X.id_geno)
+        long=X.Taillefeuille+NextAccroiss
+        Next_feuil=BiomassFeuille(long,X.coupe,X.id_geno)
         X.Besoinencroiss=Next_feuil-X.biomass
-        #Next_biom_feuil[mtg.property('ParamPlante').get(plante).id_plante]=Next_biom_feuil[mtg.property('ParamPlante').get(plante).id_plante]+Next_feuil
-      #NewShootBiomass=NewShootBiomass+Accroiss*0.0001
-      
+        
     else:      
-      if X.geno==0:
-        long=X.Taillefeuille
-        coupe=X.coupe
-        Next_feuil=paramManagement['FacBiom1']*(paramManagement['b0']*exp(paramManagement['b1']*(long+coupe)**2+paramManagement['b2']*(long+coupe))-paramManagement['b0'])*(long/(long+coupe))
-      else:
-        long=X.Taillefeuille
-        coupe=X.coupe
-        Next_feuil=paramManagement['FacBiom1']*(paramManagement['b0']*exp(paramManagement['b1']*(long+coupe)**2+paramManagement['b2']*(long+coupe))-paramManagement['b0'])*(long/(long+coupe))
-        #Next_feuil=1.554*(paramManagement['b0']*exp(paramManagement['b1']*(long)**2+paramManagement['b2']*(long))-paramManagement['b0'])*(long/(long+X.coupe))
+      long=X.Taillefeuille
+      coupe=X.coupe
+      Next_feuil=paramManagement['FacBiom1']*(paramManagement['b0']*exp(paramManagement['b1']*(long+coupe)**2+paramManagement['b2']*(long+coupe))-paramManagement['b0'])*(long/(long+coupe))
       
       ####### Senescence #######
       
       Agesenesc = paramManagement['T0sen'] + X.Ymax * 1.5
       if X.age > Agesenesc and option_senescence:
-        # Pour que la feuille soit vraiment coupee supprimee de la chaine, en ENTIER
-        produce Cut()
+        produce Cut() # Pour que la feuille soit vraiment coupee supprimee de la chaine, en ENTIER
         
     longueur_totale_feuille=longueur_totale_feuille+X.Taillefeuille
     
@@ -1640,7 +1627,7 @@ Feuille(X, X_apex, X_phytomere):
       if X.id_rang==1 and X.id_talle>0 and X.topology!=(0,0):  # Premiere feuille de chaque talle sauf brin maitre et talle coleoptile
         feuille_ref = les_feuilles[(les_feuilles['Plante'] == X.id_plante) & (les_feuilles['Topology'] == X.topology[:-1]) & (les_feuilles['id_rang'] == max(1, X.topology[-1]))].iloc[0]['ObjetOrgane']    # Feuille axillante de l'ordre précédent (le max sert a traiter les cas des 1ers rangs)
         Seuil[X.id_plante][X.id_talle]=max(Seuil[X.id_plante][X.id_talle], feuille_ref.Taillegaine)
-      X.biomass=BiomassFeuille(X.Taillefeuille,X.coupe,X.geno)
+      X.biomass=BiomassFeuille(X.Taillefeuille,X.coupe,X.id_geno)
     else:
       # Remplissage des hauteurs d organes 
       X_apex.organ_lengths_dict[X.id_rang]['sheath'] = X.Taillegaine
@@ -1752,7 +1739,7 @@ apex(X):
         #Seuil[X.id_plante][X.id_talle]=Seuil[X.id_plante][X.id_talle] * 1.15
         Taille_finale_gaine[X.id_plante][X.id_talle].append(5.5)
         YP=ParamPhytomere(X.id_plante,X.id_talle,X.id_rang+1, topology=X.topology)
-        YF=ParamFeuille(age=0,Agecroiss=0,Taillefeuille=0,id_plante=X.id_plante,id_talle=X.id_talle,id_rang=X.id_rang+1,topology=X.topology, Ymax=X.Premiecroiss,Taillefinalelimbe=0.8*X.Premiecroiss,Taillefinalegaine=0.2*X.Premiecroiss, geno=X.id_geno)
+        YF=ParamFeuille(age=0,Agecroiss=0,Taillefeuille=0,id_plante=X.id_plante,id_talle=X.id_talle,id_rang=X.id_rang+1,topology=X.topology, Ymax=X.Premiecroiss,Taillefinalelimbe=0.8*X.Premiecroiss,Taillefinalegaine=0.2*X.Premiecroiss, id_geno=X.id_geno)
         Yb=ParambourgeonRoot(X.id_plante,X.id_talle,X.id_rang+1, id_geno=X.id_geno)
         YAT=ParamApexTal(id_plante = X.id_plante, id_talle = X.id_talle, id_rang = X.id_rang+1, topology=X.topology, id_geno=X.id_geno)
         YINT=ParamEntrenoeud(X.id_plante, X.id_talle, X.id_rang+1, topology=X.topology)      # AJOUT SIMON
@@ -2326,7 +2313,7 @@ Feuille(X, Y, Z):
           
           surfacefeuille=surfacefeuille+large*2.*LSTEP
           #Surfoliaireencours=Surfoliaireencours+large*2.*LSTEP
-          Agesenesc=paramManagement['T0sen']+(X.Ymax/20)*paramManagement['Lpot']
+          Agesenesc = paramManagement['T0sen'] + X.Ymax * 1.5
           
           if(i==numstepsg):
             if X.id_rang>4:
@@ -2407,11 +2394,10 @@ Feuille(X, Y, Z):
                   nproduce StartGC()SetContour(foldlimbo)SetWidth(large)SetColor(2)F(LSTEP)EndGC()
           # Pour avoir feuille courbee et "s'ouvre" que quand en dehors de la gaine precedente la plus grande
           else:
-            if (X.age>Agesenesc and X.age<=Agesenesc+50):                  # IMPOSSIBLE
-              #print("limite senescence")
+            if X.age<=Agesenesc or not option_senescence:
               if large<=0:
                 large=0.01
-              nproduce StartGC() SetContour(limbo) SetWidth(large)Left(curve)SetColor(2)F(LSTEP)EndGC()
+              nproduce StartGC() SetContour(limbo) SetWidth(large)Left(curve)SetColor(1)F(LSTEP)EndGC()
       produce
 
 
