@@ -8,7 +8,7 @@ from lgrass import flowering_functions
 from openalea.lpy import Lsystem
 
 
-def run_lgrass(inputs_dir_path=None, outputs_dir_path=None, scenario_id=1):
+def run_lgrass(scenario_id=1, inputs_dir_path=None, outputs_dir_path=None):
     """ Run lgrass.lpy file from external script
 
     :param str inputs_dir_path: the path to the input files (meteo, list of simulations...)
@@ -49,6 +49,7 @@ def run_lgrass(inputs_dir_path=None, outputs_dir_path=None, scenario_id=1):
         else [int(i) for i in scenario['cutting_dates'].split("_")]
     lsystem.ParamP[0]['C'] = scenario['value_C']
     lsystem.ParamP[0]['Premiecroiss'] = scenario['Premiecroiss']
+    lsystem.ParamP[0]['PS_compensation_point'] = scenario['PS_compensation_point']
     if outputs_dir_path:
         lsystem.OUTPUTS_DIRPATH = outputs_dir_path
 
@@ -79,4 +80,4 @@ if __name__ == '__main__':
         elif opt in ("-s", "--scenario"):
             scenario = int(arg)
 
-    run_lgrass(inputs_dir_path=inputs, outputs_dir_path=outputs, scenario_id=scenario)
+    run_lgrass(scenario_id=scenario, inputs_dir_path=inputs, outputs_dir_path=outputs)

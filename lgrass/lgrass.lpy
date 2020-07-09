@@ -44,7 +44,7 @@ num_primordium=0
 
 
 LSTEP=1
-DureeExp = 300
+DureeExp = 2000
 
 ##### Parametre scene #####
 OptionRacine='SansRacines' 

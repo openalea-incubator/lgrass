@@ -1,2 +1,11 @@
-Scenario,name,temp_vern_min,temp_vern_inter,temp_vern_max,daily_vern_rate,basic_vern_rate,photoperiod_min,photoperiod_max,max_photo_ind_rate,coeff_primordia_emission_vegetative,coeff_primordia_emission_reproductive,derivationLength,option_tallage,meteo_filename,sowing_date,site,cutting_dates,value_C,Premiecroiss
-1,simulation_1,0,8,13,0.001,0.01,10,16,1,1,2,300,False,meteo_controlled_conditions_bloc_1.csv,2019_01_16,treatment_4,,0.7,90
+Scenario,name,temp_vern_min,temp_vern_inter,temp_vern_max,daily_vern_rate,basic_vern_rate,photoperiod_min,photoperiod_max,max_photo_ind_rate,coeff_primordia_emission_vegetative,coeff_primordia_emission_reproductive,derivationLength,option_tallage,meteo_filename,sowing_date,site,cutting_dates,value_C,Premiecroiss,PS_compensation_point,leaf_primary_induction_coeff,leaf_secondary_induction_coeff,increase_growth_Premiecroiss,increase_growth_C
+1,simulation_0.8,0,6,13,0.00135,0.01,10,16,1,1,2,1485,False,meteo_inventee_par_Simon.csv,2000_04_01,QUELQUEPART,,0.8,90,14.1,1,1,1,1
+2,simulation_0.9,0,6,13,0.00135,0.01,10,16,1,1,2,1485,False,meteo_inventee_par_Simon.csv,2000_04_02,QUELQUEPART,,0.9,90,14.1,1,1,1,1
+3,simulation_1.0,0,6,13,0.00135,0.01,10,16,1,1,2,1485,False,meteo_inventee_par_Simon.csv,2000_04_03,QUELQUEPART,,1,90,14.1,1,1,1,1
+4,simulation_1.1,0,6,13,0.00135,0.01,10,16,1,1,2,1485,False,meteo_inventee_par_Simon.csv,2000_04_04,QUELQUEPART,,1.1,90,14.1,1,1,1,1
+5,simulation_1.2,0,6,13,0.00135,0.01,10,16,1,1,2,1485,False,meteo_inventee_par_Simon.csv,2000_04_05,QUELQUEPART,,1.2,90,14.1,1,1,1,1
+6,simulation_1.3,0,6,13,0.00135,0.01,10,16,1,1,2,1485,False,meteo_inventee_par_Simon.csv,2000_04_06,QUELQUEPART,,1.3,90,14.1,1,1,1,1
+7,simulation_1.4,0,6,13,0.00135,0.01,10,16,1,1,2,1485,False,meteo_inventee_par_Simon.csv,2000_04_07,QUELQUEPART,,1.4,90,14.1,1,1,1,1
+8,simulation_1.5,0,6,13,0.00135,0.01,10,16,1,1,2,1485,False,meteo_inventee_par_Simon.csv,2000_04_08,QUELQUEPART,,1.5,90,14.1,1,1,1,1
+9,simulation_1.6,0,6,13,0.00135,0.01,10,16,1,1,2,1485,False,meteo_inventee_par_Simon.csv,2000_04_09,QUELQUEPART,,1.6,90,14.1,1,1,1,1
+10,simulation_1.7,0,6,13,0.00135,0.01,10,16,1,1,2,1485,False,meteo_inventee_par_Simon.csv,2000_04_10,QUELQUEPART,,1.7,90,14.1,1,1,1,1

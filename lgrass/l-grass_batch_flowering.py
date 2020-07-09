@@ -36,7 +36,7 @@ for x in range(simul_conditions.shape[0]):
     testsim[name] = Lsystem(lpy_filename)
     testsim[name].derivationLength = int(row["derivationLength"])
     testsim[name].option_tallage = row["option_tallage"]
-    testsim[name].meteo_path = os.path.join(row["meteo_path"])
+    testsim[name].meteo_path = os.path.join(row["meteo_filename"])
     testsim[name].sowing_date = row["sowing_date"]
     testsim[name].site = row["site"]
     testsim[name].flowering_model = flowering_param

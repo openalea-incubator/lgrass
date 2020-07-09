@@ -12,3 +12,8 @@ class ParametersValues:
         # -----------------------------------------------------
         self.coeff_primordia_emission_vegetative = 1  # number of primordia producted when one new leaf appear on a vegetative tiller
         self.coeff_primordia_emission_reproductive = 2  # number of primordia producted when one new leaf appear on a vegetative tiller
+        # -----------------------------------------------------
+        self.leaf_primary_induction_coeff = 1
+        self.leaf_secondary_induction_coeff = 1
+        self.increase_growth_Premiecroiss = 1
+        self.increase_growth_C = 1
