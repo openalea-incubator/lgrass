@@ -25,11 +25,12 @@ class GraphicOutputs:
             plt.ylabel(u'Induction rate (%)')
             plt.plot(u'Day', u'Vernalisation_rate', data=df[(df.Id_talle == tiller)], color=col, linestyle='-')
             plt.plot(u'Day', u'Secondary_induction_rate', data=df[(df.Id_talle == tiller)], color=col, linestyle=':')
-        plt.savefig(os.path.join(self.graph_dirpath, 'induction' + '.pdf'))
+        plt.savefig(os.path.join(csv_name + '_' + '.pdf'))
         plt.close()
 
     def graph_length(self, csv_name):
-        pdf_file = matplotlib.backends.backend_pdf.PdfPages(os.path.join(self.graph_dirpath, 'longueur_feuilles' + '.pdf'))
+        pdf_file = matplotlib.backends.backend_pdf.PdfPages(os.path.join(csv_name + '_' +
+                                                                         'longueur_feuilles' + '.pdf'))
         df = pd.read_csv(csv_name + '.csv')
         number_of_tiller = len(np.unique(df.Id_talle.tolist()))
         i = 0
@@ -45,11 +46,11 @@ class GraphicOutputs:
             for rank in set(df[df.Id_talle == tiller].Id_rang.tolist()):
                 col = colors[rank - 1]
                 ax.plot(u'Day', u'Length', data=df[(df.Id_talle == tiller) & (df.Id_rang == rank) &
-                                                    (df.Organ == u'internode')], color=col, linestyle='-')
+                                                   (df.Organ == u'internode')], color=col, linestyle='-')
                 ax.plot(u'Day', u'Length', data=df[(df.Id_talle == tiller) & (df.Id_rang == rank) &
-                                                    (df.Organ == u'sheath')], color=col, linestyle=':')
+                                                   (df.Organ == u'sheath')], color=col, linestyle=':')
                 ax.plot(u'Day', u'Length', data=df[(df.Id_talle == tiller) & (df.Id_rang == rank) &
-                                                    (df.Organ == u'limb')], color=col, linestyle='--')
+                                                   (df.Organ == u'limb')], color=col, linestyle='--')
             pdf_file.savefig()
             plt.close()
         pdf_file.close()
@@ -69,7 +70,7 @@ class GraphicOutputs:
         plt.xlabel(u'Temps thermique (°C jour-1)')
         plt.ylabel(u'Nombre de talles par n° plante')
         # Save plot
-        plt.savefig(os.path.join(self.graph_dirpath, 'Nombre_talles' + '.PNG'))
+        plt.savefig(os.path.join(csv_name + '_' + 'Nombre_talles' + '.PNG'))
         plt.close()
 
     def graph_LAI(self, csv_name, pattern):
@@ -87,15 +88,15 @@ class GraphicOutputs:
         plt.xlabel(u'Temps thermique (°C jour-1)')
         plt.ylabel('LAI')
         # Save plot
-        plt.savefig(os.path.join(self.graph_dirpath, 'LAI' + '.PNG'))
+        plt.savefig(os.path.join(csv_name + '_' + 'LAI' + '.PNG'))
         plt.close()
 
     def graph_leaf_number(self, csv_name):
-        pdf_file = matplotlib.backends.backend_pdf.PdfPages(os.path.join(self.graph_dirpath, 'Nombre_feuilles' + '.pdf'))
-
+        pdf_file = matplotlib.backends.backend_pdf.PdfPages(os.path.join(csv_name + '_' +
+                                                                         'Nombre_feuilles' + '.pdf'))
         # Read csv file
         df = pd.read_csv(csv_name)
-        df_grouped = df.groupby('topologie')
+        df_grouped = df.groupby('topology')
 
         # plot leaf number
         for topo, data in df_grouped:
