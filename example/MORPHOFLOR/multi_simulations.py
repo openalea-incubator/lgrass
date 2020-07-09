@@ -1,4 +1,4 @@
-import run_lgrass
+from example.MORPHOFLOR import run_lgrass
 import multiprocessing as mp
 import os
 import pandas as pd

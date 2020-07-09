@@ -1,5 +1,5 @@
 # This file contains all fonctions associated with flowering
-import parameters
+from lgrass import parameters
 
 
 class FloweringFunctions:

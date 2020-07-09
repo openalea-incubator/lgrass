@@ -29,12 +29,12 @@ onglet2='FC'
 #paramP2=IOxls.read_plant_param(path_param, onglet2)
 #paramManagement=IOxls.read_plant_param(path_param, 'Management')
 
-TableParamP1=pd.read_excel(path_param, sheetname=onglet1)
-TableParamP2=pd.read_excel(path_param, sheetname=onglet2)
+TableParamP1=pd.read_excel(path_param, sheet_name=onglet1)
+TableParamP2=pd.read_excel(path_param, sheet_name=onglet2)
 paramP1=dict(zip(TableParamP1['name'],TableParamP1['value']))
 paramP2=dict(zip(TableParamP2['name'],TableParamP2['value']))
 
-TableManagement=pd.read_excel(path_param,sheetname='Management')
+TableManagement=pd.read_excel(path_param,sheet_name='Management')
 paramManagement=dict(zip(TableManagement['name'],TableManagement['value']))
 ParamP=[paramP2] #liste des parametres plante
 nb_plantes=len(ParamP)
@@ -54,7 +54,7 @@ Densite=400 #en nb de plante par m2
 Espacement=10*sqrt(10000/Densite) #en mm
 NBlignes=int(ceil(sqrt(nb_plantes)))
 NBcolonnes=int(floor(sqrt(nb_plantes)))
-posPlante=[[i,j] for i,j in zip(sorted(range(NBlignes)*NBcolonnes),range(NBcolonnes)*NBlignes)]
+posPlante=[[i,j] for i,j in zip(sorted(list(range(NBlignes))*NBcolonnes),list(range(NBcolonnes))*NBlignes)]
 genotype=[0]
 
 ##### Definition des contours pour la sortie graphique #####
@@ -379,7 +379,7 @@ parameters['segment']=['seg']
 
 #########   definition sol   #########
 path_sol=os.path.join(INPUTS_DIRPATH, 'sol2.txt')
-fichier_sol=open(path_sol, "rb")
+fichier_sol=open(path_sol, "r")
 tableau_sol=csv.reader(fichier_sol, delimiter='	')
 Sol=[]
 j=0
@@ -619,7 +619,7 @@ def Gravitropisme(ID,vertex,segment,profondeur,elong,init):#age,ordre,Turtle):
     newtortue=tortue+G+Meca
     newtortue=newtortue/np.linalg.norm(newtortue)
     A=np.array([0.,0.,0.])
-    for i in xrange(3):
+    for i in range(3):
       a=np.array([Tortue[0,:],Tortue[1,:],Tortue[2,:]])
       a[:,i]=newtortue
       A[i]=np.linalg.det(a)/float(np.linalg.det(Tortue))
@@ -718,7 +718,7 @@ def LAI_proximite(id_plante):
   
   def posTOnum(pos): #Determination de l'id de la plante a partir de la position
     id_plante = -1
-    for i in xrange((NBlignes)*(NBcolonnes)):
+    for i in range((NBlignes)*(NBcolonnes)):
       if (posPlante[i] == pos):
         id_plante = i
     return id_plante
@@ -808,14 +808,14 @@ def Start():
   ##### Definition des groupes de production #####
   surface_foliaire_emergee =[0.]*(nb_plantes) # Surface foliaire émergée totale obtenue a la fin d'un pas
   Surfoliaireencours=[0.]*(nb_plantes) # variable de calcul de la surface foliaire totale
-  Premiecroiss=[ParamP[i]['Premiecroiss'] for i in xrange(nb_plantes)]
+  Premiecroiss=[ParamP[i]['Premiecroiss'] for i in range(nb_plantes)]
   
   ##### Relation allometrique #####
-  Alpha=[ParamP[i]['Alpha'] for i in xrange(nb_plantes)]
-  Beta=[ParamP[i]['Beta'] for i in xrange(nb_plantes)]
-  t1=[ParamP[i]['t1'] for i in xrange(nb_plantes)]
-  t2=[ParamP[i]['t2'] for i in xrange(nb_plantes)]
-  #t3=[ParamP[i]['t3'] for i in xrange(nb_plantes)]
+  Alpha=[ParamP[i]['Alpha'] for i in range(nb_plantes)]
+  Beta=[ParamP[i]['Beta'] for i in range(nb_plantes)]
+  t1=[ParamP[i]['t1'] for i in range(nb_plantes)]
+  t2=[ParamP[i]['t2'] for i in range(nb_plantes)]
+  #t3=[ParamP[i]['t3'] for i in range(nb_plantes)]
   option_caribu="Off"
   
   df_induction = pd.DataFrame(columns = ['GDD', 'Date', 'Site', 'Day', 'Daily_mean_temperature', 'Daily_daylength', 'Id_plante', 'Id_talle', 'topology', 'Leaf_produced', 'Primordia_on_apex', 'Spikelet_number', 'Vernalisation_rate', 'Secondary_induction_rate', 'Heading_date'])
@@ -834,11 +834,11 @@ def Start():
 ##output_apex = 'output_apex_%s_%s_%s.csv'%(int(Espacement),DureeExp,ParamP[0]['HCOUP'])                  # Ajout SIMON
 #output_organ_characteristics = 'output_organ_characteristics%s_%s_%s.csv'%(int(Espacement),DureeExp,ParamP[0]['HCOUP'])    
 #outimage='Scene\scene_'+str(int(Espacement))+'_'+t.strftime('%d-%m-%y_%Hh%M',t.localtime())+'.bmp'
-  chemin_fichier1=open(os.path.join(OUTPUTS_DIRPATH,outvarfile),"wb")
+  chemin_fichier1=open(os.path.join(OUTPUTS_DIRPATH,outvarfile),"w")
   surface_biomass=csv.writer(chemin_fichier1)
   surface_biomass.writerow(["TPS","Espacement","Densite","id plante","id talle","topology","nb_feuille_emergees","Biomasse_feuilles_emergees","Surface_feuilles_emergees"])
   
-  chemin_fichier2=open(os.path.join(OUTPUTS_DIRPATH,outvarfile2),"wb")
+  chemin_fichier2=open(os.path.join(OUTPUTS_DIRPATH,outvarfile2),"w")
   taille_finale_feuille=csv.writer(chemin_fichier2)
   taille_finale_feuille.writerow(["TPS","Espacement","Densite","id plante","talle","rang","Phase","taille feuille","taille gaine","taille limbe"])
 
@@ -857,7 +857,7 @@ def StartEach(lstring):
   longueur_totale_feuille=0
   Rootbiom=0
   
-  for ID in xrange(nb_plantes):
+  for ID in range(nb_plantes):
     # AJOUT SIMON 24-12-2019
     
     if current_day in cutting_dates and changing_day_cutting == True:
@@ -871,20 +871,20 @@ def StartEach(lstring):
       if groupe=='croissance':
         groupe='defoliation'
         dt=0.25
-        print 'coupe'
+        print('coupe')
     
     if (TPS==ParamP[ID]['DCOUP']+1.):
       if groupe=='defoliation':
         if ParamP[ID]['DCOUP']+ParamP[ID]['FREQUCOUPE'] < ParamP[ID]['PREMIERCOUPE']+ParamP[ID]['DUREECOUPE']:
           ParamP[ID]['DCOUP']=ParamP[ID]['DCOUP']+ParamP[ID]['FREQUCOUPE']
-          print 'prochaine_coupe',ParamP[ID]['DCOUP']
+          print('prochaine_coupe',ParamP[ID]['DCOUP'])
         reprise_coupe=True
         groupe='croissance'
         dt=1
         
     if TPS==ParamP[ID]['DCOUP']+0.75:
-      for i in xrange(len(Seuil)):
-        for j in xrange(len(Seuil[i])):
+      for i in range(len(Seuil)):
+        for j in range(len(Seuil[i])):
           Seuil[i][j]=5.5
           
   
@@ -928,7 +928,7 @@ def EndEach(lstring, lscene):
 #  global apex_characteristics, internode_characteristics # AJOUT SIMON
   
   TPS=TPS+dt
-  print 'TPS :',TPS , 'Current day :', current_day # AJOUT SIMON
+  print('TPS :',TPS , 'Current day :', current_day) # AJOUT SIMON
   
   if reprise_coupe==True:
     reprise_coupe=False
@@ -1000,7 +1000,7 @@ def EndEach(lstring, lscene):
       #          tiller_to_remove = tiller_to_remove.append(pd.DataFrame({'id_plante': [id_plante], 'id_talle': [potential_tiller_to_remove.id_talle.item()]}))
     
     if option_mophogenetic_regulation_by_carbone == True:
-      for ID in xrange(nb_plantes):
+      for ID in range(nb_plantes):
         BiomProd[ID] = Ray[ID] * RUE # Ray: MJ PAR ; RUE : g MJ-1
         print('Plante %s, Ray: %s, BiomProd: %s' % (ID, Ray[ID],BiomProd[ID]))
   
@@ -1111,7 +1111,7 @@ def End(lstring,lscene): #Ecriture et fermeture des fichiers de sortie
   
   
   ### Remplissage du fichier taille_finale_feuille ###
-  for ID in xrange(nb_plantes):
+  for ID in range(nb_plantes):
     les_feuilles_emergees = les_feuilles[(les_feuilles['Plante'] == ID) & (les_feuilles['Phase'] == 'mature')]['ObjetOrgane'].tolist()
     for x in les_feuilles_emergees:
       taille_finale_feuille.writerow([TPS, Espacement, Densite,ID+1, x.id_talle+1, x.id_rang+1, x.Phase, x.Taillefeuille, x.Taillegaine, x.Taillelimbe])
@@ -1177,7 +1177,7 @@ def End(lstring,lscene): #Ecriture et fermeture des fichiers de sortie
     
   
   
-  print 'Execution time :',t.time()-timing
+  print('Execution time :',t.time()-timing)
 
 
 
@@ -1258,8 +1258,8 @@ CouvertVegetal(X):
   if groupe=='croissance':
     if X==1:
       nproduce CouvertVegetal(2)
-      for i in xrange(NBlignes):
-        for j in xrange(NBcolonnes):
+      for i in range(NBlignes):
+        for j in range(NBcolonnes):
           id_plante=i*NBcolonnes+j
           id_geno=i
           genotype.append(id_geno)
@@ -1299,7 +1299,7 @@ phytomere(X, X_AP):
   if option_tiller_regression == True:
     if len(tiller_to_remove) > 0:
       if len(tiller_to_remove[(tiller_to_remove.id_plante == X.id_plante) & (tiller_to_remove.id_talle == X.id_talle)]) > 0 and len(mortality_zone[(mortality_zone.id_plante == X.id_plante) & (mortality_zone.id_talle == X.id_talle) & (mortality_zone.id_rang == X.id_rang)]) > 0:
-        print 'Tiller ', X.id_talle, ' of plant ', X.id_plante, ' is dead'
+        print('Tiller ', X.id_talle, ' of plant ', X.id_plante, ' is dead')
         produce Cut()
   else:
     if groupe == 'croissance':
@@ -1488,7 +1488,7 @@ Feuille(X, X_apex, X_phytomere):
         numsteps=ceil((X.Taillegaine)/LSTEP)
       
       # Calcul surfaces limbe et gaine
-      for i in xrange(int(numsteps)):
+      for i in range(int(numsteps)):
         if (i>=numstepsg-1):
           taille=X.Taillelimbe+X.coupe
           L0=X.Taillefinalelimbe-taille
@@ -1550,7 +1550,7 @@ Feuille(X, X_apex, X_phytomere):
           else:
             if(i==numstepsg):
               if X.id_rang>4:
-                pseudotige=max([Taille_finale_gaine[X.id_plante][X.id_talle][x] for x in xrange(X.id_rang-3,X.id_rang-1)])
+                pseudotige=max([Taille_finale_gaine[X.id_plante][X.id_talle][x] for x in range(X.id_rang-3,X.id_rang-1)])
               else:
                 pseudotige=Taille_finale_gaine[X.id_plante][X.id_talle][X.id_rang-1]
               if (X.Taillegaine > pseudotige):
@@ -1577,7 +1577,7 @@ Feuille(X, X_apex, X_phytomere):
             
             else:
               if X.id_rang>4:
-                pseudotige=max([Taille_finale_gaine[X.id_plante][X.id_talle][x] for x in xrange(X.id_rang-3,X.id_rang-1)])
+                pseudotige=max([Taille_finale_gaine[X.id_plante][X.id_talle][x] for x in range(X.id_rang-3,X.id_rang-1)])
               else:
                 pseudotige=Taille_finale_gaine[X.id_plante][X.id_talle][X.id_rang-1]
               
@@ -1601,7 +1601,7 @@ Feuille(X, X_apex, X_phytomere):
     elif TPS==ParamP[X.id_plante]['DCOUP']+0.5:
         segments_feuille=[x for x in les_segments_feuilles if (x[0].id_plante==X.id_plante and x[0].id_talle==X.id_talle and x[0].id_rang==X.id_rang)]
         longcoupee=LongueurFeuilleCoupee(segments_feuille,X.id_plante)
-        if longcoupee<>-1:
+        if longcoupee!=-1:
           X.coupe=X.Taillefeuille-longcoupee
           X.Taillefeuille=longcoupee
           if X.Taillefeuille<X.Taillegaine:
@@ -1637,7 +1637,7 @@ Feuille(X, X_apex, X_phytomere):
 
 
 GetPos(a,b,c):
-  for ID in xrange(nb_plantes):
+  for ID in range(nb_plantes):
     if TPS==ParamP[ID]['DCOUP']+0.5:
       produce
 
@@ -1648,7 +1648,7 @@ SegFeuille(X):
 
 
 Entrenoeud(X_EN, X_AP, X_F, X_phytomere):
-  if (X_EN.internode_type <> 'long_internode' and X_AP.phenological_state == 'reproductive' and X_F.Phase <> 'mature'):
+  if (X_EN.internode_type != 'long_internode' and X_AP.phenological_state == 'reproductive' and X_F.Phase != 'mature'):
     X_EN.internode_type = 'long_internode'
   if (X_F.Phase == 'mature' and X_EN.internode_type == 'long_internode' and X_EN.length < X_F.Taillefinalegaine + 5):              # condition pour arreter la croissance des entrenoeuds
     X_EN.length += 5    # Remplissage des hauteurs d organes
@@ -1696,13 +1696,11 @@ apex(X):
           X.phenological_state = 'vernalized'          
       
       elif (X.phenological_state == 'vernalized' and X.total_created_leaves > 1):
-        print 'vernalized'
-        print flowering_model.photoperiod_induction_function(daily_daylength)
+        print('vernalized')
         X.secondary_induction_index += flowering_model.photoperiod_induction_function(daily_daylength)
-        print X.secondary_induction_index
         if X.secondary_induction_index >= 1:
           X.phenological_state = 'reproductive'
-          print 'reproductive'
+          print('reproductive')
           
     df_induction = df_induction.append({'GDD': TPS, 'Date': date, 'Site': site, 'Day': current_day, 'Daily_mean_temperature': daily_temperature, 'Daily_daylength': daily_daylength, 'Id_plante': X.id_plante, 'Id_talle': X.id_talle, 'topology':X.topology, 'Leaf_produced': X.total_created_leaves, 'Primordia_on_apex': X.primordia_number, 'Spikelet_number': X.spikelet_created, 'Vernalisation_rate': X.primary_induction_index, 'Secondary_induction_rate': X.secondary_induction_index, 'Heading_date': X.heading_date}, ignore_index = True)
     
@@ -1732,7 +1730,7 @@ apex(X):
   
   
   if groupe=='croissance':     
-    if (X.phenological_state == 'vegetative' or X.phenological_state == 'vernalized' or (X.phenological_state == 'reproductive' and (X.total_created_leaves < X.final_leaf_number or X.final_leaf_number is None))):
+    if (X.phenological_state == 'vegetative' or X.phenological_state == 'vernalized' or (X.phenological_state == 'reproductive' and (X.final_leaf_number is None or X.total_created_leaves < X.final_leaf_number))):
       feuille_ref = les_feuilles[(les_feuilles['Plante'] == X.id_plante) & (les_feuilles['id_talle'] == X.id_talle) & (les_feuilles['id_rang'] == X.id_rang)].iloc[0]['ObjetOrgane']
       if X.retard==2:
         #Seuil[X.id_plante][X.id_talle]=Seuil[X.id_plante][X.id_talle] * 1.15
@@ -1774,11 +1772,11 @@ apex(X):
         
       elif X.retard==1:
         X.retard=2
-        print 'RETARD_1'
+        print('RETARD_1')
         produce apex(X)
       elif feuille_ref and abs(Seuil[X.id_plante][X.id_talle]-feuille_ref.Taillefeuille)<2: #Si |Seuil-Taillefeuille| <2mm
         X.retard=1
-        print 'RETARD_0'
+        print('RETARD_0')
         produce apex(X)
         
     if (X.phenological_state == 'reproductive' and X.total_created_leaves == X.final_leaf_number):
@@ -1812,12 +1810,10 @@ apex(X):
             height += X.organ_lengths_dict[i]['internode']
           if height >= highest_ligule['height']:
             highest_ligule = {'id_rang': phytomere_rank, 'height': height}
-        print 'La plus haute ligule est a : ' + str(highest_ligule['height'])
             
         X.terminal_spikelet_height = X.organ_lengths_dict[max(X.organ_lengths_dict.keys())]['spikelet']
         for phytomere_rank in X.organ_lengths_dict.keys():
           X.terminal_spikelet_height += X.organ_lengths_dict[phytomere_rank]['internode']
-        print 'Le dernier epillet est a : ' + str(X.terminal_spikelet_height)
           
         if (X.heading_date == 0 and X.terminal_spikelet_height > highest_ligule['height']):
           X.heading_date = current_day
@@ -2245,7 +2241,7 @@ Feuille(X, Y, Z):
     
     if (X.Phase=='cachee'):
       numsteps=(X.Taillefeuille-X.coupe)/LSTEP
-      for i in xrange(int(numsteps)):
+      for i in range(int(numsteps)):
         taille=X.Taillefeuille
         L0=X.Taillefinalelimbe-taille
         
@@ -2277,7 +2273,7 @@ Feuille(X, Y, Z):
         numsteps=ceil((X.Taillegaine)/LSTEP)
       numstepsg=ceil((X.Taillegaine)/LSTEP)
       
-      for i in xrange(int(numsteps)):
+      for i in range(int(numsteps)):
         if (i<numstepsg-1):
           rank=X.id_rang
           large=max((2/pi)*(paramManagement['CoefDirLonLarAjust']*log(max(X.Taillegaine*5,1))-paramManagement['OrdOriLonLarAjust']),0.1)
@@ -2316,7 +2312,7 @@ Feuille(X, Y, Z):
           
           if(i==numstepsg):
             if X.id_rang>4:
-              pseudotige=max([Taille_finale_gaine[X.id_plante][X.id_talle][x] for x in xrange(X.id_rang-3,X.id_rang-1)])
+              pseudotige=max([Taille_finale_gaine[X.id_plante][X.id_talle][x] for x in range(X.id_rang-3,X.id_rang-1)])
             else:
               pseudotige=Taille_finale_gaine[X.id_plante][X.id_talle][X.id_rang-1]
             
@@ -2360,7 +2356,7 @@ Feuille(X, Y, Z):
             
             else:
               if X.id_rang>4:
-                pseudotige=max([Taille_finale_gaine[X.id_plante][X.id_talle][x] for x in xrange(X.id_rang-3,X.id_rang-1)])
+                pseudotige=max([Taille_finale_gaine[X.id_plante][X.id_talle][x] for x in range(X.id_rang-3,X.id_rang-1)])
               else:
                 pseudotige=Taille_finale_gaine[X.id_plante][X.id_talle][X.id_rang-1]
               
@@ -2447,11 +2443,11 @@ def __initialiseContext__(context):
 	    )
 	profilefoldlimbe.name = "profilefoldlimbe"
 	profilegaine = pgl.NurbsCurve2D(	
-	    ctrlPointList = pgl.Point3Array([(-0.407478, -0.0511938, 1),(-0.390245, -0.17963, 1),(-0.355, -0.3575, 1),(-0.0025, -0.4925, 1),(0.363333, -0.355, 1),(0.47, -5.58794e-009, 1),(0.349167, 0.3425, 1),(0.005, 0.455, 1),(-0.3275, 0.3625, 1),(-0.380592, 0.203264, 1),(-0.402904, 0.0550844, 1)]) , 
+	    ctrlPointList = pgl.Point3Array([(-0.407478, -0.0511938, 1),(-0.390245, -0.17963, 1),(-0.355, -0.3575, 1),(-0.0025, -0.4925, 1),(0.363333, -0.355, 1),(0.47, -5.58794e-09, 1),(0.349167, 0.3425, 1),(0.005, 0.455, 1),(-0.3275, 0.3625, 1),(-0.380592, 0.203264, 1),(-0.402904, 0.0550844, 1)]) , 
 	    )
 	profilegaine.name = "profilegaine"
-	panel_0 = ({'active': True, 'visible': False, 'name': 'Curve2D'},[('Curve2D',profilelimbe),('Curve2D',profilefoldlimbe),('Curve2D',profilegaine)])
-	panel_1 = ({'active': True, 'visible': False, 'name': 'Panel 2'},[])
+	panel_0 = ({'name': 'Curve2D', 'active': True, 'visible': False},[('Curve2D',profilelimbe),('Curve2D',profilefoldlimbe),('Curve2D',profilegaine)])
+	panel_1 = ({'name': 'Panel 2', 'active': True, 'visible': False},[])
 	parameterset = [panel_0,panel_1,]
 	context["__functions__"] = []
 	context["__curves__"] = [('profilelimbe',profilelimbe),('profilefoldlimbe',profilefoldlimbe),('profilegaine',profilegaine),]
