@@ -33,14 +33,8 @@ from setuptools import setup, find_packages
 
 import lgrass
 
-if sys.version_info < (2, 7):
-    print('ERROR: lgrass requires at least Python 2.7 to run.')
-    sys.exit(1)
-
-if sys.version_info >= (3, 0):
-    print('WARNING: lgrass has not been tested with Python 3.')
-
 pkg_resources.require('numpy>=1.11.0', 'pandas>=0.18.0',  'OpenAlea.Lpy', 'OpenAlea.PlantGL', 'OpenAlea.Mtg')
+
 
 def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()

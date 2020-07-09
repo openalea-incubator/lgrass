@@ -18,6 +18,7 @@ def import_meteo_data(meteo_path, sowing_date, site):
         meteo_data = daylength_series(meteo_data)
         return meteo_data
 
+
 def thermal_time_calculation(meteo_data, sowing_date):
     """
     :param meteo_data: dataframe with 2 columns:   date: format 'YYYY_mm_dd'
