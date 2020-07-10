@@ -7,17 +7,12 @@ L-Grass simulates:
 * Floral transition of individual apex according to temperature and photoperiod, internode elongation and heading date. Ongoing thesis of S. Rouet (2017-2020).
 
 # Table of Contents
-- [Table of Contents](#table-of-contents)
 - [Installation](#installation)
   * [Prerequisites](#prerequisites)
   * [Installing](#installing)
     + [Users](#users)
     + [Developers](#developers)
 - [Usage](#usage)
-  * [NEMA](#nema)
-  * [Papier_FSPMA2016](#papier-fspma2016)
-  * [Vegetative stages](#vegetative-stages)
-  * [Scenarii_monoculms](#scenarii-monoculms)
 - [Credits](#credits)
   * [Authors](#authors)
   * [Contributors](#contributors)
