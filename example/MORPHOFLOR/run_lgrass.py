@@ -18,7 +18,7 @@ def run_lgrass(scenario_id=1, inputs_dir_path='inputs', outputs_dir_path='output
     """
 
     # Scenario to be run
-    scenarii_df = pd.read_csv('plan_simulation.csv', index_col='Scenario')
+    scenarii_df = pd.read_csv(os.path.join('inputs', 'plan_simulation.csv'), index_col='Scenario')
     scenario = scenarii_df.loc[scenario_id].to_dict()
     scenario_name = scenario['name']
 

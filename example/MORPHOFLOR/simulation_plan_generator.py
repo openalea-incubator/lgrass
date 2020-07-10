@@ -1,6 +1,7 @@
 import itertools
 import numpy as np
 import pandas as pd
+import os
 
 
 temp_vern_min_list = [0]
@@ -103,4 +104,4 @@ for i in itertools.product(temp_vern_min_list,
 simulation_plan['name'] = 'simulation_' + 'C_' + simulation_plan['value_C'].astype(str) + '_' + simulation_plan['site']
 simulation_plan['Scenario'] = [i for i in range(simulation_plan.shape[0])]
 
-simulation_plan.to_csv('plan_simulation.csv', index=False)
+simulation_plan.to_csv(os.path.join('inputs', 'plan_simulation.csv'), index=False)
