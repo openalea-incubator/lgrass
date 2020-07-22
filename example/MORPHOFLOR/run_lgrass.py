@@ -31,6 +31,7 @@ def run_lgrass(scenario_id=1, inputs_dir_path='inputs', outputs_dir_path='output
     lsystem = Lsystem(lpy_filename)
 
     # Update parameters
+    lsystem.option_profile = "plateau"
     lsystem.flowering_model = flowering_model
     lsystem.derivationLength = int(scenario['derivationLength'])
     lsystem.option_tallage = scenario['option_tallage']

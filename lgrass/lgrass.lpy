@@ -91,6 +91,9 @@ option_floraison = False        # True or False
 ##### Activation sorties graphiques
 option_graphic_outputs = True
 
+##### Choix du profil de longueur de feuilles
+option_profile = "triangular" # triangular or plateau
+
 
 #### Load flowering model
 from lgrass import flowering_functions
@@ -1182,11 +1185,15 @@ def End(lstring,lscene): #Ecriture et fermeture des fichiers de sortie
 
 
 
-def FoncCroiss(t, Ymax, tend, tmax): # fonction de croissance de feuille
-  if (t>tend):
-    y=Ymax
+def FoncCroiss(t, Ymax, tend, tmax, phase): # fonction de croissance de feuille
+  if t>paramManagement["t_beta_to_linear"] and phase == "cachee":
+    print("Fonction croissance :", t)
+    y=paramManagement["a_linear"] * t + paramManagement["b_linear"]              # passage a une fonction lineaire pour eviter de borner la croissance cachee des feuilles
   else:
-    y=Ymax*(1+((tend-t)/(tend-tmax)))*(pow((t/tend),(tend/(tend-tmax))))
+    if t>tend:
+      y = Ymax
+    else:
+      y=Ymax*(1+((tend-t)/(tend-tmax)))*(pow((t/tend),(tend/(tend-tmax))))
   return y
 
 #def TpourY(Y, Ym, Te, Tm):  # retrouver le temps T auquel la taille de la feuille valait Y
@@ -1218,13 +1225,13 @@ def FoncCroiss(t, Ymax, tend, tmax): # fonction de croissance de feuille
 #      l=l+0.001
 #    return max(l-0.001,0)
 
-def TpourY2(Y, Ym, Te, Tm):  # retrouver le temps T auquel la taille de la feuille valait Y
+def TpourY2(Y, Ym, Te, Tm, phase):  # retrouver le temps T auquel la taille de la feuille valait Y
   curs1=0
   curs2=Te
   newt=Te/2
   while curs2-curs1>0.001:
     newt=curs1+(curs2-curs1)/2
-    L=FoncCroiss(newt, Ym, Te, Tm)
+    L=FoncCroiss(newt, Ym, Te, Tm, phase)
     if L==Y:
       return newt
     elif L<Y:
@@ -1329,7 +1336,7 @@ Feuille(X, X_apex, X_phytomere):
       ##### Modif potentiel apres coupe ######
       if reprise_coupe==True and X.Phase=='visible':
         LEDGAINE=((0.2*X_apex.Premiecroiss*5)*2)-X_apex.Premiecroiss
-        TrueAge=TpourY2(Seuil[X.id_plante][X.id_talle],paramManagement['Yfinit'], paramManagement['Jled']*LEDGAINE,paramManagement['Kled']*paramManagement['Jled']*LEDGAINE) #Jled*LEDGAINE correspond a te, Kled*Jled*LEDGAINE correspond a tm (These Alban Verdenal)
+        TrueAge=TpourY2(Seuil[X.id_plante][X.id_talle],paramManagement['Yfinit'], paramManagement['Jled']*LEDGAINE,paramManagement['Kled']*paramManagement['Jled']*LEDGAINE, X.Phase) #Jled*LEDGAINE correspond a te, Kled*Jled*LEDGAINE correspond a tm (These Alban Verdenal)
         NewYmax=X_apex.C*((pow(paramManagement['T01'],(TrueAge+paramManagement['tb1'])*paramManagement['k1'])-paramManagement['Lpot'])-(pow(paramManagement['T02'],(TrueAge+paramManagement['tb2'])*paramManagement['k2']))) # Fonction potentiel de croissance
         if NewYmax>X.Ymax:
           NewYmax=X.Ymax
@@ -1339,7 +1346,7 @@ Feuille(X, X_apex, X_phytomere):
           #LED1=((X.Taillefinalegaine*5)*2)-X.Ymax
           NewTaillefinaleg=X.rapportK * NewYmax
           LED2=((NewTaillefinaleg*5)*2)-NewYmax
-          X.Difftps=TpourY2(X.Taillefeuille+X.coupe,NewYmax,paramManagement['Jled']*LED2,paramManagement['Kled']*paramManagement['Jled']*LED2)-X.age
+          X.Difftps=TpourY2(X.Taillefeuille+X.coupe,NewYmax,paramManagement['Jled']*LED2,paramManagement['Kled']*paramManagement['Jled']*LED2, X.Phase)-X.age
           #TpourY2(Seuil[X.id_plante][X.id_talle], X.Ymax,paramManagement['Jled']*LED,paramManagement['Kled']*paramManagement['Jled']*LED)-X.age#TpourY2(X.Taillefeuille+X.coupe,paramManagement['Yfinit'], paramManagement['Jled']*LEDGAINE,paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)
           X.Agecroiss=X.Difftps+X.age
           X.Ymax=NewYmax
@@ -1359,13 +1366,16 @@ Feuille(X, X_apex, X_phytomere):
           
           genotype=X.id_geno
           
-          X.Ymax = X_apex.C*((pow(paramManagement['T01'],(TrueAge+paramManagement['tb1'])*paramManagement['k1'])-paramManagement['Lpot'])-(pow(paramManagement['T02'],(TrueAge+paramManagement['tb2'])*paramManagement['k2']))) #Alban
+          tmax_potcroiss = 118 # degre-jour
+          lmax_potcroiss = 338.5554 # mm
           
-          # A REMETTRE SIMON
-          #if TrueAge < 118:
-          #  X.Ymax = ParamP[genotype]['C']*((pow(paramManagement['T01'],(TrueAge+paramManagement['tb1'])*paramManagement['k1'])-paramManagement['Lpot'])-(pow(paramManagement['T02'],(TrueAge+paramManagement['tb2'])*paramManagement['k2']))) #Alban
-          #else:
-          #  X.Ymax = ParamP[genotype]['C']*338.5554
+          if option_profile == "triangular":
+            X.Ymax = X_apex.C*((pow(paramManagement['T01'],(TrueAge+paramManagement['tb1'])*paramManagement['k1'])-paramManagement['Lpot'])-(pow(paramManagement['T02'],(TrueAge+paramManagement['tb2'])*paramManagement['k2']))) #Alban
+          elif option_profile == "plateau":
+            if TrueAge < tmax_potcroiss:
+              X.Ymax = ParamP[genotype]['C']*((pow(paramManagement['T01'],(TrueAge+paramManagement['tb1'])*paramManagement['k1'])-paramManagement['Lpot'])-(pow(paramManagement['T02'],(TrueAge+paramManagement['tb2'])*paramManagement['k2']))) #Alban
+            else:
+              X.Ymax = ParamP[genotype]['C']*lmax_potcroiss
             
           
           #X.Ymax=ParamP[genotype]['C']*(1*exp(0.032*(TrueAge+paramManagement['tb1']))-1*exp(0.047*(TrueAge+paramManagement['tb2']))-paramManagement['Lpot'])  #TF
@@ -1383,7 +1393,7 @@ Feuille(X, X_apex, X_phytomere):
           
           LED=((X.Taillefinalegaine*5)*2)-X.Ymax
           #LEDGAINE=((0.2*110*5)*2)-110
-          X.Difftps=TpourY2(Seuil[X.id_plante][X.id_talle], X.Ymax,paramManagement['Jled']*LED,paramManagement['Kled']*paramManagement['Jled']*LED)-X.age#TpourY2(X.Taillefeuille+X.coupe,110, paramManagement['Jled']*LEDGAINE,paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)
+          X.Difftps=TpourY2(Seuil[X.id_plante][X.id_talle], X.Ymax,paramManagement['Jled']*LED,paramManagement['Kled']*paramManagement['Jled']*LED, X.Phase)-X.age#TpourY2(X.Taillefeuille+X.coupe,110, paramManagement['Jled']*LEDGAINE,paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)
       
       ###### croissance ######
       LEDGAINE=((X.Taillefinalegaine*5)*2)-X.Ymax
@@ -1392,11 +1402,11 @@ Feuille(X, X_apex, X_phytomere):
       
       if(X.Phase=='cachee'):
         inversea=X.age-dt
-        AccroissDemande=FoncCroiss(inversea+dt, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)-FoncCroiss(inversea, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)
+        AccroissDemande=FoncCroiss(inversea+dt, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE, X.Phase)-FoncCroiss(inversea, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE, X.Phase)
         #Accroiss=FoncCroiss(X.age, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)-FoncCroiss(X.age-1, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)
         X.Agecroiss=X.age
       if(X.Phase=='visible'):
-        AccroissDemande=(FoncCroiss(X.Agecroiss+1, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)-FoncCroiss(X.Agecroiss, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE))
+        AccroissDemande=(FoncCroiss(X.Agecroiss+1, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE, X.Phase)-FoncCroiss(X.Agecroiss, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE, X.Phase))
         X.Agecroiss=X.age+X.Difftps
       Pourcent=PourcentageFeuilGrowthRealized[X.id_plante]
       
@@ -1419,7 +1429,7 @@ Feuille(X, X_apex, X_phytomere):
       #  Accroiss=0
       
       #taillefictive=TpourY()
-      limbefictif=0.973*FoncCroiss(X.Agecroiss-1, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)
+      limbefictif=0.973*FoncCroiss(X.Agecroiss-1, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE, X.Phase)
       
       #if X.R==0.973 and limbefictif>(0.75*X.Taillefinalelimbe):
       #  X.R=0.965
@@ -1454,9 +1464,9 @@ Feuille(X, X_apex, X_phytomere):
       if X.Phase!='mature':
         if (X.Taillegaine< Taille_finale_gaine[X.id_plante][X.id_talle][X.id_rang-1] +13):
           if(X.Phase=='cachee'):
-            NextAccroiss=FoncCroiss(X.age+dt, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)-FoncCroiss(X.age, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)
+            NextAccroiss=FoncCroiss(X.age+dt, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE, X.Phase)-FoncCroiss(X.age, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE, X.Phase)
           else: # X.Phase=='visible'
-            NextAccroiss=(FoncCroiss(X.Agecroiss+dt, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)-FoncCroiss(X.Agecroiss, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE))         
+            NextAccroiss=(FoncCroiss(X.Agecroiss+dt, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE, X.Phase)-FoncCroiss(X.Agecroiss, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE, X.Phase))         
         if (X.Taillegaine>0.98*X.Taillefinalegaine and X.Taillegaine<=Taille_finale_gaine[X.id_plante][X.id_talle][X.id_rang-1] -5 and X.Phase=='visible'):
           NextAccroiss=1        
         if (X.Taillegaine>=Taille_finale_gaine[X.id_plante][X.id_talle][X.id_rang-1] +13 and X.Phase=='visible'):
@@ -2443,11 +2453,11 @@ def __initialiseContext__(context):
 	    )
 	profilefoldlimbe.name = "profilefoldlimbe"
 	profilegaine = pgl.NurbsCurve2D(	
-	    ctrlPointList = pgl.Point3Array([(-0.407478, -0.0511938, 1),(-0.390245, -0.17963, 1),(-0.355, -0.3575, 1),(-0.0025, -0.4925, 1),(0.363333, -0.355, 1),(0.47, -5.58794e-09, 1),(0.349167, 0.3425, 1),(0.005, 0.455, 1),(-0.3275, 0.3625, 1),(-0.380592, 0.203264, 1),(-0.402904, 0.0550844, 1)]) , 
+	    ctrlPointList = pgl.Point3Array([(-0.407478, -0.0511938, 1),(-0.390245, -0.17963, 1),(-0.355, -0.3575, 1),(-0.0025, -0.4925, 1),(0.363333, -0.355, 1),(0.47, -5.58794e-009, 1),(0.349167, 0.3425, 1),(0.005, 0.455, 1),(-0.3275, 0.3625, 1),(-0.380592, 0.203264, 1),(-0.402904, 0.0550844, 1)]) , 
 	    )
 	profilegaine.name = "profilegaine"
-	panel_0 = ({'name': 'Curve2D', 'active': True, 'visible': False},[('Curve2D',profilelimbe),('Curve2D',profilefoldlimbe),('Curve2D',profilegaine)])
-	panel_1 = ({'name': 'Panel 2', 'active': True, 'visible': False},[])
+	panel_0 = ({'active': True, 'visible': False, 'name': 'Curve2D'},[('Curve2D',profilelimbe),('Curve2D',profilefoldlimbe),('Curve2D',profilegaine)])
+	panel_1 = ({'active': True, 'visible': False, 'name': 'Panel 2'},[])
 	parameterset = [panel_0,panel_1,]
 	context["__functions__"] = []
 	context["__curves__"] = [('profilelimbe',profilelimbe),('profilefoldlimbe',profilefoldlimbe),('profilegaine',profilegaine),]
