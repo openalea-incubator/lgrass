@@ -34,7 +34,7 @@ ABSOLUTE_TOLERANCE = RELATIVE_TOLERANCE
 DESIRED_SERIE_FOLIAIRE_FILENAME = 'desired_sorties_feuilles_finales_50_{}_30.csv'.format(NSTEP)
 DESIRED_SORTIE_SURFACE_BIOMASS_FILENAME = 'desired_surface_biomass_50_{}_30.csv'.format(NSTEP)
 DESIRED_OUTPUT_INDUCTION_FILENAME = 'desired_output_induction.csv'.format(NSTEP)
-DESIRED_OUTPUT_ORGAN_LENGTHS_FILENAME = 'output_organ_lengths.csv'.format(NSTEP)
+DESIRED_OUTPUT_ORGAN_LENGTHS_FILENAME = 'desired_output_organ_lengths.csv'.format(NSTEP)
 
 
 def compare_actual_to_desired(data_dirpath, actual_data_df, desired_data_filename, actual_data_filename=None, overwrite_desired_data=False):
@@ -46,7 +46,7 @@ def compare_actual_to_desired(data_dirpath, actual_data_df, desired_data_filenam
 
     if overwrite_desired_data:
         desired_data_filepath = os.path.join(data_dirpath, desired_data_filename)
-        actual_data_df.to_csv(desired_data_filepath, na_rep='NA', index=False)
+        actual_data_df.to_csv(desired_data_filepath, na_rep='NA', index=False, )
     else:
         desired_data_filepath = os.path.join(data_dirpath, desired_data_filename)
         desired_data_df = pd.read_csv(desired_data_filepath)
@@ -97,6 +97,7 @@ def test_run(overwrite_desired_data=False):
         print("New desired files written")
     else:
         print("Test passed successfully")
+
 
 if __name__ == '__main__':
     test_run(overwrite_desired_data=False)
