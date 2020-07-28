@@ -20,9 +20,9 @@ if __name__ == '__main__':
     ###    Utilisation de Pool multiprocess    ###
 
     multiprocessing.freeze_support()
-    CPUnb = int(multiprocessing.cpu_count()) # nombre de processeurs utilises
-    pool = multiprocessing.Pool(processes=7)
-    for j in range(6,13):
+    CPUnb = int(multiprocessing.cpu_count())  # nombre de processeurs utilises
+    pool = multiprocessing.Pool(processes=CPUnb)
+    for j in range(5, 15):
         pool.apply_async(batch.runlsystem, args=(plan, j, 1))
     pool.close()
     pool.join()

@@ -1,4 +1,7 @@
 # coding: utf8
+
+# script contenant les classes de lgrass.lpy, pour que le module pickle puisse les lire
+
 import numpy as np
 #########   Definition Plante   #########
 

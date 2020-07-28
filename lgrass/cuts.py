@@ -15,9 +15,6 @@ def define_cutting_dates(weather, max_degrees, cutting_freq):
     cut = 0
     i = 0
     while degrees <= max_degrees:
-        # while (weather['daylength'].iloc[i] < 13) & (degrees <= max_degrees):
-        #     degrees += weather['mean_temperature'].iloc[i]
-        #     i += 1
         degrees += weather['mean_temperature'].iloc[i]
         i += 1
         if i == cut + cutting_freq:

@@ -49,7 +49,7 @@ def create_seeds(lstring, nb_plantes, opt_repro, cutting_freq, ParamP):
     # Méthode de calcul via un nombre de graines par épillet
     elif opt_repro == "spikelets":
         for k in range(len(mothers)):
-            for i in range(int(mothers[k][1] * int(ParamP[mothers[k][0]]['seeds_by_spikelet']))):   #nb_epillets de la plante * nb_graines/épillet
+            for i in range(int(mothers[k][1] * int(ParamP[mothers[k][0]]['seeds_by_spikelet']))):   # nb_epillets de la plante * nb_graines/épillet
                 id_mother = mothers[k][0]  # séléction de la mère
                 fathers = [j for j in range(nb_plantes)]
                 fathers.remove(id_mother)
@@ -67,7 +67,7 @@ def create_seeds(lstring, nb_plantes, opt_repro, cutting_freq, ParamP):
         seed = random.Random().choice(seeds)
         elected_seeds.append(seed)
         seeds.remove(seed)
-        # id_mère/ligne et id_pere/colonne
+        # id_mere/ligne et id_pere/colonne
         matrix[elected_seeds[rand][0], elected_seeds[rand][1]] += 1
     return matrix
 
@@ -101,17 +101,15 @@ def get_genet_file(in_genet_file=None):
 
 
 # La formule pour convertir la donnée génétique en paramètre C
-def calculate_C(n):
-
-    ### A traiter ###
-
-    return str(2.0)
+def calculate_C(x):
+    # La version de cette fonction est incomplète (Thibault Raquet), voir Leopoldo Sanchez Rodriguez pour compléter la formule
+    # se base sur une observation des sorties génétiques dont le paramètre variait entre -4 et 4, à convertir en [0.8, 1.6]
+    return 0.1 * x + 1.2
 
 
 # Création du fichier de paramètres d'entrée pour chaque plante et configuration du planteur lgrass
 def define_param(in_param_file=None, in_genet_file=None, out_param_file=None, id_gener=1, opt_repro=None):
     if in_param_file is None:
-        # un fichier de remplacement générant une population de C
         in_param_file = 'inputs/liste_plantes.csv'
     if out_param_file is None:
         out_param_file = 'outputs/Simulation_G' + str(id_gener) + '.csv'
@@ -131,7 +129,6 @@ def define_param(in_param_file=None, in_genet_file=None, out_param_file=None, id
 
     # lecture du fichier, creation de ParamP et des parametres de floraison
     param_plante = pd.read_csv(out_param_file, sep=";", header=None, index_col=0)
-
     # Conversion du paramètre génétique en valeur de C
     if opt_repro != 'False':
         if len(param_plante.columns) < len(genet_data):
@@ -141,6 +138,8 @@ def define_param(in_param_file=None, in_genet_file=None, out_param_file=None, id
                 param_plante[line+1] = param_plante[line]
         for i in range(len(genet_data)):
             param_plante.loc['C'].iloc[i] = calculate_C(float(genet_data['C'].iloc[i]))
+            param_plante.loc['geno'].iloc[i] = int(genet_data['geno'].iloc[i])
+        param_plante.to_csv(out_param_file, sep=';')
 
     flowering_param = flowering_functions.FloweringFunctions()
     flowering_param.param.__dict__.update(

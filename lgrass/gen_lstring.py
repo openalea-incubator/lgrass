@@ -21,13 +21,16 @@ def save_lstring(lstring, lsystem):
     if not os.path.isdir(lstring_dir):
         os.makedirs(lstring_dir)
     for mod in range(len(lstring)):
+        # on créé un répertoire par module
         repertory = lstring_dir + str(mod)
         if not os.path.isdir(repertory):
             os.makedirs(repertory)
+        # fichier avec le nom du module
         open(os.path.join(repertory, 'name' + str(mod) + '.txt'), 'w').write(lstring[mod].name)
         for i in range(len(lstring[mod])):
+            # un fichier par paramètre présent dans le module (quel que soit le type)
             pickle.dump(lstring[mod][i], open(os.path.join(repertory, str(i) + '.txt'), 'w'))
-    # les variables lgrass
+    # les variables lgrass nécessaires à la récupération complète de la simulation
     if not os.path.isdir(var_dir):
         os.makedirs(var_dir)
     pickle.dump(lsystem.Biomasse_aerienne, open(os.path.join(var_dir, 'Biomasse_aerienne.txt'), 'w'))
@@ -49,8 +52,9 @@ def save_lstring(lstring, lsystem):
 
 # Charger et récupérer une lstring d'un répertoire dir
 def load_lstring():
-    modulenamelist = []
-    moduleparam = []
+    modulenamelist = []  # contient tous les noms des modules
+    moduleparam = []     # contient la liste des paramètres de chaque module
+    # pour chaque dossier créé dans la simu sauvegardée
     for name in range(len([i for i in os.listdir(lstring_dir)])):
         df = pd.read_csv(os.path.join(lstring_dir + str(name), 'name' + str(name) + '.txt'))
         modulenamelist.append(df.columns[0])
@@ -67,7 +71,7 @@ def load_lstring():
     return modulenamelist, moduleparam
 
 
-# Récupérer les variables lgrass de la simulation précédente
+# Récupérer les variables lgrass nécessaires à la récupération complète de la simulation
 def load_variables():
     Biomasse_aerienne = pickle.load(open(os.path.join(var_dir, 'Biomasse_aerienne.txt'), 'r'))
     Biomasse_racinaire = pickle.load(open(os.path.join(var_dir, 'Biomasse_racinaire.txt'), 'r'))

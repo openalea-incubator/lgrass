@@ -14,11 +14,11 @@ import param_reproduction_functions as prf
 import cuts
 import caribu
 import gen_lstring
-import numpy as np
 import pandas as pd
 import time
 
 
+# préparation de l'ensemble des conditions/paramètres et exécution de lgrass
 def runlsystem(plan_sim=None, id_scenario=0, id_gener=1):
     if plan_sim is None:
         raise NameError('Pas de plan de simulation chargé.')
@@ -52,6 +52,7 @@ def runlsystem(plan_sim=None, id_scenario=0, id_gener=1):
     lsystem.ParamP, lsystem.nb_plantes, lsystem.NBlignes, lsystem.NBcolonnes, lsystem.posPlante, lsystem.Plantes, lsystem.Genotypes, lsystem.flowering_model = prf.define_param(
         in_param_file=in_param_file, in_genet_file=in_genet_file, out_param_file=os.path.join(OUTPUTS_DIRPATH, name + '_G' + str(id_gener) + '.csv'),
         id_gener=id_gener, opt_repro=opt_repro)
+
 
     # Parametres de simulation
     lsystem.option_tallage = row["option_tallage"]
@@ -93,11 +94,14 @@ def runlsystem(plan_sim=None, id_scenario=0, id_gener=1):
         lstring = lsystem.derive(lstring, dd, 1)
         lscene = lsystem.sceneInterpretation(lstring)
         if opt_caribu:
+            # on exécute caribu une fois par jour
             if lsystem.current_day > day:
+                # fonction d'application de caribu
                 lsystem.BiomProd, dico_caribu['radiation_interception'], dico_caribu[
                     'Ray'] = caribu.runcaribu(lstring, lscene, lsystem.current_day,
                                               lsystem.tiller_appearance,
                                               lsystem.nb_plantes, dico_caribu)
+                # fichier de sortie de caribu
                 output.write(";".join(
                     [str(lsystem.TPS), str(lsystem.sowing_date), str(lsystem.current_day), str(lsystem.nb_talle[0]),
                      str(lsystem.BiomProd[0]), str(lsystem.rapportS9_SSol_dict[0])]) + "\n")
@@ -132,19 +136,21 @@ def simpraise(plan_sim=None, id_scenario=0):
     dst = 'modelgenet'
     exe = 'simpraise.exe'
 
-    # Génération des fondateurs
+    # Génération des fondateurs, première exécution du modèle génétique
     prf.rungenet(src, dst, exe, None)
 
     # Boucle des générations
     for i in range(1, row['num_gener'] + 1):
+        # modèle morpho et matrice de croisement
         mat = runlsystem(plan_sim=plan_sim, id_scenario=id_scenario, id_gener=i)
+        # modèle génétique et paramètre C
         prf.rungenet(src, dst, exe, mat)
     return 0
 
 
-timing = time.time()
-plan = pd.read_csv("inputs/plan_simulation.csv", sep=',')
-# simpraise(plan_sim=plan, id_scenario=2)
-runlsystem(plan, 0, 1)
+# timing = time.time()
+# plan = pd.read_csv("inputs/plan_simulation.csv", sep=',')
 
-print('Global execution time : ', time.time() - timing)
+# runlsystem(plan, 3, 1)
+# simpraise(plan_sim=plan, id_scenario=1)
+# print('Global execution time : ', time.time() - timing)
