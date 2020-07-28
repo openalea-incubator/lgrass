@@ -1187,7 +1187,6 @@ def End(lstring,lscene): #Ecriture et fermeture des fichiers de sortie
 
 def FoncCroiss(t, Ymax, tend, tmax, phase): # fonction de croissance de feuille
   if t>paramManagement["t_beta_to_linear"] and phase == "cachee":
-    print("Fonction croissance :", t)
     y=paramManagement["a_linear"] * t + paramManagement["b_linear"]              # passage a une fonction lineaire pour eviter de borner la croissance cachee des feuilles
   else:
     if t>tend:
@@ -1387,7 +1386,7 @@ Feuille(X, X_apex, X_phytomere):
           #X.Ymax= ((pow(paramManagement['T01'],((X.age-1)+paramManagement['tb1'])*paramManagement['k1'])-paramManagement['Lpot'])-(pow(paramManagement['T02'],((X.age-1)+paramManagement['tb2'])*paramManagement['k2'])))   # FL
           #X.Ymax= 0.85*((pow(paramManagement['T01'],((X.age-1)+paramManagement['tb1'])*paramManagement['k1'])-paramManagement['Lpot'])-(pow(paramManagement['T02'],((X.age-1)+paramManagement['tb2'])*paramManagement['k2'])))   # New FC
           #X.Ymax=0.55*((615*pow(paramManagement['T01'],X.age*0.0053))-736.9-(0.1207*pow(paramManagement['T02'],X.age*0.062)))   # FC
-          X.rapportK=0.1+((TrueAge-1)/600.)
+          X.rapportK=0.1+((min(TrueAge, tmax_potcroiss)-1)/600.)
           X.Taillefinalelimbe=(1-X.rapportK)*X.Ymax
           X.Taillefinalegaine=X.Ymax*X.rapportK
           
@@ -1462,14 +1461,14 @@ Feuille(X, X_apex, X_phytomere):
       
       
       if X.Phase!='mature':
-        if (X.Taillegaine< Taille_finale_gaine[X.id_plante][X.id_talle][X.id_rang-1] +13):
+        if (X.Taillegaine< Seuil[X.id_plante][X.id_talle] +13):
           if(X.Phase=='cachee'):
             NextAccroiss=FoncCroiss(X.age+dt, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE, X.Phase)-FoncCroiss(X.age, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE, X.Phase)
           else: # X.Phase=='visible'
             NextAccroiss=(FoncCroiss(X.Agecroiss+dt, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE, X.Phase)-FoncCroiss(X.Agecroiss, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE, X.Phase))         
-        if (X.Taillegaine>0.98*X.Taillefinalegaine and X.Taillegaine<=Taille_finale_gaine[X.id_plante][X.id_talle][X.id_rang-1] -5 and X.Phase=='visible'):
+        if (X.Taillegaine>0.98*X.Taillefinalegaine and X.Taillegaine<=Seuil[X.id_plante][X.id_talle] -5 and X.Phase=='visible'):
           NextAccroiss=1        
-        if (X.Taillegaine>=Taille_finale_gaine[X.id_plante][X.id_talle][X.id_rang-1] +13 and X.Phase=='visible'):
+        if (X.Taillegaine>=Seuil[X.id_plante][X.id_talle] +13 and X.Phase=='visible'):
           NextAccroiss=0          
           
         long=X.Taillefeuille+NextAccroiss
