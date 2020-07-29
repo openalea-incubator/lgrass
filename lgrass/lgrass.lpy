@@ -1186,8 +1186,10 @@ def End(lstring,lscene): #Ecriture et fermeture des fichiers de sortie
 
 
 def FoncCroiss(t, Ymax, tend, tmax, phase): # fonction de croissance de feuille
-  if t>paramManagement["t_beta_to_linear"] and phase == "cachee":
-    y=paramManagement["a_linear"] * t + paramManagement["b_linear"]              # passage a une fonction lineaire pour eviter de borner la croissance cachee des feuilles
+  if t>tmax and phase == "cachee":
+    yTm = Ymax*(1+((tend-tmax)/(tend-tmax)))*(pow((tmax/tend),(tend/(tend-tmax))))              # passage a une fonction lineaire pour eviter de borner la croissance cachee des feuilles
+    yTm_1 = Ymax*(1+((tend-(tmax-1))/(tend-tmax)))*(pow(((tmax-1)/tend),(tend/(tend-tmax))))
+    y = ((yTm - yTm_1)/1)  * t + yTm -((yTm - yTm_1)/1)*tmax
   else:
     if t>tend:
       y = Ymax
@@ -1459,6 +1461,13 @@ Feuille(X, X_apex, X_phytomere):
       X_apex.organ_lengths_dict[X.id_rang]['sheath'] = X.Taillegaine
       X_apex.organ_lengths_dict[X.id_rang]['limb'] = X.Taillelimbe
       
+      
+      if X.id_rang == 2:
+        print("Rang : ", X.id_rang, " Gaine : ", X.Taillegaine, " Gaine prec. : ", Taille_finale_gaine[X.id_plante][X.id_talle][X.id_rang-1] +13)
+        print("Longueur feuille : ", X.Taillefeuille, " Gaine : ", X.Taillegaine, " Limbe : ", X.Taillelimbe)
+        print("Ymax : ", X.Ymax)
+        print(X.Phase)
+        print("Seuil : ", Seuil[X.id_plante][X.id_talle]) 
       
       if X.Phase!='mature':
         if (X.Taillegaine< Seuil[X.id_plante][X.id_talle] +13):
