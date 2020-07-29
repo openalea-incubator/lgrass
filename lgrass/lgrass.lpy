@@ -89,6 +89,8 @@ random.seed(seed)
 ##### Activation de la floraison #####
 #option_floraison = True        # True or False
 
+##### Activation caribu #####
+option_caribu = False   # l'appel de caribu n'est pas encore implémenté dans lgrass
 
 ##### Activation sorties graphiques
 option_graphic_outputs = True

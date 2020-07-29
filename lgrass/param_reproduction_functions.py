@@ -112,7 +112,7 @@ def define_param(in_param_file=None, in_genet_file=None, out_param_file=None, id
     if in_param_file is None:
         in_param_file = 'inputs/liste_plantes.csv'
     if out_param_file is None:
-        out_param_file = 'outputs/Simulation_G' + str(id_gener) + '.csv'
+        out_param_file = 'outputs/Simulation' + str(id_gener) + '.csv'
     if opt_repro != "False":
         infile = get_genet_file(in_genet_file=in_genet_file)
         genet_data = infile.loc[infile['D'] == str(id_gener), :]

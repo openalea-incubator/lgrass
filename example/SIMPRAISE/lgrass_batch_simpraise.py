@@ -12,9 +12,10 @@ import openalea.plantgl as opal
 import meteo_ephem
 import param_reproduction_functions as prf
 import cuts
-import caribu
+import run_caribu_lgrass
 import gen_lstring
 import pandas as pd
+import numpy as np
 import time
 
 
@@ -50,7 +51,7 @@ def runlsystem(plan_sim=None, id_scenario=0, id_gener=1):
 
     # Parametres des plantes
     lsystem.ParamP, lsystem.nb_plantes, lsystem.NBlignes, lsystem.NBcolonnes, lsystem.posPlante, lsystem.Plantes, lsystem.Genotypes, lsystem.flowering_model = prf.define_param(
-        in_param_file=in_param_file, in_genet_file=in_genet_file, out_param_file=os.path.join(OUTPUTS_DIRPATH, name + '_G' + str(id_gener) + '.csv'),
+        in_param_file=in_param_file, in_genet_file=in_genet_file, out_param_file=os.path.join(OUTPUTS_DIRPATH, name + '.csv'),
         id_gener=id_gener, opt_repro=opt_repro)
 
 
@@ -79,7 +80,7 @@ def runlsystem(plan_sim=None, id_scenario=0, id_gener=1):
     # Gestion caribu
     opt_caribu = row["option_caribu"]
     if opt_caribu:
-        dico_caribu = caribu.init(meteo=lsystem.meteo, nb_plantes=lsystem.nb_plantes, scenario=row)
+        dico_caribu = run_caribu_lgrass.init(meteo=lsystem.meteo, nb_plantes=lsystem.nb_plantes, scenario=row)
         lsystem.BiomProd = [0.] * lsystem.nb_plantes
         # Rédaction d'un fichier de sortie
         path_out = os.path.join(OUTPUTS_DIRPATH, name + '_caribu.csv')
@@ -98,9 +99,9 @@ def runlsystem(plan_sim=None, id_scenario=0, id_gener=1):
             if lsystem.current_day > day:
                 # fonction d'application de caribu
                 lsystem.BiomProd, dico_caribu['radiation_interception'], dico_caribu[
-                    'Ray'] = caribu.runcaribu(lstring, lscene, lsystem.current_day,
-                                              lsystem.tiller_appearance,
-                                              lsystem.nb_plantes, dico_caribu)
+                    'Ray'] = run_caribu_lgrass.runcaribu(lstring, lscene, lsystem.current_day,
+                                                         lsystem.tiller_appearance,
+                                                         lsystem.nb_plantes, dico_caribu)
                 # fichier de sortie de caribu
                 output.write(";".join(
                     [str(lsystem.TPS), str(lsystem.sowing_date), str(lsystem.current_day), str(lsystem.nb_talle[0]),
@@ -110,7 +111,7 @@ def runlsystem(plan_sim=None, id_scenario=0, id_gener=1):
     # Matrice de croisement des plantes
     if opt_repro != "False":
         mat = prf.create_seeds(lstring, lsystem.nb_plantes, opt_repro, row["cutting_freq"], lsystem.ParamP)
-        print mat
+        np.savetxt(os.path.join(OUTPUTS_DIRPATH, name + "_mat.csv"), mat)
     else:
         mat = 0
 
@@ -141,6 +142,8 @@ def simpraise(plan_sim=None, id_scenario=0):
 
     # Boucle des générations
     for i in range(1, row['num_gener'] + 1):
+        # fichiers de sortie associés à la ième génération
+        plan_sim["name"] = row["name"] + "_G" + str(i)
         # modèle morpho et matrice de croisement
         mat = runlsystem(plan_sim=plan_sim, id_scenario=id_scenario, id_gener=i)
         # modèle génétique et paramètre C
@@ -148,9 +151,9 @@ def simpraise(plan_sim=None, id_scenario=0):
     return 0
 
 
-# timing = time.time()
-# plan = pd.read_csv("inputs/plan_simulation.csv", sep=',')
+timing = time.time()
+plan = pd.read_csv("inputs/plan_simulation.csv", sep=',')
 
 # runlsystem(plan, 3, 1)
-# simpraise(plan_sim=plan, id_scenario=1)
-# print('Global execution time : ', time.time() - timing)
+simpraise(plan_sim=plan, id_scenario=0)
+print('Global execution time : ', time.time() - timing)
