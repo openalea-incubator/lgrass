@@ -217,7 +217,7 @@ scales['Entrenoeud']=4
 parameters['Entrenoeud']=['ParamEntrenoeud']
 
 class ParamApex:
-  def __init__(self, id_plante, id_talle, id_rang=1, topology=(0,), retard=0, total_emerged_leaves=0, total_created_leaves=0, day=0, primary_induction_index=0, secondary_induction_index=0, phenological_state='vegetative', primordia_number=3, spikelet_created=0, final_leaf_number=None, final_spikelet_number=None, organ_lengths_dict={}, terminal_spikelet_height=0, heading_date=None, appearance_date=None, id_geno=0):   # PARAMETRE
+  def __init__(self, id_plante, id_talle, id_rang=1, topology=(0,), retard=0, total_emerged_leaves=0, total_created_leaves=0, day=0, primary_induction_index=0, secondary_induction_index=0, phenological_state='vegetative', primordia_number=3, spikelet_created=0, final_leaf_number=None, final_spikelet_number=None, organ_lengths_dict={}, terminal_spikelet_height=0, heading_date=0, appearance_date=None, id_geno=0, Premiecroiss=0, C=0, leaf_primary_induction_index=0, leaf_secondary_induction_index=0, leaf_phenological_state=None):   # PARAMETRE
     self.id_plante = id_plante
     self.id_talle = id_talle
     self.id_rang = id_rang
@@ -238,6 +238,11 @@ class ParamApex:
     self.heading_date = heading_date
     self.appearance_date = appearance_date
     self.id_geno=id_geno
+    self.Premiecroiss = Premiecroiss
+    self.C = C
+    self.leaf_primary_induction_index = leaf_primary_induction_index
+    self.leaf_secondary_induction_index = leaf_secondary_induction_index
+    self.leaf_phenological_state = leaf_phenological_state
     
 scales['apex']=4
 parameters['apex']=['ParamApex']
@@ -509,7 +514,7 @@ def my_axialtree2mtg(tree, scale, scene, parameters, TREE=[]):
 def LongueurFeuilleCoupee(segments_feuille,ID): #Renvoie idLong si hauteur>HCOUP, renvoie -1 si hauteur<HCOUP
   for x in segments_feuille:
     if x[0].hauteur > ParamP[ID]['HCOUP']:
-      return x[0].idLong  # Retourne l'id du 1er segment coupï¿½
+      return x[0].idLong  # Retourne l'id du 1er segment coup?
   return -1 
 
 ########   Fonction racinaires   ########
@@ -755,9 +760,12 @@ def Start():
     ligule_height_dict = {}
     
     ##### Definition des groupes de production #####
-    surface_foliaire_emergee =[0.]*(nb_plantes) # Surface foliaire ï¿½mergï¿½e totale obtenue a la fin d'un pas
+    surface_foliaire_emergee =[0.]*(nb_plantes) # Surface foliaire ?merg?e totale obtenue a la fin d'un pas
     Surfoliaireencours=[0.]*(nb_plantes) # variable de calcul de la surface foliaire totale
   
+  ##### Definition des groupes de production #####
+  surface_foliaire_emergee =[0.]*(nb_plantes) # Surface foliaire émergée totale obtenue a la fin d'un pas
+  Surfoliaireencours=[0.]*(nb_plantes) # variable de calcul de la surface foliaire totale
   Premiecroiss=[ParamP[i]['Premiecroiss'] for i in range(nb_plantes)]
   
   ##### Relation allometrique #####
@@ -837,7 +845,7 @@ def StartEach(lstring):
           
   
   
-  #### Rï¿½gression des talles : Dï¿½termination des zones oï¿½ appliquer le Cut
+  #### R?gression des talles : D?termination des zones o? appliquer le Cut
   if option_tiller_regression == True and current_day > 1:
     mortality_zone = pd.DataFrame()
     for i in [i for i in range(len(lstring))]:
@@ -905,7 +913,7 @@ def EndEach(lstring, lscene):
       # Biomasse et surface des feuilles emergees uniquement
       Biomasse_aerienne[id_plante] += sum([x.biomass for x in les_feuilles_talle])
       surface_foliaire_emergee[id_plante] += sum([x.surface_limbe for x in les_feuilles_talle])  #: N'ajoute que les surfaces de limbes emerges
-      # ajoute les surfaces des gaines emergees ï¿½ partir de Seuil
+      # ajoute les surfaces des gaines emergees ? partir de Seuil
       seuil_talle = Seuil[id_plante][id_talle]
       diametre_seuil_talle = max((2 / pi) * (paramManagement['CoefDirLonLarAjust'] * log(max(seuil_talle * 5,1)) - paramManagement['OrdOriLonLarAjust']), 0.1)
       surface_gaine_emergee = (seuil_talle * pi * diametre_seuil_talle) / 2  # Surface projetee
@@ -924,7 +932,7 @@ def EndEach(lstring, lscene):
         # Approche RUE
         BiomassCree = BiomProd[id_plante]
       else:
-        # Approche croissance biomasse exponentielle (cf thï¿½se Vincent Migault)
+        # Approche croissance biomasse exponentielle (cf th?se Vincent Migault)
         BiomassCree=t2[id_plante]*(Biomasse_aerienne[id_plante]+t1[id_plante])*(1+Beta[id_plante]*Alpha[id_plante]*(Biomasse_aerienne[id_plante])**(Alpha[id_plante]-1))
 
       # Allocation aerien/racinaire + ratio offre/demande
@@ -1048,11 +1056,12 @@ def End(lstring,lscene): #Ecriture et fermeture des fichiers de sortie
     graphic.graph_LAI(os.path.join(OUTPUTS_DIRPATH, outvarfile), Espacement)
     graphic.graph_leaf_number(os.path.join(OUTPUTS_DIRPATH, outvarfile))
     
-
-
+  
+  
   print('Execution time :',t.time()-timing)
 
 
+  print('Execution time :',t.time()-timing)
 
 
 def FoncCroiss(t, Ymax, tend, tmax): # fonction de croissance de feuille
@@ -1178,7 +1187,7 @@ Plante(X):
       YF=ParamFeuille(age=0, Agecroiss=0, Taillefeuille=0, id_plante=X.id_plante ,id_rang=1, Ymax=Premiecroiss[X.id_plante], Taillefinalelimbe=0.8*Premiecroiss[X.id_plante], Taillefinalegaine=0.2*Premiecroiss[X.id_plante],id_geno=X.id_geno)
       Yb=ParambourgeonRoot(X.id_plante,id_talle=0,id_rang=1,id_geno=X.id_geno)
       YAT=ParamApexTal(X.id_plante,id_talle=0,id_rang=1,id_geno=X.id_geno)
-      YA=ParamApex(X.id_plante, id_talle=0 ,id_rang=1, id_geno=X.id_geno, total_created_leaves=1)
+      YA=ParamApex(X.id_plante, id_talle=0 ,id_rang=1, id_geno=X.id_geno, total_created_leaves=1, Premiecroiss=ParamP[X.id_plante]['Premiecroiss'], C=ParamP[X.id_plante]['C'])
       YINT=ParamEntrenoeud(X.id_plante,id_talle=0,id_rang=1)      # AJOUT SIMON
       
       # Remplissage des hauteurs d organes
@@ -1224,7 +1233,7 @@ Feuille(X, X_apex, X_phytomere):
     if X.Phase!='mature':
       ##### Modif potentiel apres coupe ######
       if reprise_coupe==True and X.Phase=='visible':
-        LEDGAINE=((0.2*110*5)*2)-110
+        LEDGAINE=((0.2*X_apex.Premiecroiss*5)*2)-X_apex.Premiecroiss
         TrueAge=TpourY2(Seuil[X.id_plante][X.id_talle],paramManagement['Yfinit'], paramManagement['Jled']*LEDGAINE,paramManagement['Kled']*paramManagement['Jled']*LEDGAINE) #Jled*LEDGAINE correspond a te, Kled*Jled*LEDGAINE correspond a tm (These Alban Verdenal)
         NewYmax=ParamP[X.id_plante]['C']*((pow(paramManagement['T01'],(TrueAge+paramManagement['tb1'])*paramManagement['k1'])-paramManagement['Lpot'])-(pow(paramManagement['T02'],(TrueAge+paramManagement['tb2'])*paramManagement['k2']))) # Fonction potentiel de croissance
         if NewYmax>X.Ymax:
@@ -1249,16 +1258,21 @@ Feuille(X, X_apex, X_phytomere):
           X.Phase='visible'
           X_apex.total_emerged_leaves += 1                                                      # Ajoute une feuille visible a l apex
           Seuil[X.id_plante][X.id_talle] *= 1.
-          LEDGAINE=((0.2*Premiecroiss[X.id_plante]*5)*2)-Premiecroiss[X.id_plante]
+          LEDGAINE=((0.2*X_apex.Premiecroiss*5)*2)-X_apex.Premiecroiss
           X.TailleEmergence=Seuil[X.id_plante][X.id_talle]
           TrueAge=X.age-dt #On pourrait affiner la determination de TrueAge qui en realite a eu lieu entre age-dt et age-2dt (soit on prend la moyenne soit au prorata des longueurs)
-
+          
           genotype=X.id_geno
-
-          if TrueAge < 118:
-            X.Ymax = ParamP[X.id_plante]['C']*((pow(paramManagement['T01'],(TrueAge+paramManagement['tb1'])*paramManagement['k1'])-paramManagement['Lpot'])-(pow(paramManagement['T02'],(TrueAge+paramManagement['tb2'])*paramManagement['k2']))) #Alban
-          else:
-            X.Ymax = ParamP[X.id_plante]['C']*338.5554
+          
+          X.Ymax = X_apex.C*((pow(paramManagement['T01'],(TrueAge+paramManagement['tb1'])*paramManagement['k1'])-paramManagement['Lpot'])-(pow(paramManagement['T02'],(TrueAge+paramManagement['tb2'])*paramManagement['k2']))) #Alban
+          
+          # A REMETTRE SIMON
+          #if TrueAge < 118:
+          #  X.Ymax = ParamP[genotype]['C']*((pow(paramManagement['T01'],(TrueAge+paramManagement['tb1'])*paramManagement['k1'])-paramManagement['Lpot'])-(pow(paramManagement['T02'],(TrueAge+paramManagement['tb2'])*paramManagement['k2']))) #Alban
+          #else:
+          #  X.Ymax = ParamP[genotype]['C']*338.5554
+            
+          
           #X.Ymax=ParamP[genotype]['C']*(1*exp(0.032*(TrueAge+paramManagement['tb1']))-1*exp(0.047*(TrueAge+paramManagement['tb2']))-paramManagement['Lpot'])  #TF
           
           #else:
@@ -1350,21 +1364,18 @@ Feuille(X, X_apex, X_phytomere):
             NextAccroiss=(FoncCroiss(X.Agecroiss+dt, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)-FoncCroiss(X.Agecroiss, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE))         
         if (X.Taillegaine>0.98*X.Taillefinalegaine and X.Taillegaine<=Taille_finale_gaine[X.id_plante][X.id_talle][X.id_rang-1] -5 and X.Phase=='visible'):
           NextAccroiss=1        
-        if (X.Taillegaine>=Taille_finale_gaine[X.id_plante][X.id_talle][X.id_rang-1]):
-          if(X.Phase=='visible'):
-            NextAccroiss=0
-          else:
-            NextAccroiss=0  #Ajout Thibault resoudre un bug d absence de declaration de NextAccroiss
-            print('cas theoriquement improbable '+str(X.id_plante)+' '+str(X.id_talle))
+        if (X.Taillegaine>=Taille_finale_gaine[X.id_plante][X.id_talle][X.id_rang-1] +13 and X.Phase=='visible'):
+          NextAccroiss=0          
+          
         long=X.Taillefeuille+NextAccroiss
         Next_feuil=BiomassFeuille(long,X.coupe,X.id_geno)
         X.Besoinencroiss=Next_feuil-X.biomass
-
+        
     else:      
       long=X.Taillefeuille
       coupe=X.coupe
       Next_feuil=paramManagement['FacBiom1']*(paramManagement['b0']*exp(paramManagement['b1']*(long+coupe)**2+paramManagement['b2']*(long+coupe))-paramManagement['b0'])*(long/(long+coupe))
-
+      
       ####### Senescence #######
       
       Agesenesc = paramManagement['T0sen'] + X.Ymax * 1.5
@@ -1520,7 +1531,7 @@ Feuille(X, X_apex, X_phytomere):
       Taille_finale_gaine[X.id_plante][X.id_talle][X.id_rang]=X.Taillegaine
       
       if X.id_rang==1 and X.id_talle>0 and X.topology!=(0,0):  # Premiere feuille de chaque talle sauf brin maitre et talle coleoptile
-        feuille_ref = les_feuilles[(les_feuilles['Plante'] == X.id_plante) & (les_feuilles['Topology'] == X.topology[:-1]) & (les_feuilles['id_rang'] == max(1, X.topology[-1]))].iloc[0]['ObjetOrgane']    # Feuille axillante de l'ordre prï¿½cï¿½dent (le max sert a traiter les cas des 1ers rangs)
+        feuille_ref = les_feuilles[(les_feuilles['Plante'] == X.id_plante) & (les_feuilles['Topology'] == X.topology[:-1]) & (les_feuilles['id_rang'] == max(1, X.topology[-1]))].iloc[0]['ObjetOrgane']    # Feuille axillante de l'ordre pr?c?dent (le max sert a traiter les cas des 1ers rangs)
         Seuil[X.id_plante][X.id_talle]=max(Seuil[X.id_plante][X.id_talle], feuille_ref.Taillegaine)
       X.biomass=BiomassFeuille(X.Taillefeuille,X.coupe,X.id_geno)
     else:
@@ -1582,6 +1593,21 @@ apex(X):
     # The two inductions are irreversible.
     # ------------------------------------------------------------------------------------------------
 
+    # ------------------------------------------------------------------------------------------------
+    # ------------------------- Management of the flowering state of the apex ------------------------
+    # ------------------------------------------------------------------------------------------------
+    # The apex parameters are updated at the end of each day.
+    # A unique temperature and a daylength are associated to each day
+    # 'primary_induction_index' is a cumulated sum of a daily 'primary_induction_increment' calculated
+    #	                     by 'flowering_functions.py' using daily mean temperature
+    # 'secondary_induction_index' is a cumulated sum of a daily 'secondary_induction_increment'        
+    #                     calculated by 'flowering_functions.py' using daily mean temperature
+    # When the primary induction is completed (index>1) and the apex has created 2 leaves (1 emerged) it become competent to the secondary   
+    # induction on the next day.
+    # When the secondary induction is completed (index>1), the apex become reproductive.
+    # The two inductions are irreversible.
+    # ------------------------------------------------------------------------------------------------
+    
     if option_floraison == True:
       if X.phenological_state == 'vegetative':
         X.primary_induction_index += flowering_model.vernalisation_function(daily_temperature,X.id_plante)
@@ -1595,10 +1621,34 @@ apex(X):
         if X.secondary_induction_index >= 1:
           X.phenological_state = 'reproductive'
           print('reproductive')
-
+          
     df_induction = df_induction.append({'GDD': TPS, 'Date': date, 'Site': site, 'Day': current_day, 'Daily_mean_temperature': daily_temperature, 'Daily_daylength': daily_daylength, 'Id_plante': X.id_plante, 'Id_talle': X.id_talle, 'topology':X.topology, 'Leaf_produced': X.total_created_leaves, 'Primordia_on_apex': X.primordia_number, 'Spikelet_number': X.spikelet_created, 'Vernalisation_rate': X.primary_induction_index, 'Secondary_induction_rate': X.secondary_induction_index, 'Heading_date': X.heading_date}, ignore_index = True)
-
-
+    
+    # ------------------------------------------------------------------------------------------------
+    # --------------- Management of the phenological increase in leaf growth rate --------------------
+    # ------------------------------------------------------------------------------------------------
+    # 'leaf_primary_induction_index' is a cumulated sum of a daily 'primary_induction_increment' calculated
+    #	                     by 'flowering_functions.py' using daily mean temperature
+    # 'leaf_secondary_induction_index' is a cumulated sum of a daily 'secondary_induction_increment'        
+    #                     calculated by 'flowering_functions.py' using daily mean temperature
+    # When the leaf primary induction and leaf primary induction are completed, leaf growth rate is changed by changing Premiecroiss and C of the apex
+    # ------------------------------------------------------------------------------------------------
+    
+    if option_floraison == True:
+      if X.leaf_phenological_state == 'vegetative':
+        X.leaf_primary_induction_index += flowering_model.param.leaf_primary_induction_coeff * flowering_model.vernalisation_function(daily_temperature)
+        
+        if X.leaf_primary_induction_index >= 1:
+          X.leaf_phenological_state = 'primary_induced'          
+      
+      elif (X.leaf_phenological_state == 'primary_induced' and X.total_created_leaves > 1):
+        X.leaf_secondary_induction_index += flowering_model.param.leaf_secondary_induction_coeff * flowering_model.photoperiod_induction_function(daily_daylength)
+        if X.leaf_secondary_induction_index >= 1:
+          X.leaf_phenological_state = 'secondary_induced'
+          X.Premiecroiss = flowering_model.param.increase_growth_Premiecroiss * X.Premiecroiss
+          X.C = increase_growth_C * X.C
+  
+  
   if groupe=='croissance':     
     if (X.phenological_state == 'vegetative' or X.phenological_state == 'vernalized' or (X.phenological_state == 'reproductive' and (X.final_leaf_number is None or X.total_created_leaves < X.final_leaf_number))):
       feuille_ref = les_feuilles[(les_feuilles['Plante'] == X.id_plante) & (les_feuilles['id_talle'] == X.id_talle) & (les_feuilles['id_rang'] == X.id_rang)].iloc[0]['ObjetOrgane']
@@ -1606,7 +1656,7 @@ apex(X):
         #Seuil[X.id_plante][X.id_talle]=Seuil[X.id_plante][X.id_talle] * 1.15
         Taille_finale_gaine[X.id_plante][X.id_talle].append(5.5)
         YP=ParamPhytomere(X.id_plante,X.id_talle,X.id_rang+1, topology=X.topology)
-        YF=ParamFeuille(age=0,Agecroiss=0,Taillefeuille=0,id_plante=X.id_plante,id_talle=X.id_talle,id_rang=X.id_rang+1,topology=X.topology, Ymax=Premiecroiss[X.id_plante],Taillefinalelimbe=0.8*Premiecroiss[X.id_plante],Taillefinalegaine=0.2*Premiecroiss[X.id_plante], id_geno=X.id_geno)
+        YF=ParamFeuille(age=0,Agecroiss=0,Taillefeuille=0,id_plante=X.id_plante,id_talle=X.id_talle,id_rang=X.id_rang+1,topology=X.topology, Ymax=X.Premiecroiss,Taillefinalelimbe=0.8*X.Premiecroiss,Taillefinalegaine=0.2*X.Premiecroiss, id_geno=X.id_geno)
         Yb=ParambourgeonRoot(X.id_plante,X.id_talle,X.id_rang+1, id_geno=X.id_geno)
         YAT=ParamApexTal(id_plante = X.id_plante, id_talle = X.id_talle, id_rang = X.id_rang+1, topology=X.topology, id_geno=X.id_geno)
         YINT=ParamEntrenoeud(X.id_plante, X.id_talle, X.id_rang+1, topology=X.topology)      # AJOUT SIMON
@@ -1680,11 +1730,11 @@ apex(X):
             height += X.organ_lengths_dict[i]['internode']
           if height >= highest_ligule['height']:
             highest_ligule = {'id_rang': phytomere_rank, 'height': height}
-
+            
         X.terminal_spikelet_height = X.organ_lengths_dict[max(X.organ_lengths_dict.keys())]['spikelet']
         for phytomere_rank in X.organ_lengths_dict.keys():
           X.terminal_spikelet_height += X.organ_lengths_dict[phytomere_rank]['internode']
-
+          
         if (X.heading_date == 0 and X.terminal_spikelet_height > highest_ligule['height']):
           X.heading_date = current_day
           
@@ -1716,7 +1766,7 @@ ApexTal(X):
             YF=ParamFeuille(age=0,Agecroiss=0,Taillefeuille=0,id_plante=X.id_plante,id_talle=nb_talle[X.id_plante],id_rang=1, topology=tiller_topology, Ymax=Premiecroiss[X.id_plante],Taillefinalelimbe=0.8*Premiecroiss[X.id_plante],Taillefinalegaine=0.2*Premiecroiss[X.id_plante])
             Yb=ParambourgeonRoot(X.id_plante,nb_talle[X.id_plante],id_rang=1)
             YAT=ParamApexTal(X.id_plante,nb_talle[X.id_plante],id_rang=1, topology=tiller_topology)
-            YA=ParamApex(X.id_plante,nb_talle[X.id_plante],id_rang=1, topology=tiller_topology)
+            YA=ParamApex(X.id_plante,nb_talle[X.id_plante],id_rang=1, topology=tiller_topology, Premiecroiss=ParamP[X.id_plante]['Premiecroiss'], C=ParamP[X.id_plante]['C'])
             YINT=ParamEntrenoeud(X.id_plante,id_talle=0,id_rang=1, topology=tiller_topology)      # AJOUT SIMON
             
             YA.organ_lengths_dict = {YP.id_rang: {'limb': YF.Taillelimbe, 'sheath': YF.Taillegaine, 'internode': YINT.length}}
@@ -1733,7 +1783,7 @@ ApexTal(X):
               YF=ParamFeuille(age=0,Agecroiss=0,Taillefeuille=0,id_plante=X.id_plante,id_talle=nb_talle[X.id_plante],id_rang=1, topology=tiller_topology, Ymax=Premiecroiss[X.id_plante],Taillefinalelimbe=0.8*Premiecroiss[X.id_plante],Taillefinalegaine=0.2*Premiecroiss[X.id_plante])
               Yb=ParambourgeonRoot(X.id_plante,nb_talle[X.id_plante],id_rang=1)
               YAT=ParamApexTal(X.id_plante,nb_talle[X.id_plante],id_rang=1, topology=tiller_topology)
-              YA=ParamApex(X.id_plante,nb_talle[X.id_plante],id_rang=1, topology=tiller_topology)
+              YA=ParamApex(X.id_plante,nb_talle[X.id_plante],id_rang=1, topology=tiller_topology, Premiecroiss=ParamP[X.id_plante]['Premiecroiss'], C=ParamP[X.id_plante]['C'])
               YINT=ParamEntrenoeud(X.id_plante,id_talle=0,id_rang=1, topology=tiller_topology)      # AJOUT SIMON
               
               YA.organ_lengths_dict = {YP.id_rang: {'limb': YF.Taillelimbe, 'sheath': YF.Taillegaine, 'internode': YINT.length}}
@@ -2313,7 +2363,7 @@ def __initialiseContext__(context):
 	    )
 	profilefoldlimbe.name = "profilefoldlimbe"
 	profilegaine = pgl.NurbsCurve2D(	
-	    ctrlPointList = pgl.Point3Array([(-0.407478, -0.0511938, 1),(-0.390245, -0.17963, 1),(-0.355, -0.3575, 1),(-0.0025, -0.4925, 1),(0.363333, -0.355, 1),(0.47, -5.58794e-09, 1),(0.349167, 0.3425, 1),(0.005, 0.455, 1),(-0.3275, 0.3625, 1),(-0.380592, 0.203264, 1),(-0.402904, 0.0550844, 1)]) ,
+	    ctrlPointList = pgl.Point3Array([(-0.407478, -0.0511938, 1),(-0.390245, -0.17963, 1),(-0.355, -0.3575, 1),(-0.0025, -0.4925, 1),(0.363333, -0.355, 1),(0.47, -5.58794e-09, 1),(0.349167, 0.3425, 1),(0.005, 0.455, 1),(-0.3275, 0.3625, 1),(-0.380592, 0.203264, 1),(-0.402904, 0.0550844, 1)]) , 
 	    )
 	profilegaine.name = "profilegaine"
 	panel_0 = ({'name': 'Curve2D', 'active': True, 'visible': False},[('Curve2D',profilelimbe),('Curve2D',profilefoldlimbe),('Curve2D',profilegaine)])
