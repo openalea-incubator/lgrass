@@ -12,14 +12,24 @@ class FloweringFunctions:
         :param temperature:
         :return:
         """
-        if self.param.temp_vern_min[i] <= temperature <= self.param.temp_vern_inter[i]:
-            primary_induction_increment = self.param.daily_vern_rate[i] * temperature + self.param.basic_vern_rate[i]
-        elif self.param.temp_vern_inter[i] < temperature <= self.param.temp_vern_max[i]:
-            #primary_induction_increment = (self.param.daily_vern_rate * temperature + self.param.basic_vern_rate) * (self.param.temp_vern_max - temperature) / (self.param.temp_vern_max - self.param.temp_vern_inter)
-            primary_induction_increment = (-temperature + self.param.temp_vern_max[i]) * (self.param.daily_vern_rate[i] * self.param.temp_vern_inter[i] + self.param.basic_vern_rate[i]) / (self.param.temp_vern_max[i] - self.param.temp_vern_inter[i])
+        if type(self.param.temp_vern_min == list):
+            if self.param.temp_vern_min[i] <= temperature <= self.param.temp_vern_inter[i]:
+                primary_induction_increment = self.param.daily_vern_rate[i] * temperature + self.param.basic_vern_rate[i]
+            elif self.param.temp_vern_inter[i] < temperature <= self.param.temp_vern_max[i]:
+                #primary_induction_increment = (self.param.daily_vern_rate * temperature + self.param.basic_vern_rate) * (self.param.temp_vern_max - temperature) / (self.param.temp_vern_max - self.param.temp_vern_inter)
+                primary_induction_increment = (-temperature + self.param.temp_vern_max[i]) * (self.param.daily_vern_rate[i] * self.param.temp_vern_inter[i] + self.param.basic_vern_rate[i]) / (self.param.temp_vern_max[i] - self.param.temp_vern_inter[i])
+            else:
+                primary_induction_increment = 0
+            return primary_induction_increment
         else:
-            primary_induction_increment = 0
-        return primary_induction_increment
+            if self.param.temp_vern_min <= temperature <= self.param.temp_vern_inter:
+                primary_induction_increment = self.param.daily_vern_rate * temperature + self.param.basic_vern_rate
+            elif self.param.temp_vern_inter < temperature <= self.param.temp_vern_max:
+                #primary_induction_increment = (self.param.daily_vern_rate * temperature + self.param.basic_vern_rate) * (self.param.temp_vern_max - temperature) / (self.param.temp_vern_max - self.param.temp_vern_inter)
+                primary_induction_increment = (-temperature + self.param.temp_vern_max) * (self.param.daily_vern_rate * self.param.temp_vern_inter + self.param.basic_vern_rate) / (self.param.temp_vern_max - self.param.temp_vern_inter)
+            else:
+                primary_induction_increment = 0
+            return primary_induction_increment
 
     def photoperiod_induction_function(self, daylength,i):
         """
@@ -27,11 +37,18 @@ class FloweringFunctions:
         :param daylength:
         :return:
         """
-        if daylength < self.param.photoperiod_min[i]:
-            secondary_induction_increment = 0
+        if type(self.param.temp_vern_min == list):
+            if daylength < self.param.photoperiod_min[i]:
+                secondary_induction_increment = 0
+            else:
+                secondary_induction_increment = (daylength - self.param.photoperiod_min[i]) / (self.param.photoperiod_max[i] - self.param.photoperiod_min[i])
+            return secondary_induction_increment
         else:
-            secondary_induction_increment = (daylength - self.param.photoperiod_min[i]) / (self.param.photoperiod_max[i] - self.param.photoperiod_min[i])
-        return secondary_induction_increment
+            if daylength < self.param.photoperiod_min:
+                secondary_induction_increment = 0
+            else:
+                secondary_induction_increment = (daylength - self.param.photoperiod_min) / (self.param.photoperiod_max - self.param.photoperiod_min)
+            return secondary_induction_increment
 
 #    def final_phytomer_number
 
