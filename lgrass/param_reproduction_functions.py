@@ -132,8 +132,8 @@ def define_param(in_param_file=None, in_genet_file=None, out_param_file=None, id
     # Conversion du paramètre génétique en valeur de C
     if opt_repro != 'False':
         if len(param_plante.columns) < len(genet_data):
-            print "Attention, des plantes sont manquantes dans le fichier de paramètres pour l'application du modèle génétique"
-            print "Des copies de la dernière plante enregistrée ont été ajoutées pour completer la simulation"
+            print("Attention, des plantes sont manquantes dans le fichier de paramètres pour l'application du modèle génétique")
+            print("Des copies de la dernière plante enregistrée ont été ajoutées pour completer la simulation")
             for line in range(len(param_plante.columns), len(genet_data)):
                 param_plante[line+1] = param_plante[line]
         for i in range(len(genet_data)):
@@ -150,8 +150,7 @@ def define_param(in_param_file=None, in_genet_file=None, out_param_file=None, id
     nb_plantes = len(ParamP)
     NBlignes = int(math.ceil(np.sqrt(nb_plantes)))
     NBcolonnes = int(math.floor(np.sqrt(nb_plantes)))
-
-    posPlante = [[i, j] for i, j in zip(sorted(range(NBlignes) * NBcolonnes), range(NBcolonnes) * NBlignes)]
+    posPlante = [[i, j] for i, j in zip(sorted(list(range(NBlignes)) * NBcolonnes), list(range(NBcolonnes)) * NBlignes)]
     Plantes = np.arange(nb_plantes).reshape(NBlignes, NBcolonnes)
     Genotypes = np.array([i for i in param_plante.loc['geno']]).reshape(NBlignes, NBcolonnes)
     return ParamP, nb_plantes, NBlignes, NBcolonnes, posPlante, Plantes, Genotypes, flowering_param

@@ -96,7 +96,7 @@ class GraphicOutputs:
                                                                          'Nombre_feuilles' + '.pdf'))
         # Read csv file
         df = pd.read_csv(csv_name)
-        df_grouped = df.groupby('topologie')
+        df_grouped = df.groupby('topology')
 
         # plot leaf number
         for topo, data in df_grouped:

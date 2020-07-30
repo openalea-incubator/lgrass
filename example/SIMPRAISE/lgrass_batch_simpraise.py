@@ -9,11 +9,12 @@
 import os
 import openalea.lpy as opy
 import openalea.plantgl as opal
-import meteo_ephem
-import param_reproduction_functions as prf
-import cuts
-import run_caribu_lgrass
-import gen_lstring
+from lgrass import meteo_ephem
+from lgrass import param_reproduction_functions as prf
+from lgrass import cuts
+from lgrass import run_caribu_lgrass
+from lgrass import gen_lstring
+import lgrass
 import pandas as pd
 import numpy as np
 import time
@@ -37,7 +38,7 @@ def runlsystem(plan_sim=None, id_scenario=0, id_gener=1):
     # Charger le plan de simulation et le lsystem
     row = plan_sim.iloc[id_scenario]
     name = str(row["name"])
-    lpy_filename = os.path.join('lgrass.lpy')
+    lpy_filename = os.path.join(lgrass.__path__[0], 'lgrass.lpy')
     lsystem = opy.Lsystem(lpy_filename)
     lsystem.name_sim = name
 
@@ -152,7 +153,7 @@ def simpraise(plan_sim=None, id_scenario=0):
 
 
 timing = time.time()
-plan = pd.read_csv("inputs/plan_simulation.csv", sep=',')
+plan = pd.read_csv("plan_simulation.csv", sep=',')
 
 # runlsystem(plan, 3, 1)
 simpraise(plan_sim=plan, id_scenario=0)

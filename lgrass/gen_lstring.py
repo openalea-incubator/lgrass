@@ -16,8 +16,6 @@ var_dir = "outputs/Sauvegardes_axiom/variables/"
 
 # Sauvegarder une lstring dans un répertoire lstring_dir et les variables lgrass dans un répertoire var_dir
 def save_lstring(lstring, lsystem):
-    print lstring
-    # la lstring
     if not os.path.isdir(lstring_dir):
         os.makedirs(lstring_dir)
     for mod in range(len(lstring)):

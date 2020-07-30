@@ -114,6 +114,6 @@ def runcaribu(lstring, lscene, current_day, tiller_appearance, nb_plantes, dico_
                 if potential_tiller_to_remove.Ei_tiller.item() <= dico_caribu['radiation_threshold']:
                     tiller_to_remove = tiller_to_remove.append(pd.DataFrame(
                         {'id_plante': [id_plante], 'id_talle': [potential_tiller_to_remove.id_talle.item()]}))
-    for ID in xrange(nb_plantes):
+    for ID in range(nb_plantes):
         BiomProd[ID] = dico_caribu['Ray'][ID] * dico_caribu['RUE']  # Ray: MJ PAR ; RUE : g MJ-1
     return BiomProd, dico_caribu['radiation_interception'], dico_caribu['Ray']
