@@ -1365,6 +1365,8 @@ Feuille(X, X_apex, X_phytomere):
           X.TailleEmergence=Seuil[X.id_plante][X.id_talle]
           TrueAge=X.age-dt #On pourrait affiner la determination de TrueAge qui en realite a eu lieu entre age-dt et age-2dt (soit on prend la moyenne soit au prorata des longueurs)
           
+          print("Rang : ", X.id_rang, "TrueAge : ", TrueAge)
+          
           genotype=X.id_geno
           
           tmax_potcroiss = 118 # degre-jour
@@ -1374,9 +1376,9 @@ Feuille(X, X_apex, X_phytomere):
             X.Ymax = X_apex.C*((pow(paramManagement['T01'],(TrueAge+paramManagement['tb1'])*paramManagement['k1'])-paramManagement['Lpot'])-(pow(paramManagement['T02'],(TrueAge+paramManagement['tb2'])*paramManagement['k2']))) #Alban
           elif option_profile == "plateau":
             if TrueAge < tmax_potcroiss:
-              X.Ymax = ParamP[genotype]['C']*((pow(paramManagement['T01'],(TrueAge+paramManagement['tb1'])*paramManagement['k1'])-paramManagement['Lpot'])-(pow(paramManagement['T02'],(TrueAge+paramManagement['tb2'])*paramManagement['k2']))) #Alban
+              X.Ymax = X_apex.C*((pow(paramManagement['T01'],(TrueAge+paramManagement['tb1'])*paramManagement['k1'])-paramManagement['Lpot'])-(pow(paramManagement['T02'],(TrueAge+paramManagement['tb2'])*paramManagement['k2']))) #Alban
             else:
-              X.Ymax = ParamP[genotype]['C']*lmax_potcroiss
+              X.Ymax = X_apex.C*lmax_potcroiss
             
           
           #X.Ymax=ParamP[genotype]['C']*(1*exp(0.032*(TrueAge+paramManagement['tb1']))-1*exp(0.047*(TrueAge+paramManagement['tb2']))-paramManagement['Lpot'])  #TF
@@ -1414,7 +1416,7 @@ Feuille(X, X_apex, X_phytomere):
       if(X.Phase=='mature'):
         AccroissDemande=0
       
-      
+      Pourcent = 1 #Forcage pour obtenir les longueurs potentielles
       if Pourcent==1:
         Accroiss=AccroissDemande
       else:
@@ -1461,13 +1463,6 @@ Feuille(X, X_apex, X_phytomere):
       X_apex.organ_lengths_dict[X.id_rang]['sheath'] = X.Taillegaine
       X_apex.organ_lengths_dict[X.id_rang]['limb'] = X.Taillelimbe
       
-      
-      if X.id_rang == 2:
-        print("Rang : ", X.id_rang, " Gaine : ", X.Taillegaine, " Gaine prec. : ", Taille_finale_gaine[X.id_plante][X.id_talle][X.id_rang-1] +13)
-        print("Longueur feuille : ", X.Taillefeuille, " Gaine : ", X.Taillegaine, " Limbe : ", X.Taillelimbe)
-        print("Ymax : ", X.Ymax)
-        print(X.Phase)
-        print("Seuil : ", Seuil[X.id_plante][X.id_talle]) 
       
       if X.Phase!='mature':
         if (X.Taillegaine< Seuil[X.id_plante][X.id_talle] +13):
