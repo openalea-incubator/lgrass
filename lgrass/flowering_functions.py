@@ -12,7 +12,7 @@ class FloweringFunctions:
         :param temperature:
         :return:
         """
-        if type(self.param.temp_vern_min == list):
+        if isinstance(self.param.temp_vern_min, list):
             if self.param.temp_vern_min[i] <= temperature <= self.param.temp_vern_inter[i]:
                 primary_induction_increment = self.param.daily_vern_rate[i] * temperature + self.param.basic_vern_rate[i]
             elif self.param.temp_vern_inter[i] < temperature <= self.param.temp_vern_max[i]:
@@ -37,7 +37,7 @@ class FloweringFunctions:
         :param daylength:
         :return:
         """
-        if type(self.param.temp_vern_min == list):
+        if isinstance(self.param.temp_vern_min, list):
             if daylength < self.param.photoperiod_min[i]:
                 secondary_induction_increment = 0
             else:

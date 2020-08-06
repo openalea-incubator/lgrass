@@ -37,6 +37,9 @@ paramManagement=dict(zip(TableManagement['name'],TableManagement['value']))
 ParamP=[paramP2] #liste des parametres plante
 nb_plantes=len(ParamP)
 
+Plantes = 0
+Genotypes = 0
+
 num_pointe=0
 num_primordium=0
 
@@ -118,6 +121,19 @@ from lgrass import meteo_ephem
 sowing_date = "2018_11_13"
 site = 'LUSIGNAN'
 meteo_path = os.path.join(INPUTS_DIRPATH, 'meteo_controlled_conditions.csv')
+
+
+
+option_tiller_regression = False
+if option_tiller_regression == True:
+  option_caribu = 'On'
+  period_considered_tiller_regression = 10 # days
+  radiation_threshold = 100000 # rayonnement TODO: a mettre en MJ
+  
+option_morphogenetic_regulation_by_carbone = False
+if option_morphogenetic_regulation_by_carbone == True:
+  option_caribu = 'On'
+  RUE = 2  # g MJ-1
 
 
 # ------------------------------------------------------------------------------------------------
@@ -1163,10 +1179,12 @@ CouvertVegetal(X):
       nproduce CouvertVegetal(2)
       for i in range(NBlignes):
         for j in range(NBcolonnes):
-          #id_plante=i*NBcolonnes+j
-          #id_geno=i
-          id_plante = Plantes[i][j]
-          id_geno = Genotypes[i][j]
+          if isinstance(Plantes, int):
+            id_plante=i*NBcolonnes+j
+            id_geno=i
+          else:
+            id_plante = Plantes[i][j]
+            id_geno = Genotypes[i][j]
           genotype.append(id_geno)
           param=ParamPlante(id_plante,id_geno)
           nb_talle.append(0)
@@ -1680,14 +1698,24 @@ apex(X):
         # When secondary induction is completed, all existing primodia will become leaves
         # When flag leaf is produced (emergence of the penultimate leaf), apex stop to produce spikelets
         # -------------------------------------------------------------------------------------------------
-        if X.secondary_induction_index == 0:
-          X.primordia_number += flowering_model.param.coeff_primordia_emission_vegetative[X.id_plante] - 1    # 1 correspond to the new leaf produced
-        elif X.phenological_state == 'vernalized' and 0 < X.secondary_induction_index:
-          X.primordia_number += flowering_model.param.coeff_primordia_emission_reproductive[X.id_plante] - 1
-        elif X.phenological_state == 'reproductive' or X.secondary_induction_index >= 1:
-          if X.final_leaf_number is None:
-            X.final_leaf_number = X.total_created_leaves + X.primordia_number
-          X.primordia_number += flowering_model.param.coeff_primordia_emission_reproductive[X.id_plante] - 1
+        if isinstance(flowering_model.param.coeff_primordia_emission_vegetative, list):
+          if X.secondary_induction_index == 0:
+            X.primordia_number += flowering_model.param.coeff_primordia_emission_vegetative[X.id_plante] - 1    # 1 correspond to the new leaf produced
+          elif X.phenological_state == 'vernalized' and 0 < X.secondary_induction_index:
+            X.primordia_number += flowering_model.param.coeff_primordia_emission_reproductive[X.id_plante] - 1
+          elif X.phenological_state == 'reproductive' or X.secondary_induction_index >= 1:
+            if X.final_leaf_number is None:
+              X.final_leaf_number = X.total_created_leaves + X.primordia_number
+            X.primordia_number += flowering_model.param.coeff_primordia_emission_reproductive[X.id_plante] - 1
+        else:
+          if X.secondary_induction_index == 0:
+            X.primordia_number += flowering_model.param.coeff_primordia_emission_vegetative - 1    # 1 correspond to the new leaf produced
+          elif X.phenological_state == 'vernalized' and 0 < X.secondary_induction_index:
+            X.primordia_number += flowering_model.param.coeff_primordia_emission_reproductive - 1
+          elif X.phenological_state == 'reproductive' or X.secondary_induction_index >= 1:
+            if X.final_leaf_number is None:
+              X.final_leaf_number = X.total_created_leaves + X.primordia_number
+            X.primordia_number += flowering_model.param.coeff_primordia_emission_reproductive - 1
         produce RollR(180) phytomere(YP, X) bourgeonRoot(Yb, YINT) ApexTal(YAT) Entrenoeud(YINT, X, YF, YP) FLW SB Feuille(YF, X, YP) FLW EB apex(X)
         
       elif X.retard==1:

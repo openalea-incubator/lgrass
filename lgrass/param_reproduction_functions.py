@@ -11,7 +11,7 @@ import pandas as pd
 import math
 import shutil
 import os
-import flowering_functions
+from lgrass import flowering_functions
 
 
 # Créer la matrice de croisement des plantes pour établir une nouvelle génération de nb_plantes
