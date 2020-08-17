@@ -250,13 +250,14 @@ scales['Entrenoeud']=4
 parameters['Entrenoeud']=['ParamEntrenoeud']
 
 class ParamApex:
-  def __init__(self, id_plante, id_talle, id_rang=1, topology=(0,), retard=0, total_emerged_leaves=0, total_created_leaves=0, day=0, primary_induction_index=0, secondary_induction_index=0, phenological_state='vegetative', primordia_number=3, spikelet_created=0, final_leaf_number=None, final_spikelet_number=None, organ_lengths_dict={}, terminal_spikelet_height=0, heading_date=0, appearance_date=None, id_geno=0, Premiecroiss=0, C=0, leaf_primary_induction_index=0, leaf_secondary_induction_index=0, leaf_phenological_state=None):   # PARAMETRE
+  def __init__(self, id_plante, id_talle, id_rang=1, topology=(0,), retard=0, total_emerged_leaves=0, total_mature_leaves=0, total_created_leaves=0, day=0, primary_induction_index=0, secondary_induction_index=0, phenological_state='vegetative', primordia_number=3, spikelet_created=0, final_leaf_number=None, final_spikelet_number=None, organ_lengths_dict={}, terminal_spikelet_height=0, heading_date=0, appearance_date=None, id_geno=0, Premiecroiss=0, C=0, leaf_primary_induction_index=0, leaf_secondary_induction_index=0, leaf_phenological_state='vegetative', leaf_phases_dict={}):   # PARAMETRE
     self.id_plante = id_plante
     self.id_talle = id_talle
     self.id_rang = id_rang
     self.topology=topology                        # Topological information
     self.retard = retard
     self.total_emerged_leaves = total_emerged_leaves
+    self.total_mature_leaves = total_mature_leaves
     self.total_created_leaves = total_created_leaves                         # number of leaves produced by the apex
     self.day = day
     self.primary_induction_index = primary_induction_index
@@ -276,6 +277,7 @@ class ParamApex:
     self.leaf_primary_induction_index = leaf_primary_induction_index
     self.leaf_secondary_induction_index = leaf_secondary_induction_index
     self.leaf_phenological_state = leaf_phenological_state
+    self.leaf_phases_dict = leaf_phases_dict
     
 scales['apex']=4
 parameters['apex']=['ParamApex']
@@ -1295,6 +1297,7 @@ Plante(X):
       
       # Remplissage des hauteurs d organes
       YA.organ_lengths_dict = {Y1.id_rang: {'limb': YF.Taillelimbe, 'sheath': YF.Taillegaine, 'internode': YINT.length}}
+      YA.leaf_phases_dict[YF.id_rang] = YF.Phase
       
       produce Plante(X) phytomere(Y1, YA) RollR(95) bourgeonRoot(Yb, YINT) ApexTal(YAT) Entrenoeud(YINT, YA, YF, Y1) FLW SB Feuille(YF, YA, Y1) FLW EB apex(YA)
       
@@ -1343,6 +1346,8 @@ Feuille(X, X_apex, X_phytomere):
           NewYmax=X.Ymax
         elif NewYmax<X.Taillefeuille+X.coupe:
           X.Phase='mature'
+          X_apex.total_mature_leaves+=1
+          X_apex.leaf_phases_dict[X.id_rang] = X.Phase
         else:
           #LED1=((X.Taillefinalegaine*5)*2)-X.Ymax
           NewTaillefinaleg=X.rapportK * NewYmax
@@ -1360,12 +1365,12 @@ Feuille(X, X_apex, X_phytomere):
         if X.Taillefeuille > Seuil[X.id_plante][X.id_talle]:
           X.Phase='visible'
           X_apex.total_emerged_leaves += 1                                                      # Ajoute une feuille visible a l apex
+          X_apex.leaf_phases_dict[X.id_rang] = X.Phase
           Seuil[X.id_plante][X.id_talle] *= 1.
           LEDGAINE=((0.2*X_apex.Premiecroiss*5)*2)-X_apex.Premiecroiss
           X.TailleEmergence=Seuil[X.id_plante][X.id_talle]
           TrueAge=X.age-dt #On pourrait affiner la determination de TrueAge qui en realite a eu lieu entre age-dt et age-2dt (soit on prend la moyenne soit au prorata des longueurs)
           
-          print("Rang : ", X.id_rang, "TrueAge : ", TrueAge)
           
           genotype=X.id_geno
           
@@ -1379,7 +1384,7 @@ Feuille(X, X_apex, X_phytomere):
               X.Ymax = X_apex.C*((pow(paramManagement['T01'],(TrueAge+paramManagement['tb1'])*paramManagement['k1'])-paramManagement['Lpot'])-(pow(paramManagement['T02'],(TrueAge+paramManagement['tb2'])*paramManagement['k2']))) #Alban
             else:
               X.Ymax = X_apex.C*lmax_potcroiss
-            
+          print("C : ", X_apex.C)
           
           #X.Ymax=ParamP[genotype]['C']*(1*exp(0.032*(TrueAge+paramManagement['tb1']))-1*exp(0.047*(TrueAge+paramManagement['tb2']))-paramManagement['Lpot'])  #TF
           
@@ -1456,6 +1461,8 @@ Feuille(X, X_apex, X_phytomere):
       if Accroiss==0:
         X.Besoinencroiss=0
         X.Phase='mature'
+        X_apex.total_mature_leaves+=1
+        X_apex.leaf_phases_dict[X.id_rang] = X.Phase
       
       X.biomass=BiomassFeuille(X.Taillefeuille,X.coupe,X.id_geno)
       
@@ -1473,8 +1480,11 @@ Feuille(X, X_apex, X_phytomere):
         if (X.Taillegaine>0.98*X.Taillefinalegaine and X.Taillegaine<=Seuil[X.id_plante][X.id_talle] -5 and X.Phase=='visible'):
           NextAccroiss=1        
         if (X.Taillegaine>=Seuil[X.id_plante][X.id_talle] +13 and X.Phase=='visible'):
-          NextAccroiss=0          
-          
+          NextAccroiss=0
+        if X_apex.leaf_phases_dict[X.id_rang] == 'visible' and X.Taillegaine>=Seuil[X.id_plante][X.id_talle]:
+          X_apex.leaf_phases_dict[X.id_rang] = 'ligulee'
+        
+        
         long=X.Taillefeuille+NextAccroiss
         Next_feuil=BiomassFeuille(long,X.coupe,X.id_geno)
         X.Besoinencroiss=Next_feuil-X.biomass
@@ -1661,20 +1671,32 @@ SegFeuille(X):
 
 
 Entrenoeud(X_EN, X_AP, X_F, X_phytomere):
+  # --------------------------------------------------------------------------------------------------
+  # ---------------------------------------- Internode growth ----------------------------------------
+  # --------------------------------------------------------------------------------------------------
+  # Two kinds of internodes exist: "short_internode" and "long_internode"
+  # Default internodes are "short_internode" and when the tiller is vegetative, it will only procuce 
+  # short internodes.
+  # When the terminal apex of the tiller become "reproductive", all internodes bearing non-"mature"
+  # leaves turn to "long_internode".
+  # A "long_internode" starts to elongate when the previous leaf's state turn to "mature".
+  # From that time, the tiller elongate linearly until 5 mm more than the final length of the sheath.
+  # --------------------------------------------------------------------------------------------------
+  
   if (X_EN.internode_type != 'long_internode' and X_AP.phenological_state == 'reproductive' and X_F.Phase != 'mature'):
     X_EN.internode_type = 'long_internode'
-  if (X_F.Phase == 'mature' and X_EN.internode_type == 'long_internode' and X_EN.length < X_F.Taillefinalegaine + 5):              # condition pour arreter la croissance des entrenoeuds
-    X_EN.length += 5    # Remplissage des hauteurs d organes
+  if (X_EN.internode_type == 'long_internode' and X_AP.leaf_phases_dict[X_F.id_rang - 1] == 'ligulee' and X_EN.length < X_F.Taillefinalegaine + 5):              # condition pour arreter la croissance des entrenoeuds
+    X_EN.length += 5
+    # Remplissage des hauteurs d organes
     X_AP.organ_lengths_dict[X_EN.id_rang]['internode'] = X_EN.length
-    #produce Entrenoeud(X_EN, X_AP, X_F, X_phytomere)
   elif (X_F.Phase == 'mature' and ((X_EN.internode_type == 'long_internode' and X_EN.length >= X_F.Taillefinalegaine + 5) or X_EN.internode_type == 'short_internode')):
     # Remplissage des hauteurs d organes
     X_AP.organ_lengths_dict[X_EN.id_rang]['internode'] = X_EN.length
-    #produce Entrenoeud(X_EN, X_AP, X_F, X_phytomere)
 
 
 apex(X):
   global les_feuilles, current_day, meteo, df_induction, df_organ_lengths, tiller_appearance
+  print(X.leaf_phases_dict)
   
   if X.day < current_day:
     X.day = current_day
@@ -1739,7 +1761,8 @@ apex(X):
         if X.leaf_secondary_induction_index >= 1:
           X.leaf_phenological_state = 'secondary_induced'
           X.Premiecroiss = flowering_model.param.increase_growth_Premiecroiss * X.Premiecroiss
-          X.C = increase_growth_C * X.C
+          X.C = flowering_model.param.increase_growth_C * X.C
+  
   
   
   if groupe=='croissance':     
@@ -1781,6 +1804,7 @@ apex(X):
           if X.final_leaf_number is None:
             X.final_leaf_number = X.total_created_leaves + X.primordia_number
           X.primordia_number += flowering_model.param.coeff_primordia_emission_reproductive - 1
+        X.leaf_phases_dict[YF.id_rang] = YF.Phase
         produce RollR(180) phytomere(YP, X) bourgeonRoot(Yb, YINT) ApexTal(YAT) Entrenoeud(YINT, X, YF, YP) FLW SB Feuille(YF, X, YP) FLW EB apex(X)
         
       elif X.retard==1:
@@ -1863,6 +1887,7 @@ ApexTal(X):
             YINT=ParamEntrenoeud(X.id_plante,id_talle=0,id_rang=1, topology=tiller_topology)      # AJOUT SIMON
             
             YA.organ_lengths_dict = {YP.id_rang: {'limb': YF.Taillelimbe, 'sheath': YF.Taillegaine, 'internode': YINT.length}}
+            X.leaf_phases_dict[YF.id_rang] = YF.Phase
             produce SB phytomere(YP, YA) RollR(95) GetHead(0, 0, 0) bourgeonRoot(Yb, YINT) ApexTal(YAT) Entrenoeud(YINT, YA, YF, YP) FLW SB Feuille(YF, YA, YP) FLW EB apex(YA) EB
           
           if (rapportS9_SSol>ParamP[X.id_plante]['SENSETALLAGE']):
