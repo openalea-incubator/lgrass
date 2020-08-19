@@ -1384,7 +1384,6 @@ Feuille(X, X_apex, X_phytomere):
               X.Ymax = X_apex.C*((pow(paramManagement['T01'],(TrueAge+paramManagement['tb1'])*paramManagement['k1'])-paramManagement['Lpot'])-(pow(paramManagement['T02'],(TrueAge+paramManagement['tb2'])*paramManagement['k2']))) #Alban
             else:
               X.Ymax = X_apex.C*lmax_potcroiss
-          print("C : ", X_apex.C)
           
           #X.Ymax=ParamP[genotype]['C']*(1*exp(0.032*(TrueAge+paramManagement['tb1']))-1*exp(0.047*(TrueAge+paramManagement['tb2']))-paramManagement['Lpot'])  #TF
           
@@ -1696,7 +1695,6 @@ Entrenoeud(X_EN, X_AP, X_F, X_phytomere):
 
 apex(X):
   global les_feuilles, current_day, meteo, df_induction, df_organ_lengths, tiller_appearance
-  print(X.leaf_phases_dict)
   
   if X.day < current_day:
     X.day = current_day
@@ -1887,7 +1885,6 @@ ApexTal(X):
             YINT=ParamEntrenoeud(X.id_plante,id_talle=0,id_rang=1, topology=tiller_topology)      # AJOUT SIMON
             
             YA.organ_lengths_dict = {YP.id_rang: {'limb': YF.Taillelimbe, 'sheath': YF.Taillegaine, 'internode': YINT.length}}
-            X.leaf_phases_dict[YF.id_rang] = YF.Phase
             produce SB phytomere(YP, YA) RollR(95) GetHead(0, 0, 0) bourgeonRoot(Yb, YINT) ApexTal(YAT) Entrenoeud(YINT, YA, YF, YP) FLW SB Feuille(YF, YA, YP) FLW EB apex(YA) EB
           
           if (rapportS9_SSol>ParamP[X.id_plante]['SENSETALLAGE']):

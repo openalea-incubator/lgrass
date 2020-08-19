@@ -16,13 +16,15 @@ coeff_primordia_emission_vegetative_list = [1]
 coeff_primordia_emission_reproductive_list = [2]
 derivationLength_list = [3000]
 option_tallage_list = ["False"]
+option_senescence_list = ["False"]
+option_floraison_list = ["False"]
 meteo_filename_list = ["environnement_morphoflor.csv"]
 sowing_date_list = ["2019_01_16"]
 treatment_bloc = list(itertools.product([4], [1, 2, 3, 4, 5, 6, 7, 8, 9]))
 site_list = ["treatment_" + str(n[0]) + "_bloc_" + str(n[1]) for n in treatment_bloc]
 cutting_dates_list = [np.nan]
-value_C_list = np.arange(0.8, 1.75, 0.05)
-Premiecroiss_list = [90]
+value_C_list = np.round(np.arange(3.1, 5.1, 0.1), decimals=2)
+Premiecroiss_list = np.round(np.arange(50, 80, 5), decimals=2)
 PS_compensation_point_list = [14.1]
 leaf_primary_induction_coeff_list = [1]
 leaf_secondary_induction_coeff_list = [1]
@@ -42,6 +44,8 @@ simulation_plan = pd.DataFrame(columns=["temp_vern_min",
                            "coeff_primordia_emission_reproductive",
                            "derivationLength",
                            "option_tallage",
+                           "option_senescence",
+                           "option_floraison",
                            "meteo_filename",
                            "sowing_date",
                            "site",
@@ -66,6 +70,8 @@ for i in itertools.product(temp_vern_min_list,
                            coeff_primordia_emission_reproductive_list,
                            derivationLength_list,
                            option_tallage_list,
+                           option_senescence_list,
+                           option_floraison_list,
                            meteo_filename_list,
                            sowing_date_list,
                            site_list,
@@ -89,6 +95,8 @@ for i in itertools.product(temp_vern_min_list,
                            "coeff_primordia_emission_reproductive",
                            "derivationLength",
                            "option_tallage",
+                           "option_senescence",
+                           "option_floraison",
                            "meteo_filename",
                            "sowing_date",
                            "site",
@@ -101,7 +109,7 @@ for i in itertools.product(temp_vern_min_list,
                            "increase_growth_Premiecroiss",
                            "increase_growth_C"]))
 
-simulation_plan['name'] = 'simulation_' + 'C_' + simulation_plan['value_C'].astype(str) + '_' + simulation_plan['site']
+simulation_plan['name'] = 'simulation_' + 'C_' + simulation_plan['value_C'].astype(str) + '_' + simulation_plan['site'] + '_PremierCroiss_' + simulation_plan['Premiecroiss'].astype(str)
 simulation_plan['Scenario'] = [i for i in range(simulation_plan.shape[0])]
 
 simulation_plan.to_csv(os.path.join('inputs', 'plan_simulation.csv'), index=False)

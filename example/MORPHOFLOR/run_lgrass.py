@@ -62,7 +62,7 @@ def run_lgrass(scenario_id=1, inputs_dir_path='inputs', outputs_dir_path='output
 if __name__ == '__main__':
     inputs = 'inputs'
     outputs = 'outputs'
-    scenario = 14
+    scenario = 5
 
     try:
         opts, args = getopt.getopt(sys.argv[1:], "i:o:s:d", ["inputs=", "outputs=", "scenario="])
