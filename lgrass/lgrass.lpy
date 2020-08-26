@@ -1723,14 +1723,13 @@ apex(X):
     
     if option_floraison == True:
       if X.phenological_state == 'vegetative':
-        X.primary_induction_index += flowering_model.vernalisation_function(daily_temperature)
-        
+        X.primary_induction_index = min(1, X.primary_induction_index + flowering_model.vernalisation_function(daily_temperature))
         if X.primary_induction_index >= 1:
           X.phenological_state = 'vernalized'          
       
       elif (X.phenological_state == 'vernalized' and X.total_created_leaves > 1):
         print('vernalized')
-        X.secondary_induction_index += flowering_model.photoperiod_induction_function(daily_daylength)
+        X.secondary_induction_index = min(1, X.secondary_induction_index + flowering_model.photoperiod_induction_function(daily_daylength))
         if X.secondary_induction_index >= 1:
           X.phenological_state = 'reproductive'
           print('reproductive')
@@ -1749,13 +1748,13 @@ apex(X):
     
     if option_floraison == True:
       if X.leaf_phenological_state == 'vegetative':
-        X.leaf_primary_induction_index += flowering_model.param.leaf_primary_induction_coeff * flowering_model.vernalisation_function(daily_temperature)
+        X.leaf_primary_induction_index = min(1, X.leaf_primary_induction_index + flowering_model.param.leaf_primary_induction_coeff * flowering_model.vernalisation_function(daily_temperature))
         
         if X.leaf_primary_induction_index >= 1:
           X.leaf_phenological_state = 'primary_induced'          
       
       elif (X.leaf_phenological_state == 'primary_induced' and X.total_created_leaves > 1):
-        X.leaf_secondary_induction_index += flowering_model.param.leaf_secondary_induction_coeff * flowering_model.photoperiod_induction_function(daily_daylength)
+        X.leaf_secondary_induction_index = min(1, X.leaf_secondary_induction_index + flowering_model.param.leaf_secondary_induction_coeff * flowering_model.photoperiod_induction_function(daily_daylength))
         if X.leaf_secondary_induction_index >= 1:
           X.leaf_phenological_state = 'secondary_induced'
           X.Premiecroiss = flowering_model.param.increase_growth_Premiecroiss * X.Premiecroiss
