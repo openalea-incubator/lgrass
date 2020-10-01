@@ -250,7 +250,7 @@ scales['Entrenoeud']=4
 parameters['Entrenoeud']=['ParamEntrenoeud']
 
 class ParamApex:
-  def __init__(self, id_plante, id_talle, id_rang=1, topology=(0,), retard=0, total_emerged_leaves=0, total_mature_leaves=0, total_created_leaves=0, day=0, primary_induction_index=0, secondary_induction_index=0, phenological_state='vegetative', primordia_number=3, spikelet_created=0, final_leaf_number=None, final_spikelet_number=None, organ_lengths_dict={}, terminal_spikelet_height=0, heading_date=0, appearance_date=None, id_geno=0, Premiecroiss=0, C=0, leaf_primary_induction_index=0, leaf_secondary_induction_index=0, leaf_phenological_state='vegetative', leaf_phases_dict={}):   # PARAMETRE
+  def __init__(self, id_plante, id_talle, id_rang=1, topology=(0,), retard=0, total_emerged_leaves=0, total_mature_leaves=0, total_created_leaves=0, day=0, primary_induction_index=0, secondary_induction_index=0, phenological_state='vegetative', primordia_number=1, spikelet_created=0, final_leaf_number=None, final_spikelet_number=None, organ_lengths_dict={}, terminal_spikelet_height=0, heading_date=0, appearance_date=None, id_geno=0, Premiecroiss=0, C=0, leaf_primary_induction_index=0, leaf_secondary_induction_index=0, leaf_phenological_state='vegetative', leaf_phases_dict={}):   # PARAMETRE
     self.id_plante = id_plante
     self.id_talle = id_talle
     self.id_rang = id_rang
