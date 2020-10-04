@@ -53,8 +53,8 @@ def beta_temperature(temperature, t_min, t_opt, t_max):
     :return:
     """
     if (temperature >= t_min) and (temperature <= t_max):
-        growth_relative_rate = ((t_max - temperature) / (t_max - t_opt)) * ((temperature - t_min) / (t_opt - t_min)) ^ (
-                    (t_opt - t_min) / (t_max - t_opt))
+        growth_relative_rate = ((t_max - temperature) / (t_max - t_opt)) * pow(((temperature - t_min) / (t_opt - t_min)), (
+                    (t_opt - t_min) / (t_max - t_opt)))
         growth_relative_rate = round(t_opt * growth_relative_rate)
     else:
         growth_relative_rate = 0
