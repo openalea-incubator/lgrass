@@ -1,0 +1,3 @@
+name,derivationLength,meteo_path,sowing_date,site,num_gener,cutting_freq,option_tontes,option_tallage,option_senescence,option_floraison,option_reproduction,option_caribu,option_tiller_regression,option_morphogenetic_regulation_by_carbone,option_sauvegarde
+example_simpraise,1000,inputs/meteo_controlled_conditions.csv,2018_11_13,treatment_1,5,14,False,False,False,True,spikelets,False,False,False,False
+scenario_test_simpraise2,750,inputs/meteo_controlled_conditions.csv,2018_11_13,treatment_1,5,14,False,True,False,True,SPPR_2012,False,False,False,False

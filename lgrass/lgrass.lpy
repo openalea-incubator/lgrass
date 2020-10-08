@@ -2,8 +2,6 @@ from openalea.plantgl.all import *
 from openalea.mtg.io import *
 from openalea.mtg.aml import *
 from openalea.mtg.mtg import *
-from alinea.caribu.CaribuScene import CaribuScene
-from alinea.caribu.sky_tools import turtle
 import random
 import itertools
 from math import *
@@ -38,6 +36,9 @@ TableManagement=pd.read_excel(path_param,sheet_name='Management')
 paramManagement=dict(zip(TableManagement['name'],TableManagement['value']))
 ParamP=[paramP2] #liste des parametres plante
 nb_plantes=len(ParamP)
+
+Plantes = 0
+Genotypes = 0
 
 num_pointe=0
 num_primordium=0
@@ -87,6 +88,14 @@ option_senescence = True
 ##### Activation de la floraison #####
 option_floraison = False        # True or False
 
+##### Activation caribu #####
+option_caribu = False   # l appel de caribu n est pas encore implemente dans lgrass
+
+##### Activation axiom existant #####
+OptionAxiom=False  #Ajout Thibault 02/06/2020 partir d'un axiom deja existant
+
+##### Nom de la simulation #####
+name_sim = "Simulation"
 
 ##### Activation sorties graphiques
 option_graphic_outputs = True
@@ -111,41 +120,18 @@ flowering_model = flowering_functions.FloweringFunctions()
 from lgrass import meteo_ephem
 sowing_date = "2018_11_13"
 site = 'LUSIGNAN'
-meteo_path = os.path.join('inputs', 'meteo_file.csv')
+meteo_path = os.path.join(INPUTS_DIRPATH, 'meteo_controlled_conditions.csv')
 
 
-
-
-# ------------------------------------------------------------------------------------------------
-# -------------------------------- Radiations, Caribu --------------------------------------------
-# ------------------------------------------------------------------------------------------------
-# - option_caribu: Caribu activation ('On'/'Off')
-#        par_incident:
-#        azimuths: number of light sources depending on azimuth
-#        zeniths: number of light sources depending on zenith
-#        diffuse_model: sky type
-#        scene_unit: unit used in the lscene
-# - option_tiller_regression: allow tiller regression if it does not intercept enough radiation
-# - option_mophogenetic_regulation_by_carbon: activate limitation of of growth in radiation 
-#   interception is to low
-# ------------------------------------------------------------------------------------------------
-
-option_caribu = 'Off'
-
-par_incident = 1
-azimuths = 4
-zeniths = 5
-diffuse_model = 'soc'
-scene_unit = 'mm'
 
 option_tiller_regression = False
 if option_tiller_regression == True:
   option_caribu = 'On'
   period_considered_tiller_regression = 10 # days
   radiation_threshold = 100000 # rayonnement TODO: a mettre en MJ
-
-option_mophogenetic_regulation_by_carbone = False
-if option_mophogenetic_regulation_by_carbone == True:
+  
+option_morphogenetic_regulation_by_carbone = False
+if option_morphogenetic_regulation_by_carbone == True:
   option_caribu = 'On'
   RUE = 2  # g MJ-1
 
@@ -420,29 +406,6 @@ module FLW
 
 TREE=[False,False,True,False,True]
 
-### Calcul du rayonnement diffus via Caribu ###
-def apply_caribu(lscene, energy=1, azimuths=4, zeniths=5, diffuse_model='soc', scene_unit='mm'):
-  # generation des sources
-  from alinea.caribu.sky_tools import GenSky, GetLight
-  #: Diffuse light sources : Get the energy and positions of the source for each sector as a string
-  sky_string = GetLight.GetLight(GenSky.GenSky()(energy, diffuse_model, azimuths, zeniths))  #: (Energy, soc/uoc, azimuths, zeniths)
-  # Convert string to list in order to be compatible with CaribuScene input format
-  sky = []
-  for string in sky_string.split('\n'):
-      if len(string) != 0:
-          string_split = string.split(' ')
-          t = tuple((float(string_split[0]), tuple((float(string_split[1]), float(string_split[2]), float(string_split[3])))))
-          sky.append(t) 
-  # Generation du pattern
-  Pattern=(-Espacement/2, -Espacement/2, Espacement*(NBlignes-1)+Espacement/2, Espacement*(NBcolonnes-1)+Espacement/2)
-  c_scene=CaribuScene(scene=lscene, light=sky, pattern=Pattern, scene_unit=scene_unit)
-  if Pattern!=None:
-    output=c_scene.run(direct=True,infinite=True)
-  else:
-    output=c_scene.run(direct=True,infinite=False)  
-  raw, c_res = output
-  return c_res['default_band']
-
 ### Creation du MTG ###
 def my_axialtree2mtg(tree, scale, scene, parameters, TREE=[]):
   def scene_id(scene):
@@ -567,7 +530,7 @@ def my_axialtree2mtg(tree, scale, scene, parameters, TREE=[]):
 def LongueurFeuilleCoupee(segments_feuille,ID): #Renvoie idLong si hauteur>HCOUP, renvoie -1 si hauteur<HCOUP
   for x in segments_feuille:
     if x[0].hauteur > ParamP[ID]['HCOUP']:
-      return x[0].idLong  # Retourne l'id du 1er segment coupé
+      return x[0].idLong  # Retourne l'id du 1er segment coup?
   return -1 
 
 ########   Fonction racinaires   ########
@@ -696,7 +659,7 @@ def DetermineAccroiss(Pourcentage,X,AccroissDemande):
 
 def BiomassFeuille(long,coupe,geno):
   coupe=0
-  if geno<2:
+  if geno<2:  # Thibault (20/04/2020) : cette condition n'est plus valable, il faut remplacer id_geno par l'identifiant de la ligne sur laquelle se trouve la plante
     if long==0:
       MS=0
     else:
@@ -762,11 +725,13 @@ def Start():
   global timing,growth_realized,dt,TPS,TPS_expe #Parametres de temps
   global df_induction, df_organ_lengths
   global surface_biomass,chemin_fichier1,chemin_fichier2,chemin_fichier3,long_root,simul_expe,taille_finale_feuille, outvarfile #Fichiers de sortie
-  global Biomasse_aerienne,Biomasse_racinaire,BiomProd,Ray,PourcentageRootGrowthRealized,PourcentageRootGrowthRealized,Reserve,Demande_feuille,PourcentageFeuilGrowthRealized,les_diametres,Seuil,Taille_finale_gaine,nb_talle #Parametres vides
+  global Biomasse_aerienne,Biomasse_racinaire,BiomProd,PourcentageRootGrowthRealized,PourcentageRootGrowthRealized,Reserve,Demande_feuille,PourcentageFeuilGrowthRealized,les_diametres,Seuil,Taille_finale_gaine,nb_talle #Parametres vides
   global NBlignes,NBcolonnes,posPlante,Espacement #Parametres scene
   global surface_foliaire_emergee,Surfoliaireencours,Premiecroiss #Definition des groupes de production
-  global Alpha,Beta,t1,t2,t3,Caribu #Relation allometrique
-  global current_day, meteo, radiation_interception, tiller_appearance, tiller_to_remove
+  global Alpha,Beta,t1,t2,t3 #Relation allometrique
+  global current_day, meteo, tiller_appearance, tiller_to_remove
+  #Ajout variables globales pour sauvegarde de lstring 03/06/2020
+  global les_feuilles
   
   # Camera setting
   #Viewer.camera.lookAt((250,250,50),(-100,-100,50))#((Position),(direction))
@@ -789,21 +754,30 @@ def Start():
   meteo = meteo_ephem.import_meteo_data(meteo_path, sowing_date, site)
   current_day = meteo.experimental_day.tolist()[0]
   
-  ##### Creation de parametres vides #####
-  Biomasse_aerienne=[0.]*(nb_plantes) # Biomasse foliaire totale
-  Biomasse_racinaire=[0.]*(nb_plantes) # Biomasse racinaire
-  BiomProd=[0.]*(nb_plantes)
-  Ray=[0.]*(nb_plantes)
-  PourcentageRootGrowthRealized=[0]*(nb_plantes)
-  Reserve=[0]*(nb_plantes) # Reserve de "biomass"
-  Demande_feuille=[0]*(nb_plantes)
-  #Next_biom_feuil=[0]*(nb_plantes)
-  PourcentageFeuilGrowthRealized=[1]*(nb_plantes)
-  les_diametres=[]
-  Seuil=[] # Taille a partir de laquelle la plante est consideree comme hors de la gaine
-  Taille_finale_gaine=[]
-  nb_talle=[]  # nombre_de_talle-1 pour chaque plante afin d'identifier les talles
-  ligule_height_dict = {}
+  # Ajout Thibault 03/06/2020
+  # Recuperation des variables issues de la simulation sauvegardee
+  if OptionAxiom: 
+    from lgrass import gen_lstring
+    Biomasse_aerienne, Biomasse_racinaire, PourcentageRootGrowthRealized, Reserve, Demande_feuille, PourcentageFeuilGrowthRealized, les_diametres, Seuil, Taille_finale_gaine, nb_talle, surface_foliaire_emergee, Surfoliaireencours, les_feuilles = gen_lstring.load_variables()
+    
+  else:
+    ##### Creation de parametres vides #####
+    Biomasse_aerienne=[0.]*(nb_plantes) # Biomasse foliaire totale
+    Biomasse_racinaire=[0.]*(nb_plantes) # Biomasse racinaire
+    PourcentageRootGrowthRealized=[0]*(nb_plantes)
+    Reserve=[0]*(nb_plantes) # Reserve de "biomass"
+    Demande_feuille=[0]*(nb_plantes)
+    #Next_biom_feuil=[0]*(nb_plantes)
+    PourcentageFeuilGrowthRealized=[1]*(nb_plantes)
+    les_diametres=[]
+    Seuil=[] # Taille a partir de laquelle la plante est consideree comme hors de la gaine
+    Taille_finale_gaine=[]
+    nb_talle=[]  # nombre_de_talle-1 pour chaque plante afin d'identifier les talles
+    ligule_height_dict = {}
+    
+    ##### Definition des groupes de production #####
+    surface_foliaire_emergee =[0.]*(nb_plantes) # Surface foliaire ?merg?e totale obtenue a la fin d'un pas
+    Surfoliaireencours=[0.]*(nb_plantes) # variable de calcul de la surface foliaire totale
   
   ##### Definition des groupes de production #####
   surface_foliaire_emergee =[0.]*(nb_plantes) # Surface foliaire émergée totale obtenue a la fin d'un pas
@@ -816,7 +790,6 @@ def Start():
   t1=[ParamP[i]['t1'] for i in range(nb_plantes)]
   t2=[ParamP[i]['t2'] for i in range(nb_plantes)]
   #t3=[ParamP[i]['t3'] for i in range(nb_plantes)]
-  option_caribu="Off"
   
   df_induction = pd.DataFrame(columns = ['GDD', 'Date', 'Site', 'Day', 'Daily_mean_temperature', 'Daily_daylength', 'Id_plante', 'Id_talle', 'topology', 'Leaf_produced', 'Primordia_on_apex', 'Spikelet_number', 'Vernalisation_rate', 'Secondary_induction_rate', 'Heading_date'])
   
@@ -824,13 +797,11 @@ def Start():
   
   tiller_appearance = pd.DataFrame()
   
-  radiation_interception = pd.DataFrame()
-  
   tiller_to_remove = pd.DataFrame()
   
 #  ##### Ecriture des fichiers de sortie #####
-  outvarfile='surface_biomass_%s_%s_%s.csv'%(int(Espacement),DureeExp,ParamP[0]['HCOUP'])
-  outvarfile2='sorties_feuilles_finales_%s_%s_%s.csv'%(int(Espacement),DureeExp,ParamP[0]['HCOUP'])
+  outvarfile='%s_surface_biomass.csv'%(name_sim)
+  outvarfile2='%s_feuilles_finales.csv'%(name_sim)
 ##output_apex = 'output_apex_%s_%s_%s.csv'%(int(Espacement),DureeExp,ParamP[0]['HCOUP'])                  # Ajout SIMON
 #output_organ_characteristics = 'output_organ_characteristics%s_%s_%s.csv'%(int(Espacement),DureeExp,ParamP[0]['HCOUP'])    
 #outimage='Scene\scene_'+str(int(Espacement))+'_'+t.strftime('%d-%m-%y_%Hh%M',t.localtime())+'.bmp'
@@ -875,9 +846,10 @@ def StartEach(lstring):
     
     if (TPS==ParamP[ID]['DCOUP']+1.):
       if groupe=='defoliation':
-        if ParamP[ID]['DCOUP']+ParamP[ID]['FREQUCOUPE'] < ParamP[ID]['PREMIERCOUPE']+ParamP[ID]['DUREECOUPE']:
-          ParamP[ID]['DCOUP']=ParamP[ID]['DCOUP']+ParamP[ID]['FREQUCOUPE']
-          print('prochaine_coupe',ParamP[ID]['DCOUP'])
+        if cutting_dates is None:  #Ajout Thibault (17/04/2020) pour eviter de confondre les 2 methodes de gestion des coupes
+          if ParamP[ID]['DCOUP']+ParamP[ID]['FREQUCOUPE'] < ParamP[ID]['PREMIERCOUPE']+ParamP[ID]['DUREECOUPE']:
+            ParamP[ID]['DCOUP']=ParamP[ID]['DCOUP']+ParamP[ID]['FREQUCOUPE']
+            print('prochaine_coupe',ParamP[ID]['DCOUP'])
         reprise_coupe=True
         groupe='croissance'
         dt=1
@@ -889,7 +861,7 @@ def StartEach(lstring):
           
   
   
-  #### Régression des talles : Détermination des zones où appliquer le Cut
+  #### R?gression des talles : D?termination des zones o? appliquer le Cut
   if option_tiller_regression == True and current_day > 1:
     mortality_zone = pd.DataFrame()
     for i in [i for i in range(len(lstring))]:
@@ -908,7 +880,7 @@ def StartEach(lstring):
     #      dt=0.25
     #      CoupeTaille=TPS
     #      print CoupeTaille
-    # 
+    #
     #if (TPS==CoupeTaille+1) and groupe=='defoliation':
     #  reprise_coupe=True
     #  groupe='croissance'
@@ -922,9 +894,9 @@ def StartEach(lstring):
 
 def EndEach(lstring, lscene):
   global simul_expe,surface_biomass,taille_finale_feuille
-  global TPS,dt,mtg,surface_foliaire_emergee,les_pointes,les_primordiums,RootPotentialNewBiomass,les_feuilles,les_feuilles_emergees, les_segments_feuilles, les_racines, Reserve,Biomasse_aerienne,Surfoliaireencours,Biomasse_racinaire,fichier_test,groupe,PourcentageRootGrowthRealized,PourcentageFeuilGrowthRealized,Demande_feuille,C,reprise_coupe,Ray,BiomProd,option_caribu, rapportS9_SSol_dict
+  global TPS,dt,mtg,surface_foliaire_emergee,les_pointes,les_primordiums,RootPotentialNewBiomass,les_feuilles,les_feuilles_emergees, les_segments_feuilles, les_racines, Reserve,Biomasse_aerienne,Surfoliaireencours,Biomasse_racinaire,fichier_test,groupe,PourcentageRootGrowthRealized,PourcentageFeuilGrowthRealized,Demande_feuille,C,reprise_coupe,BiomProd, rapportS9_SSol_dict
   global current_day, meteo
-  global df_induction, df_organ_lengths, radiation_interception, tiller_appearance, tiller_to_remove
+  global df_induction, df_organ_lengths, tiller_appearance, tiller_to_remove
 #  global apex_characteristics, internode_characteristics # AJOUT SIMON
   
   TPS=TPS+dt
@@ -932,81 +904,6 @@ def EndEach(lstring, lscene):
   
   if reprise_coupe==True:
     reprise_coupe=False
-  
-  # ------------------------------------------------------------------------------------------------
-  # -------------------------------------- Use of Caribu -------------------------------------------
-  # ------------------------------------------------------------------------------------------------
-  # Caribu is used at the end of each day
-  # 
-  # ------------------------------------------------------------------------------------------------
-  
-  if TPS >= meteo[meteo.experimental_day == current_day].thermal_time_cumul.iloc[0] and option_caribu=='On':
-    timing_method1=t.time()
-    res=apply_caribu(lscene, energy=meteo[meteo.experimental_day == current_day].PAR_incident.iloc[0], azimuths=azimuths, zeniths=zeniths, diffuse_model=diffuse_model, scene_unit=scene_unit)
-    print('temps d exec de caribu:',t.time()-timing_method1)
-    for id, v in res['Ei'].items():
-       Ray[lstring[id][0].id_plante] += (v * (res['area'][id]))  # v: MJ m-2, area: m2(auto-converted), Ray: MJ PAR
-       id_plante = lstring[id][0].id_plante
-       id_talle = lstring[id][0].id_talle
-       area = res['area'][id]
-       radiation_interception = radiation_interception.append(pd.DataFrame({'id_plante': [id_plante], 'id_talle': [id_talle], 'date': [current_day], 'organ': lstring[id].name, 'Ei': [v], 'area': [area]}))
-    
-    # ------------------------------------------------------------------------------------------------
-    # --------------------------- Conditions for tiller regression  ----------------------------------
-    # ------------------------------------------------------------------------------------------------
-    # Principle: if a the youngest tillers irradiance under the compensation point of photosynthesis 
-    # (PS_compensation_point) and their mother-tiller does not provide their assimilate needs, 
-    # they will die.
-    # At the end of each day, mean irradiance of each non-autonomous tiller is calculated for each 
-    # plant.
-    # For tillers that irradiance is too low, the status of the mother tiller is studied.
-    # If the mother-tiller is vegetative, the young tiller will die only if the mother-tiller 
-    # irradiance is lower than Ic.
-    # If the mother-tiller is reproductive but flowers are not formed: the young tillers survive
-    # If the mother-tiller is reproductive and the formation of the flowers have start: the young 
-    # tillers die
-    # minimum number of leaf = 3 verifier comment est calculé Leaf_produced
-    # ------------------------------------------------------------------------------------------------
-    if option_tiller_regression == True and len(tiller_appearance) > 0:
-      tiller_to_remove = pd.DataFrame()
-      
-      for id_plante in df_induction.id_plante[df_induction.GDD == TPS]:
-        dependent_tillers = df_induction[(df_induction.GDD == TPS) & (df_induction.Leaf_produced <= 4)]
-        for id_talle in dependent_tillers.id_talle:
-          if radiation_interception.Ei[(radiation_interception.id_plante == id_plante) & (radiation_interception.id_talle == id_talle)] < ParamP[id_plante]['PS_compensation_point']:  #unite de Ei ???      + verifier ParamP(id_plante)
-            mother_tiller_id = df_induction.topology[(df_induction.GDD == TPS) & (df_induction.id_plante == id_plante) & (df_induction.id_talle == id_talle)][-2]
-            if df_induction.Secondary_induction_rate[(df_induction.GDD == TPS) & (df_induction.id_plante == id_plante) & (df_induction.id_talle == mother_tiller_id)] < 1:  # vegetative_tiller
-              if radiation_interception.Ei[(radiation_interception.id_plante == id_plante) & (radiation_interception.id_talle == id_talle)] < ParamP[id_plante]['PS_compensation_point'] :        #unite de Ei ???      + verifier ParamP(id_plante)
-                tiller_to_remove = tiller_to_remove.append(pd.DataFrame({'id_plante': [id_plante], 'id_talle': [id_talle]}))
-            elif df_induction.Heading_date[(df_induction.GDD == TPS) & (df_induction.id_plante == id_plante) & (df_induction.id_talle == mother_tiller_id)] > 0:  # headed
-                tiller_to_remove = tiller_to_remove.append(pd.DataFrame({'id_plante': [id_plante], 'id_talle': [id_talle]}))
-      
-      
-      #      for id_plante in np.unique(tiller_appearance.id_plante):
-      #        plant_tillers = tiller_appearance[tiller_appearance.id_plante == id_plante]
-      #        youngest_tillers = plant_tillers[plant_tillers.appearance_date == max(plant_tillers.appearance_date)]
-      #        youngest_tillers_radiations = pd.DataFrame()
-      #        
-      #        for id_talle in youngest_tillers.id_talle:
-      #          select_plant = radiation_interception.id_plante == id_plante
-      #          select_tiller = radiation_interception.id_talle == id_talle
-      #          time_condition = current_day - period_considered_tiller_regression <= radiation_interception.date
-      #          df = radiation_interception[select_plant & select_tiller & time_condition]
-      #          tiller_raditation = (df.Ei * df.area).sum() / df.area.sum()
-      #          youngest_tillers_radiations = youngest_tillers_radiations.append(pd.DataFrame({'id_talle': [id_talle], 'Ei_tiller': [tiller_raditation]}))
-      #        
-      #        potential_tiller_to_remove = youngest_tillers_radiations[youngest_tillers_radiations.Ei_tiller == min(youngest_tillers_radiations.Ei_tiller)]
-      #        if potential_tiller_to_remove.Ei_tiller.item() <= radiation_threshold:
-      #          tiller_to_remove = tiller_to_remove.append(pd.DataFrame({'id_plante': [id_plante], 'id_talle': [potential_tiller_to_remove.id_talle.item()]}))
-    
-    if option_mophogenetic_regulation_by_carbone == True:
-      for ID in range(nb_plantes):
-        BiomProd[ID] = Ray[ID] * RUE # Ray: MJ PAR ; RUE : g MJ-1
-        print('Plante %s, Ray: %s, BiomProd: %s' % (ID, Ray[ID],BiomProd[ID]))
-  
-  # ------------------------------------------------------------------------------------------------
-  # -------------------------------------- End of Caribu -------------------------------------------
-  # ------------------------------------------------------------------------------------------------
   
   liste_organes = []
   for mod in lstring:
@@ -1032,7 +929,7 @@ def EndEach(lstring, lscene):
       # Biomasse et surface des feuilles emergees uniquement
       Biomasse_aerienne[id_plante] += sum([x.biomass for x in les_feuilles_talle])
       surface_foliaire_emergee[id_plante] += sum([x.surface_limbe for x in les_feuilles_talle])  #: N'ajoute que les surfaces de limbes emerges
-      # ajoute les surfaces des gaines emergees à partir de Seuil
+      # ajoute les surfaces des gaines emergees ? partir de Seuil
       seuil_talle = Seuil[id_plante][id_talle]
       diametre_seuil_talle = max((2 / pi) * (paramManagement['CoefDirLonLarAjust'] * log(max(seuil_talle * 5,1)) - paramManagement['OrdOriLonLarAjust']), 0.1)
       surface_gaine_emergee = (seuil_talle * pi * diametre_seuil_talle) / 2  # Surface projetee
@@ -1047,13 +944,13 @@ def EndEach(lstring, lscene):
     # Mise a jour biomasse et pourcentage echelle plante
     if Biomasse_aerienne[id_plante]>0 and t1[id_plante]*exp(TPS*t2[id_plante])-t1[id_plante]>0 and surface_foliaire_emergee[id_plante] > 0 and Demande_feuille[id_plante] != 0: #Verifie qu'il y a une partie aerienne et que TPS, t1 et t2 sont positifs          # surface_foliaire_emergee[ID] > 0 and Demande_feuille[ID] > 0 : ajout SIMON
       # Calcul biomasse creee
-      if option_mophogenetic_regulation_by_carbone == True:
+      if option_morphogenetic_regulation_by_carbone == True:
         # Approche RUE
         BiomassCree = BiomProd[id_plante]
       else:
-        # Approche croissance biomasse exponentielle (cf thèse Vincent Migault)
+        # Approche croissance biomasse exponentielle (cf th?se Vincent Migault)
         BiomassCree=t2[id_plante]*(Biomasse_aerienne[id_plante]+t1[id_plante])*(1+Beta[id_plante]*Alpha[id_plante]*(Biomasse_aerienne[id_plante])**(Alpha[id_plante]-1))
-      
+
       # Allocation aerien/racinaire + ratio offre/demande
       if BiomassCree>0 and 0.99*BiomassCree > Demande_feuille[id_plante]:  # demande satisfaite
         RootBiomassCree = BiomassCree - Demande_feuille[id_plante]  # Allocation surplus non utilise par parties aeriennes aux racines
@@ -1121,7 +1018,7 @@ def End(lstring,lscene): #Ecriture et fermeture des fichiers de sortie
   longroottotal=[0]*nb_plantes
   longueurtotale=[0]*nb_plantes
   profond=[0]*nb_plantes
-  
+
   if OptionRacine!='SansRacines':
     for x in les_racines:
       long=0
@@ -1162,10 +1059,10 @@ def End(lstring,lscene): #Ecriture et fermeture des fichiers de sortie
 #  Viewer.stop()
   
   #print(lstring)
-  
+
   df_induction.to_csv(os.path.join(OUTPUTS_DIRPATH, output_induction_file_name + '.csv'), index = False)
   df_organ_lengths.to_csv(os.path.join(OUTPUTS_DIRPATH, output_organ_lengths_file_name + '.csv'), index = False)
-  
+
   if option_graphic_outputs == True:
     from lgrass import Lgrass_plot_functions
     graphic = Lgrass_plot_functions.GraphicOutputs(GRAPHS_DIRPATH)
@@ -1180,6 +1077,7 @@ def End(lstring,lscene): #Ecriture et fermeture des fichiers de sortie
   print('Execution time :',t.time()-timing)
 
 
+  print('Execution time :',t.time()-timing)
 
 
 def FoncCroiss(t, Ymax, tend, tmax): # fonction de croissance de feuille
@@ -1234,9 +1132,30 @@ def TpourY2(Y, Ym, Te, Tm):  # retrouver le temps T auquel la taille de la feuil
   return curs1+(curs2-curs1)/2
 
 
+  
+def gener_lstring():  #Ajout Thibault 02/06/2020 Initialiser l'axiom avec une chaine existante ou non
+  if OptionAxiom:
+    from lgrass import gen_lstring
+    modulenamelist, moduleparam = gen_lstring.load_lstring()
+    for n,p in zip(modulenamelist, moduleparam):
+      if p == None:
+        nproduce new(n)
+      elif len(p) == 1:
+        nproduce new(n,p[0])
+      elif len(p) == 2:
+        nproduce new(n,p[0],p[1])
+      elif len(p) == 3:
+        nproduce new(n,p[0],p[1],p[2])
+      elif len(p) == 4:
+        nproduce new(n,p[0],p[1],p[2],p[3])
+  else:
+    produce CouvertVegetal(0)
 
 
-Axiom: CouvertVegetal(1)
+
+Axiom: 
+  #CouvertVegetal(0)
+  gener_lstring()
 
 derivation length: DureeExp
 
@@ -1260,8 +1179,12 @@ CouvertVegetal(X):
       nproduce CouvertVegetal(2)
       for i in range(NBlignes):
         for j in range(NBcolonnes):
-          id_plante=i*NBcolonnes+j
-          id_geno=i
+          if isinstance(Plantes, int):
+            id_plante=i*NBcolonnes+j
+            id_geno=i
+          else:
+            id_plante = Plantes[i][j]
+            id_geno = Genotypes[i][j]
           genotype.append(id_geno)
           param=ParamPlante(id_plante,id_geno)
           nb_talle.append(0)
@@ -1330,7 +1253,7 @@ Feuille(X, X_apex, X_phytomere):
       if reprise_coupe==True and X.Phase=='visible':
         LEDGAINE=((0.2*X_apex.Premiecroiss*5)*2)-X_apex.Premiecroiss
         TrueAge=TpourY2(Seuil[X.id_plante][X.id_talle],paramManagement['Yfinit'], paramManagement['Jled']*LEDGAINE,paramManagement['Kled']*paramManagement['Jled']*LEDGAINE) #Jled*LEDGAINE correspond a te, Kled*Jled*LEDGAINE correspond a tm (These Alban Verdenal)
-        NewYmax=X_apex.C*((pow(paramManagement['T01'],(TrueAge+paramManagement['tb1'])*paramManagement['k1'])-paramManagement['Lpot'])-(pow(paramManagement['T02'],(TrueAge+paramManagement['tb2'])*paramManagement['k2']))) # Fonction potentiel de croissance
+        NewYmax=ParamP[X.id_plante]['C']*((pow(paramManagement['T01'],(TrueAge+paramManagement['tb1'])*paramManagement['k1'])-paramManagement['Lpot'])-(pow(paramManagement['T02'],(TrueAge+paramManagement['tb2'])*paramManagement['k2']))) # Fonction potentiel de croissance
         if NewYmax>X.Ymax:
           NewYmax=X.Ymax
         elif NewYmax<X.Taillefeuille+X.coupe:
@@ -1626,7 +1549,7 @@ Feuille(X, X_apex, X_phytomere):
       Taille_finale_gaine[X.id_plante][X.id_talle][X.id_rang]=X.Taillegaine
       
       if X.id_rang==1 and X.id_talle>0 and X.topology!=(0,0):  # Premiere feuille de chaque talle sauf brin maitre et talle coleoptile
-        feuille_ref = les_feuilles[(les_feuilles['Plante'] == X.id_plante) & (les_feuilles['Topology'] == X.topology[:-1]) & (les_feuilles['id_rang'] == max(1, X.topology[-1]))].iloc[0]['ObjetOrgane']    # Feuille axillante de l'ordre précédent (le max sert a traiter les cas des 1ers rangs)
+        feuille_ref = les_feuilles[(les_feuilles['Plante'] == X.id_plante) & (les_feuilles['Topology'] == X.topology[:-1]) & (les_feuilles['id_rang'] == max(1, X.topology[-1]))].iloc[0]['ObjetOrgane']    # Feuille axillante de l'ordre pr?c?dent (le max sert a traiter les cas des 1ers rangs)
         Seuil[X.id_plante][X.id_talle]=max(Seuil[X.id_plante][X.id_talle], feuille_ref.Taillegaine)
       X.biomass=BiomassFeuille(X.Taillefeuille,X.coupe,X.id_geno)
     else:
@@ -1672,7 +1595,22 @@ apex(X):
     for phytomere_rank in X.organ_lengths_dict.keys():
       for organ in X.organ_lengths_dict[phytomere_rank].keys():
         df_organ_lengths = df_organ_lengths.append({'GDD': TPS, 'Date': date, 'Site': site, 'Day': current_day, 'Id_plante': X.id_plante, 'Id_talle': X.id_talle, 'Id_rang': phytomere_rank, 'Organ': organ, 'Length': X.organ_lengths_dict[phytomere_rank][organ]}, ignore_index = True)
-    
+
+    # ------------------------------------------------------------------------------------------------
+    # ------------------------- Management of the flowering state of the apex ------------------------
+    # ------------------------------------------------------------------------------------------------
+    # The apex parameters are updated at the end of each day.
+    # A unique temperature and a daylength are associated to each day
+    # 'primary_induction_index' is a cumulated sum of a daily 'primary_induction_increment' calculated
+    #                        by 'flowering_functions.py' using daily mean temperature
+    # 'secondary_induction_index' is a cumulated sum of a daily 'secondary_induction_increment'
+    #                     calculated by 'flowering_functions.py' using daily mean temperature
+    # When the primary induction is completed (index>1) and the apex has created 2 leaves (1 emerged) it become competent to the secondary
+    # induction on the next day.
+    # When the secondary induction is completed (index>1), the apex become reproductive.
+    # The two inductions are irreversible.
+    # ------------------------------------------------------------------------------------------------
+
     # ------------------------------------------------------------------------------------------------
     # ------------------------- Management of the flowering state of the apex ------------------------
     # ------------------------------------------------------------------------------------------------
@@ -1690,14 +1628,14 @@ apex(X):
     
     if option_floraison == True:
       if X.phenological_state == 'vegetative':
-        X.primary_induction_index += flowering_model.vernalisation_function(daily_temperature)
+        X.primary_induction_index += flowering_model.vernalisation_function(daily_temperature,X.id_plante)
         
         if X.primary_induction_index >= 1:
-          X.phenological_state = 'vernalized'          
+          X.phenological_state = 'vernalized'
       
       elif (X.phenological_state == 'vernalized' and X.total_created_leaves > 1):
         print('vernalized')
-        X.secondary_induction_index += flowering_model.photoperiod_induction_function(daily_daylength)
+        X.secondary_induction_index += flowering_model.photoperiod_induction_function(daily_daylength,X.id_plante)
         if X.secondary_induction_index >= 1:
           X.phenological_state = 'reproductive'
           print('reproductive')
@@ -1760,14 +1698,24 @@ apex(X):
         # When secondary induction is completed, all existing primodia will become leaves
         # When flag leaf is produced (emergence of the penultimate leaf), apex stop to produce spikelets
         # -------------------------------------------------------------------------------------------------
-        if X.secondary_induction_index == 0:
-          X.primordia_number += flowering_model.param.coeff_primordia_emission_vegetative - 1    # 1 correspond to the new leaf produced
-        elif X.phenological_state == 'vernalized' and 0 < X.secondary_induction_index:
-          X.primordia_number += flowering_model.param.coeff_primordia_emission_reproductive - 1
-        elif X.phenological_state == 'reproductive' or X.secondary_induction_index >= 1:
-          if X.final_leaf_number is None:
-            X.final_leaf_number = X.total_created_leaves + X.primordia_number
-          X.primordia_number += flowering_model.param.coeff_primordia_emission_reproductive - 1
+        if isinstance(flowering_model.param.coeff_primordia_emission_vegetative, list):
+          if X.secondary_induction_index == 0:
+            X.primordia_number += flowering_model.param.coeff_primordia_emission_vegetative[X.id_plante] - 1    # 1 correspond to the new leaf produced
+          elif X.phenological_state == 'vernalized' and 0 < X.secondary_induction_index:
+            X.primordia_number += flowering_model.param.coeff_primordia_emission_reproductive[X.id_plante] - 1
+          elif X.phenological_state == 'reproductive' or X.secondary_induction_index >= 1:
+            if X.final_leaf_number is None:
+              X.final_leaf_number = X.total_created_leaves + X.primordia_number
+            X.primordia_number += flowering_model.param.coeff_primordia_emission_reproductive[X.id_plante] - 1
+        else:
+          if X.secondary_induction_index == 0:
+            X.primordia_number += flowering_model.param.coeff_primordia_emission_vegetative - 1    # 1 correspond to the new leaf produced
+          elif X.phenological_state == 'vernalized' and 0 < X.secondary_induction_index:
+            X.primordia_number += flowering_model.param.coeff_primordia_emission_reproductive - 1
+          elif X.phenological_state == 'reproductive' or X.secondary_induction_index >= 1:
+            if X.final_leaf_number is None:
+              X.final_leaf_number = X.total_created_leaves + X.primordia_number
+            X.primordia_number += flowering_model.param.coeff_primordia_emission_reproductive - 1
         produce RollR(180) phytomere(YP, X) bourgeonRoot(Yb, YINT) ApexTal(YAT) Entrenoeud(YINT, X, YF, YP) FLW SB Feuille(YF, X, YP) FLW EB apex(X)
         
       elif X.retard==1:
@@ -1778,7 +1726,7 @@ apex(X):
         X.retard=1
         print('RETARD_0')
         produce apex(X)
-        
+
     if (X.phenological_state == 'reproductive' and X.total_created_leaves == X.final_leaf_number):
       if (X.final_spikelet_number is None):
         X.final_spikelet_number = X.primordia_number
