@@ -766,7 +766,7 @@ def Start():
   global NBlignes,NBcolonnes,posPlante,Espacement #Parametres scene
   global surface_foliaire_emergee,Surfoliaireencours,Premiecroiss #Definition des groupes de production
   global Alpha,Beta,t1,t2,t3,Caribu #Relation allometrique
-  global current_day, meteo, radiation_interception, tiller_appearance, tiller_to_remove, dt_max, tend, tmax
+  global current_day, meteo, radiation_interception, tiller_appearance, tiller_to_remove, dt_max, tend, tmax, daily_temperature
   
   # Camera setting
   #Viewer.camera.lookAt((250,250,50),(-100,-100,50))#((Position),(direction))
@@ -787,7 +787,7 @@ def Start():
   # ------------------------------------------------------------------------------------------------
   meteo = meteo_ephem.import_meteo_data(meteo_path, sowing_date, site)
   current_day = meteo.experimental_day.tolist()[0]
-  daily_temperature = meteo.mean_temperature[meteo.experimental_day == current_day].iloc[0]
+  daily_temperature = 40#meteo.mean_temperature[meteo.experimental_day == current_day].iloc[0]
   dt_max=paramManagement['dt_max']
   tend = paramManagement['te']
   tmax =  paramManagement['tm']
@@ -1188,7 +1188,7 @@ def beta_function(t, wmax, te, tm): # fonction avec nomenclature Yin et al. 2003
   return wmax*(1+((te-t)/(te-tm)))*(pow((t/te),(te/(te-tm))))
 
 def FoncCroiss(t, Ymax, tend, tmax): # fonction de croissance de feuille
-  if (t>te):
+  if (t>tend):
     return Ymax
   else:
     return beta_function(t, Ymax, tend, tmax)
@@ -1316,7 +1316,7 @@ phytomere(X, X_AP):
 
 
 Feuille(X, X_apex, X_phytomere):
-  global NewShootBiomass,longueur_totale_feuille,les_feuilles, les_segments_feuilles, Surfoliaireencours,groupe
+  global NewShootBiomass,longueur_totale_feuille,les_feuilles, les_segments_feuilles, Surfoliaireencours,groupe,daily_temperature
   
   X.surface_limbe = 0
   Jled = beta_function(daily_temperature,paramManagement['Jled'],paramManagement['te'],paramManagement['tm'])
