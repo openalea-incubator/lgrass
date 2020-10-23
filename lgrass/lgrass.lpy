@@ -766,7 +766,7 @@ def Start():
   global NBlignes,NBcolonnes,posPlante,Espacement #Parametres scene
   global surface_foliaire_emergee,Surfoliaireencours,Premiecroiss #Definition des groupes de production
   global Alpha,Beta,t1,t2,t3,Caribu #Relation allometrique
-  global current_day, meteo, radiation_interception, tiller_appearance, tiller_to_remove
+  global current_day, meteo, radiation_interception, tiller_appearance, tiller_to_remove, dt_max, tend, tmax
   
   # Camera setting
   #Viewer.camera.lookAt((250,250,50),(-100,-100,50))#((Position),(direction))
@@ -775,7 +775,6 @@ def Start():
   ##### Parametres de temps #####
   timing=t.time()
   growth_realized=1
-  dt=1
   TPS=0.
   TPS_expe=range(1000)
   
@@ -788,6 +787,11 @@ def Start():
   # ------------------------------------------------------------------------------------------------
   meteo = meteo_ephem.import_meteo_data(meteo_path, sowing_date, site)
   current_day = meteo.experimental_day.tolist()[0]
+  daily_temperature = meteo.mean_temperature[meteo.experimental_day == current_day].iloc[0]
+  dt_max=paramManagement['dt_max']
+  tend = paramManagement['te']
+  tmax =  paramManagement['tm']
+  dt = beta_function(daily_temperature, dt_max, tend, tmax)
   
   ##### Creation de parametres vides #####
   Biomasse_aerienne=[0.]*(nb_plantes) # Biomasse foliaire totale
@@ -870,19 +874,19 @@ def StartEach(lstring):
     if TPS==ParamP[ID]['DCOUP']:
       if groupe=='croissance':
         groupe='defoliation'
-        dt=0.25
+        dt=dt*0.25
         print('coupe')
     
-    if (TPS==ParamP[ID]['DCOUP']+1.):
+    if (TPS==ParamP[ID]['DCOUP']+dt):
       if groupe=='defoliation':
         if ParamP[ID]['DCOUP']+ParamP[ID]['FREQUCOUPE'] < ParamP[ID]['PREMIERCOUPE']+ParamP[ID]['DUREECOUPE']:
           ParamP[ID]['DCOUP']=ParamP[ID]['DCOUP']+ParamP[ID]['FREQUCOUPE']
           print('prochaine_coupe',ParamP[ID]['DCOUP'])
         reprise_coupe=True
         groupe='croissance'
-        dt=1
+        dt =  beta_function(daily_temperature, dt_max, tend, tmax)
         
-    if TPS==ParamP[ID]['DCOUP']+0.75:
+    if TPS==ParamP[ID]['DCOUP'] + dt*0.75:
       for i in range(len(Seuil)):
         for j in range(len(Seuil[i])):
           Seuil[i][j]=5.5
@@ -1180,14 +1184,14 @@ def End(lstring,lscene): #Ecriture et fermeture des fichiers de sortie
   print('Execution time :',t.time()-timing)
 
 
-
+def beta_function(t, wmax, te, tm): # fonction avec nomenclature Yin et al. 2003
+  return wmax*(1+((te-t)/(te-tm)))*(pow((t/te),(te/(te-tm))))
 
 def FoncCroiss(t, Ymax, tend, tmax): # fonction de croissance de feuille
-  if (t>tend):
-    y=Ymax
+  if (t>te):
+    return Ymax
   else:
-    y=Ymax*(1+((tend-t)/(tend-tmax)))*(pow((t/tend),(tend/(tend-tmax))))
-  return y
+    return beta_function(t, Ymax, tend, tmax)
 
 #def TpourY(Y, Ym, Te, Tm):  # retrouver le temps T auquel la taille de la feuille valait Y
 #  L=0
@@ -1303,7 +1307,7 @@ phytomere(X, X_AP):
         produce Cut()
   else:
     if groupe == 'croissance':
-      X.age=X.age+1
+      X.age=X.age+dt#thermal time with beta
       if (X.id_talle!=0 and X.id_rang==1):
         if (X.age>=120 and X.angletal<=ParamP[X.id_plante]['divergetalle']):
           X.angletal=X.angletal+(1./3.)
@@ -1315,6 +1319,7 @@ Feuille(X, X_apex, X_phytomere):
   global NewShootBiomass,longueur_totale_feuille,les_feuilles, les_segments_feuilles, Surfoliaireencours,groupe
   
   X.surface_limbe = 0
+  Jled = beta_function(daily_temperature,paramManagement['Jled'],paramManagement['te'],paramManagement['tm'])
   
   if groupe=='croissance':
     X.age+=dt
@@ -1328,8 +1333,8 @@ Feuille(X, X_apex, X_phytomere):
     if X.Phase!='mature':
       ##### Modif potentiel apres coupe ######
       if reprise_coupe==True and X.Phase=='visible':
-        LEDGAINE=((0.2*X_apex.Premiecroiss*5)*2)-X_apex.Premiecroiss
-        TrueAge=TpourY2(Seuil[X.id_plante][X.id_talle],paramManagement['Yfinit'], paramManagement['Jled']*LEDGAINE,paramManagement['Kled']*paramManagement['Jled']*LEDGAINE) #Jled*LEDGAINE correspond a te, Kled*Jled*LEDGAINE correspond a tm (These Alban Verdenal)
+        LEDGAINE=((0.2*X_apex.Premiecroiss*5)*2)-X_apex.Premiecroiss		
+        TrueAge=TpourY2(Seuil[X.id_plante][X.id_talle],paramManagement['Yfinit'], Jled*LEDGAINE,paramManagement['Kled']*Jled*LEDGAINE) #Jled*LEDGAINE correspond a te, Kled*Jled*LEDGAINE correspond a tm (These Alban Verdenal)
         NewYmax=X_apex.C*((pow(paramManagement['T01'],(TrueAge+paramManagement['tb1'])*paramManagement['k1'])-paramManagement['Lpot'])-(pow(paramManagement['T02'],(TrueAge+paramManagement['tb2'])*paramManagement['k2']))) # Fonction potentiel de croissance
         if NewYmax>X.Ymax:
           NewYmax=X.Ymax
@@ -1339,7 +1344,7 @@ Feuille(X, X_apex, X_phytomere):
           #LED1=((X.Taillefinalegaine*5)*2)-X.Ymax
           NewTaillefinaleg=X.rapportK * NewYmax
           LED2=((NewTaillefinaleg*5)*2)-NewYmax
-          X.Difftps=TpourY2(X.Taillefeuille+X.coupe,NewYmax,paramManagement['Jled']*LED2,paramManagement['Kled']*paramManagement['Jled']*LED2)-X.age
+          X.Difftps=TpourY2(X.Taillefeuille+X.coupe,NewYmax,Jled*LED2,paramManagement['Kled']*Jled*LED2)-X.age
           #TpourY2(Seuil[X.id_plante][X.id_talle], X.Ymax,paramManagement['Jled']*LED,paramManagement['Kled']*paramManagement['Jled']*LED)-X.age#TpourY2(X.Taillefeuille+X.coupe,paramManagement['Yfinit'], paramManagement['Jled']*LEDGAINE,paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)
           X.Agecroiss=X.Difftps+X.age
           X.Ymax=NewYmax
@@ -1383,7 +1388,7 @@ Feuille(X, X_apex, X_phytomere):
           
           LED=((X.Taillefinalegaine*5)*2)-X.Ymax
           #LEDGAINE=((0.2*110*5)*2)-110
-          X.Difftps=TpourY2(Seuil[X.id_plante][X.id_talle], X.Ymax,paramManagement['Jled']*LED,paramManagement['Kled']*paramManagement['Jled']*LED)-X.age#TpourY2(X.Taillefeuille+X.coupe,110, paramManagement['Jled']*LEDGAINE,paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)
+          X.Difftps=TpourY2(Seuil[X.id_plante][X.id_talle], X.Ymax,Jled*LED,paramManagement['Kled']*Jled*LED)-X.age#TpourY2(X.Taillefeuille+X.coupe,110, Jled*LEDGAINE,paramManagement['Kled']*Jled*LEDGAINE)
       
       ###### croissance ######
       LEDGAINE=((X.Taillefinalegaine*5)*2)-X.Ymax
@@ -1392,11 +1397,11 @@ Feuille(X, X_apex, X_phytomere):
       
       if(X.Phase=='cachee'):
         inversea=X.age-dt
-        AccroissDemande=FoncCroiss(inversea+dt, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)-FoncCroiss(inversea, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)
+        AccroissDemande=FoncCroiss(inversea+dt, X.Ymax, Jled*LEDGAINE, paramManagement['Kled']*Jled*LEDGAINE)-FoncCroiss(inversea, X.Ymax, Jled*LEDGAINE, paramManagement['Kled']*Jled*LEDGAINE)
         #Accroiss=FoncCroiss(X.age, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)-FoncCroiss(X.age-1, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)
         X.Agecroiss=X.age
       if(X.Phase=='visible'):
-        AccroissDemande=(FoncCroiss(X.Agecroiss+1, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)-FoncCroiss(X.Agecroiss, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE))
+        AccroissDemande=(FoncCroiss(X.Agecroiss+1, X.Ymax, Jled*LEDGAINE, paramManagement['Kled']*Jled*LEDGAINE)-FoncCroiss(X.Agecroiss, X.Ymax, Jled*LEDGAINE, paramManagement['Kled']*Jled*LEDGAINE))
         X.Agecroiss=X.age+X.Difftps
       Pourcent=PourcentageFeuilGrowthRealized[X.id_plante]
       
@@ -1419,7 +1424,7 @@ Feuille(X, X_apex, X_phytomere):
       #  Accroiss=0
       
       #taillefictive=TpourY()
-      limbefictif=0.973*FoncCroiss(X.Agecroiss-1, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)
+      limbefictif=0.973*FoncCroiss(X.Agecroiss-dt, X.Ymax, Jled*LEDGAINE, paramManagement['Kled']*Jled*LEDGAINE)
       
       #if X.R==0.973 and limbefictif>(0.75*X.Taillefinalelimbe):
       #  X.R=0.965
@@ -1454,9 +1459,9 @@ Feuille(X, X_apex, X_phytomere):
       if X.Phase!='mature':
         if (X.Taillegaine< Taille_finale_gaine[X.id_plante][X.id_talle][X.id_rang-1] +13):
           if(X.Phase=='cachee'):
-            NextAccroiss=FoncCroiss(X.age+dt, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)-FoncCroiss(X.age, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)
+            NextAccroiss=FoncCroiss(X.age+dt, X.Ymax, Jled*LEDGAINE, paramManagement['Kled']*Jled*LEDGAINE)-FoncCroiss(X.age, X.Ymax, Jled*LEDGAINE, paramManagement['Kled']*Jled*LEDGAINE)
           else: # X.Phase=='visible'
-            NextAccroiss=(FoncCroiss(X.Agecroiss+dt, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)-FoncCroiss(X.Agecroiss, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE))         
+            NextAccroiss=(FoncCroiss(X.Agecroiss+dt, X.Ymax, Jled*LEDGAINE, paramManagement['Kled']*Jled*LEDGAINE)-FoncCroiss(X.Agecroiss, X.Ymax, Jled*LEDGAINE, paramManagement['Kled']*Jled*LEDGAINE))         
         if (X.Taillegaine>0.98*X.Taillefinalegaine and X.Taillegaine<=Taille_finale_gaine[X.id_plante][X.id_talle][X.id_rang-1] -5 and X.Phase=='visible'):
           NextAccroiss=1        
         if (X.Taillegaine>=Taille_finale_gaine[X.id_plante][X.id_talle][X.id_rang-1] +13 and X.Phase=='visible'):
@@ -1619,7 +1624,7 @@ Feuille(X, X_apex, X_phytomere):
         produce Feuille(X, X_apex, X_phytomere)
     
     ### Recalcul de la biomasse foliaire ###
-    elif TPS==ParamP[X.id_plante]['DCOUP']+0.75:
+    elif TPS==ParamP[X.id_plante]['DCOUP']+0.75*dt:
       if X.Taillegaine*1.>Seuil[X.id_plante][X.id_talle]:
         Seuil[X.id_plante][X.id_talle]=X.Taillegaine
       
@@ -1638,12 +1643,12 @@ Feuille(X, X_apex, X_phytomere):
 
 GetPos(a,b,c):
   for ID in range(nb_plantes):
-    if TPS==ParamP[ID]['DCOUP']+0.5:
+    if TPS==ParamP[ID]['DCOUP']+0.5*dt:
       produce
 
 
 SegFeuille(X):
-  if TPS==ParamP[X.id_plante]['DCOUP']+0.75:
+  if TPS==ParamP[X.id_plante]['DCOUP']+0.75*dt:
     produce
 
 
