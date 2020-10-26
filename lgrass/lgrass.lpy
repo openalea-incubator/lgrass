@@ -787,11 +787,8 @@ def Start():
   # ------------------------------------------------------------------------------------------------
   meteo = meteo_ephem.import_meteo_data(meteo_path, sowing_date, site)
   current_day = meteo.experimental_day.tolist()[0]
-  daily_temperature = 40#meteo.mean_temperature[meteo.experimental_day == current_day].iloc[0]
-  dt_max=paramManagement['dt_max']
-  tend = paramManagement['te']
-  tmax =  paramManagement['tm']
-  dt = beta_function(daily_temperature, dt_max, tend, tmax)
+  daily_temperature = meteo.mean_temperature[meteo.experimental_day == current_day].iloc[0]
+  dt = Tregul_timestep(daily_temperature)
   
   ##### Creation de parametres vides #####
   Biomasse_aerienne=[0.]*(nb_plantes) # Biomasse foliaire totale
@@ -884,7 +881,7 @@ def StartEach(lstring):
           print('prochaine_coupe',ParamP[ID]['DCOUP'])
         reprise_coupe=True
         groupe='croissance'
-        dt =  beta_function(daily_temperature, dt_max, tend, tmax)
+        dt =  Tregul_timestep(daily_temperature)
         
     if TPS==ParamP[ID]['DCOUP'] + dt*0.75:
       for i in range(len(Seuil)):
@@ -1113,7 +1110,7 @@ def End(lstring,lscene): #Ecriture et fermeture des fichiers de sortie
   global TPS,timing,chemin_fichier1,chemin_fichier2,chemin_fichier3,mtg,long_root, les_racines, apex_characteristics, internode_characteristics
   global df_induction, df_organ_lengths
   
-  
+  print(lstring)
   ### Remplissage du fichier taille_finale_feuille ###
   for ID in range(nb_plantes):
     les_feuilles_emergees = les_feuilles[(les_feuilles['Plante'] == ID) & (les_feuilles['Phase'] == 'mature')]['ObjetOrgane'].tolist()
@@ -1186,6 +1183,23 @@ def End(lstring,lscene): #Ecriture et fermeture des fichiers de sortie
 
 def beta_function(t, wmax, te, tm): # fonction avec nomenclature Yin et al. 2003
   return wmax*(1+((te-t)/(te-tm)))*(pow((t/te),(te/(te-tm))))
+
+def Tregul_timestep(daily_temperature):
+  '''
+  A non linear function of temperature modulating the timestep of the model
+  '''
+
+  Tmin = paramManagement['Tmin']
+  Tmax = paramManagement['Tmax']
+  Tref = paramManagement['Tref']
+  q = paramManagement['q']
+  dt_max=paramManagement['dt_max']
+  
+  if Tmin < daily_temperature < Tmax:
+    dt = dt_max * ((daily_temperature - Tmin) / (Tref - Tmin))**q * ((Tmax - daily_temperature) / (Tmax - Tref))
+  else:
+    dt = 0 
+  return dt
 
 def FoncCroiss(t, Ymax, tend, tmax): # fonction de croissance de feuille
   if (t>tend):
@@ -1271,17 +1285,17 @@ CouvertVegetal(X):
           nb_talle.append(0)
           Seuil.append([5.5])
           Taille_finale_gaine.append([[5.5,5.5]])
-          nproduce IN SB() RollR(45) MoveTo(j*Espacement,Espacement*i,0) Plante(param) IN EB()
+          nproduce IN SB() RollR(45) MoveTo(j*Espacement,Espacement*i,0) Plante(param, True) IN EB()
     else:
       produce CouvertVegetal(X+1)
   if groupe=='defoliation':
     produce CouvertVegetal(X)
 
 
-Plante(X):
+Plante(X,init_plt):
   global TPS,groupe, current_day
   if groupe=='croissance':
-    if TPS ==2:
+    if init_plt: #TPS ==2:
       Y1=ParamPhytomere(id_plante = X.id_plante, id_talle = 0, id_rang=1)
       YF=ParamFeuille(age=0, Agecroiss=0, Taillefeuille=0, id_plante=X.id_plante ,id_rang=1, Ymax=Premiecroiss[X.id_plante], Taillefinalelimbe=0.8*Premiecroiss[X.id_plante], Taillefinalegaine=0.2*Premiecroiss[X.id_plante],id_geno=X.id_geno)
       Yb=ParambourgeonRoot(X.id_plante,id_talle=0,id_rang=1,id_geno=X.id_geno)
@@ -1292,10 +1306,10 @@ Plante(X):
       # Remplissage des hauteurs d organes
       YA.organ_lengths_dict = {Y1.id_rang: {'limb': YF.Taillelimbe, 'sheath': YF.Taillegaine, 'internode': YINT.length}}
       
-      produce Plante(X) phytomere(Y1, YA) RollR(95) bourgeonRoot(Yb, YINT) ApexTal(YAT) Entrenoeud(YINT, YA, YF, Y1) FLW SB Feuille(YF, YA, Y1) FLW EB apex(YA)
+      produce Plante(X,False) phytomere(Y1, YA) RollR(95) bourgeonRoot(Yb, YINT) ApexTal(YAT) Entrenoeud(YINT, YA, YF, Y1) FLW SB Feuille(YF, YA, Y1) FLW EB apex(YA)
       
   if groupe=='defoliation':
-    produce Plante(X)
+    produce Plante(X,init_plt)
 
 
 phytomere(X, X_AP):
@@ -1319,7 +1333,7 @@ Feuille(X, X_apex, X_phytomere):
   global NewShootBiomass,longueur_totale_feuille,les_feuilles, les_segments_feuilles, Surfoliaireencours,groupe,daily_temperature
   
   X.surface_limbe = 0
-  Jled = beta_function(daily_temperature,paramManagement['Jled'],paramManagement['te'],paramManagement['tm'])
+  Jled = Tregul_timestep(daily_temperature)
   
   if groupe=='croissance':
     X.age+=dt
