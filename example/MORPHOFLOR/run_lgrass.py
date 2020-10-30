@@ -18,7 +18,7 @@ def run_lgrass(scenario_id=1, inputs_dir_path='inputs', outputs_dir_path='output
     """
 
     # Scenario to be run
-    scenarii_df = pd.read_csv('plan_simulation.csv', index_col='Scenario')
+    scenarii_df = pd.read_csv(os.path.join('inputs', 'plan_simulation.csv'), index_col='Scenario')
     scenario = scenarii_df.loc[scenario_id].to_dict()
     scenario_name = scenario['name']
 
@@ -31,6 +31,7 @@ def run_lgrass(scenario_id=1, inputs_dir_path='inputs', outputs_dir_path='output
     lsystem = Lsystem(lpy_filename)
 
     # Update parameters
+    lsystem.option_profile = "plateau"
     lsystem.flowering_model = flowering_model
     lsystem.derivationLength = int(scenario['derivationLength'])
     lsystem.option_tallage = scenario['option_tallage']
@@ -61,7 +62,7 @@ def run_lgrass(scenario_id=1, inputs_dir_path='inputs', outputs_dir_path='output
 if __name__ == '__main__':
     inputs = 'inputs'
     outputs = 'outputs'
-    scenario = 14
+    scenario = 5
 
     try:
         opts, args = getopt.getopt(sys.argv[1:], "i:o:s:d", ["inputs=", "outputs=", "scenario="])

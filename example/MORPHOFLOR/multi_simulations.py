@@ -8,7 +8,7 @@ from shutil import copyfile
 
 if __name__ == '__main__':
 
-    simul_name = 'test10'
+    simul_name = 'test11'
     outputs_dir_path = os.path.join('outputs', simul_name)
 
     if not os.path.exists(outputs_dir_path):
@@ -16,9 +16,9 @@ if __name__ == '__main__':
     else:
         raise Warning('Outputs_dir_path already exists')
 
-    copyfile('plan_simulation.csv', os.path.join(outputs_dir_path, 'plan_simulation.csv'))
+    copyfile(os.path.join('inputs', 'plan_simulation.csv'), os.path.join(outputs_dir_path, 'plan_simulation.csv'))
 
-    scenarii_df = pd.read_csv('plan_simulation.csv', index_col='Scenario')
+    scenarii_df = pd.read_csv(os.path.join('inputs', 'plan_simulation.csv'), index_col='Scenario')
     scenarii_df['Scenario'] = scenarii_df.index
     scenarii = scenarii_df.Scenario
 
