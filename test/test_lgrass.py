@@ -102,4 +102,4 @@ def test_run(overwrite_desired_data=False):
 
 
 if __name__ == '__main__':
-    test_run(overwrite_desired_data=True)
+    test_run(overwrite_desired_data=False)

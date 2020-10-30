@@ -1638,11 +1638,11 @@ Feuille(X, X_apex, X_phytomere):
       Taille_finale_gaine[X.id_plante][X.id_talle][X.id_rang]=X.Taillegaine
       
       if X.id_rang==1 and X.id_talle>0 and X.topology!=(0,0):  # Premiere feuille de chaque talle sauf brin maitre et talle coleoptile
-        try:
-          feuille_ref = les_feuilles[(les_feuilles['Plante'] == X.id_plante) & (les_feuilles['Topology'] == X.topology[:-1]) & (les_feuilles['id_rang'] == max(1, X.topology[-1]))].iloc[0]['ObjetOrgane']    # Feuille axillante de l'ordre précédent (le max sert a traiter les cas des 1ers rangs)
-        except:
-          print(les_feuilles['Topology'], X.topology)
-        Seuil[X.id_plante][X.id_talle]=max(Seuil[X.id_plante][X.id_talle], feuille_ref.Taillegaine)
+        if les_feuilles.isin([(les_feuilles['Plante'] == X.id_plante) & (les_feuilles['Topology'] == X.topology[:-1]) & (les_feuilles['id_rang'] == max(1, X.topology[-1]))])['ObjetOrgane'].any():    # Feuille axillante de l'ordre précédent (le max sert a traiter les cas des 1ers rangs)
+          feuille_ref = les_feuilles[(les_feuilles['Plante'] == X.id_plante) & (les_feuilles['Topology'] == X.topology[:-1]) & (les_feuilles['id_rang'] == max(1, X.topology[-1]))].iloc[0]['ObjetOrgane']
+          Seuil[X.id_plante][X.id_talle]=max(Seuil[X.id_plante][X.id_talle], feuille_ref.Taillegaine)
+        else: # Si la feuille axillante a disparu
+          Seuil[X.id_plante][X.id_talle]= 5.5
       X.biomass=BiomassFeuille(X.Taillefeuille,X.coupe,X.id_geno)
 
 
