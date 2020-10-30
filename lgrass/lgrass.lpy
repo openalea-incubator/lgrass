@@ -44,7 +44,7 @@ num_primordium=0
 
 
 LSTEP=1
-DureeExp = 500
+DureeExp = 1200
 
 ##### Parametre scene #####
 OptionRacine='SansRacines' 
@@ -65,7 +65,7 @@ gaino=profilegaine.deepcopy()
 ##### Parametres coupe #####
 groupe='croissance' # Permet de realiser les coupes
 reprise_coupe=False
-#CoupeTaille=600000.
+recolte_biomasse = {}
 
 # Default name of the output
 output_induction_file_name = 'output_induction'
@@ -150,13 +150,6 @@ if option_mophogenetic_regulation_by_carbone == True:
   RUE = 2  # g MJ-1
 
 
-# ------------------------------------------------------------------------------------------------
-# -------------------------------------------- Coupe ---------------------------------------------
-# ------------------------------------------------------------------------------------------------
-cutting_dates = []
-changing_day_cutting = True # Allow that cutting occurs only once in a day (the first GDD)
-
-
 #########   Definition Plante   #########
 scales={}
 parameters={}
@@ -210,7 +203,7 @@ class ParamFeuille:
     self.Phase=Phase                         # Stade de la feuille : cachee, visible, 0 0
     self.rapportK=rapportK                   # Rapport gaine/feuille
     self.coupe=coupe                         # Longueur de coupe
-    self.Cutstatus=Cutstatus                 # Quantite de coupe : intact, partiellementcoupee(=feuille coupee et gaine intacte), entierementcoupee(=feuille et gaine coupee)
+    self.Cutstatus=Cutstatus                 # Intact, partiellementcoupee(=feuille coupee et gaine intacte), entierementcoupee(=feuille et gaine coupee)
     self.angleinsert=angleinsert             # Angle limbe
     self.angletal=angletal                   # Angle de la talle qui ecarte la feuille
     self.id_geno=id_geno
@@ -759,14 +752,14 @@ def LAI_proximite(id_plante):
 # --------------------------------------------
 
 def Start():
-  global timing,growth_realized,dt,TPS,TPS_expe #Parametres de temps
+  global timing,dt,TPS,TPS_expe #Parametres de temps
   global df_induction, df_organ_lengths
   global surface_biomass,chemin_fichier1,chemin_fichier2,chemin_fichier3,long_root,simul_expe,taille_finale_feuille, outvarfile #Fichiers de sortie
   global Biomasse_aerienne,Biomasse_racinaire,BiomProd,Ray,PourcentageRootGrowthRealized,PourcentageRootGrowthRealized,Reserve,Demande_feuille,PourcentageFeuilGrowthRealized,les_diametres,Seuil,Taille_finale_gaine,nb_talle #Parametres vides
   global NBlignes,NBcolonnes,posPlante,Espacement #Parametres scene
   global surface_foliaire_emergee,Surfoliaireencours,Premiecroiss #Definition des groupes de production
   global Alpha,Beta,t1,t2,t3,Caribu #Relation allometrique
-  global current_day, meteo, radiation_interception, tiller_appearance, tiller_to_remove, dt_max, tend, tmax, daily_temperature
+  global current_day, meteo, radiation_interception, tiller_appearance, tiller_to_remove, daily_temperature, step_cut
   
   # Camera setting
   #Viewer.camera.lookAt((250,250,50),(-100,-100,50))#((Position),(direction))
@@ -774,13 +767,8 @@ def Start():
   
   ##### Parametres de temps #####
   timing=t.time()
-  growth_realized=1
   TPS=0.
   TPS_expe=range(1000)
-  
-  
-  
-  
   
   # ------------------------------------------------------------------------------------------------
   # -------------------------------- Thermal time calculation --------------------------------------
@@ -789,7 +777,7 @@ def Start():
   current_day = meteo.experimental_day.tolist()[0]
   daily_temperature = meteo.mean_temperature[meteo.experimental_day == current_day].iloc[0]
   dt = Tregul_timestep(daily_temperature)
-  
+  step_cut = 0
   ##### Creation de parametres vides #####
   Biomasse_aerienne=[0.]*(nb_plantes) # Biomasse foliaire totale
   Biomasse_racinaire=[0.]*(nb_plantes) # Biomasse racinaire
@@ -830,8 +818,8 @@ def Start():
   tiller_to_remove = pd.DataFrame()
   
 #  ##### Ecriture des fichiers de sortie #####
-  outvarfile='surface_biomass_%s_%s_%s.csv'%(int(Espacement),DureeExp,ParamP[0]['HCOUP'])
-  outvarfile2='sorties_feuilles_finales_%s_%s_%s.csv'%(int(Espacement),DureeExp,ParamP[0]['HCOUP'])
+  outvarfile='surface_biomass.csv'
+  outvarfile2='sorties_feuilles_finales.csv'
 ##output_apex = 'output_apex_%s_%s_%s.csv'%(int(Espacement),DureeExp,ParamP[0]['HCOUP'])                  # Ajout SIMON
 #output_organ_characteristics = 'output_organ_characteristics%s_%s_%s.csv'%(int(Espacement),DureeExp,ParamP[0]['HCOUP'])    
 #outimage='Scene\scene_'+str(int(Espacement))+'_'+t.strftime('%d-%m-%y_%Hh%M',t.localtime())+'.bmp'
@@ -847,50 +835,45 @@ def Start():
 def StartEach(lstring):
   global RootPotentialNewBiomass,longueur_totale_feuille,Rootbiom,groupe,dt,reprise_coupe,CoupeTaille
   global df_induction, df_organ_lengths
-  global current_day, meteo, tiller_appearance, tiller_to_remove, mortality_zone, changing_day_cutting
+  global current_day, meteo, tiller_appearance, tiller_to_remove, mortality_zone, step_cut
 #  global apex_characteristics, internode_characteristics
-  
-  
-  
-  
   
   RootPotentialNewBiomass=[0]*(nb_plantes)
   longueur_totale_feuille=0
   Rootbiom=0
   
-  for ID in range(nb_plantes):
-    # AJOUT SIMON 24-12-2019
-    
-    if current_day in cutting_dates and changing_day_cutting == True:
-      ParamP[ID]['DCOUP'] = TPS
-      changing_day_cutting = False
-    if current_day not in cutting_dates:
-      changing_day_cutting = True
+  if groupe == 'croissance':
+    daily_temperature = meteo.mean_temperature[meteo.experimental_day == current_day].iloc[0]
+    dt = Tregul_timestep(daily_temperature)
     
     ### Declenchement de la coupe selon la date ###
-    if TPS==ParamP[ID]['DCOUP']:
-      if groupe=='croissance':
-        groupe='defoliation'
-        dt=dt*0.25
-        print('coupe')
-    
-    if (TPS==ParamP[ID]['DCOUP']+dt):
-      if groupe=='defoliation':
-        if ParamP[ID]['DCOUP']+ParamP[ID]['FREQUCOUPE'] < ParamP[ID]['PREMIERCOUPE']+ParamP[ID]['DUREECOUPE']:
-          ParamP[ID]['DCOUP']=ParamP[ID]['DCOUP']+ParamP[ID]['FREQUCOUPE']
-          print('prochaine_coupe',ParamP[ID]['DCOUP'])
-        reprise_coupe=True
-        groupe='croissance'
-        dt =  Tregul_timestep(daily_temperature)
-        
-    if TPS==ParamP[ID]['DCOUP'] + dt*0.75:
+    if meteo[meteo.experimental_day == current_day]['Cut'].iloc[0] == True and current_day not in recolte_biomasse.keys():
+      groupe='defoliation'
+      print('coupe')
+      recolte_biomasse[current_day] = 0
+      step_cut = 1
+      dt = 0
+  # Coupe
+  else:
+    if step_cut in (1, 2):
+      step_cut += 1        
+      dt = 0
+
+    elif step_cut == 3:
       for i in range(len(Seuil)):
         for j in range(len(Seuil[i])):
           Seuil[i][j]=5.5
-          
-  
-  
-  #### Régression des talles : Détermination des zones où appliquer le Cut
+      step_cut = 4
+      dt = 0
+    
+    else:
+      reprise_coupe=True
+      groupe='croissance'
+      step_cut = 0
+      daily_temperature = meteo.mean_temperature[meteo.experimental_day == current_day].iloc[0]
+      dt = Tregul_timestep(daily_temperature)
+
+#### Régression des talles : Détermination des zones où appliquer le Cut
   if option_tiller_regression == True and current_day > 1:
     mortality_zone = pd.DataFrame()
     for i in [i for i in range(len(lstring))]:
@@ -1009,83 +992,84 @@ def EndEach(lstring, lscene):
   # -------------------------------------- End of Caribu -------------------------------------------
   # ------------------------------------------------------------------------------------------------
   
-  liste_organes = []
-  for mod in lstring:
-    if mod.name in ('Feuille', ):
-      liste_organes.append({'Plante': mod[0].id_plante, 'id_talle': mod[0].id_talle, 'id_rang': mod[0].id_rang, 'Topology': mod[0].topology, 'Organe': mod.name, 'ObjetOrgane': mod[0], 'Phase': mod[0].Phase})
-  df_organes = pd.DataFrame(liste_organes, columns=['Plante', 'id_talle', 'id_rang', 'Topology', 'Organe', 'ObjetOrgane', 'Phase'])
-  
-  les_feuilles = df_organes[(df_organes['Organe'] == 'Feuille')] # Toutes les feuilles de toutes les plantes
-  
-  rapportS9_SSol_dict = {}
-  for id_plante in les_feuilles['Plante'].unique():
-    les_feuilles_plante = les_feuilles[les_feuilles['Plante'] == id_plante]
-    Biomasse_aerienne[id_plante] = 0
-    surface_foliaire_emergee[id_plante] = 0
-    Demande_feuille[id_plante] = 0
-    for id_talle in les_feuilles_plante['id_talle'].unique():
-      # Toutes les feuilles de la talle
-      les_feuilles_talle = les_feuilles_plante[les_feuilles_plante['id_talle'] == id_talle]['ObjetOrgane'].tolist()
-      
-      # Demande croissance de toutes les feuilles de la talle
-      Demande_feuille[id_plante] += sum([x.Besoinencroiss for x in les_feuilles_talle])
-      
-      # Biomasse et surface des feuilles emergees uniquement
-      Biomasse_aerienne[id_plante] += sum([x.biomass for x in les_feuilles_talle])
-      surface_foliaire_emergee[id_plante] += sum([x.surface_limbe for x in les_feuilles_talle])  #: N'ajoute que les surfaces de limbes emerges
-      # ajoute les surfaces des gaines emergees à partir de Seuil
-      seuil_talle = Seuil[id_plante][id_talle]
-      diametre_seuil_talle = max((2 / pi) * (paramManagement['CoefDirLonLarAjust'] * log(max(seuil_talle * 5,1)) - paramManagement['OrdOriLonLarAjust']), 0.1)
-      surface_gaine_emergee = (seuil_talle * pi * diametre_seuil_talle) / 2  # Surface projetee
-      surface_foliaire_emergee[id_plante] += surface_gaine_emergee
-      
-      ##### Remplissage du fichier surface_biomass #####
-      surface_biomass.writerow([TPS,Espacement,Densite,id_plante+1, id_talle+1, les_feuilles_talle[0].topology, len(les_feuilles_talle),sum(x.biomass for x in les_feuilles_talle),sum(x.surface_limbe for x in les_feuilles_talle) + surface_gaine_emergee])
+  if groupe == 'croissance':
+    liste_organes = []
+    for mod in lstring:
+      if mod.name in ('Feuille', ):
+        liste_organes.append({'Plante': mod[0].id_plante, 'id_talle': mod[0].id_talle, 'id_rang': mod[0].id_rang, 'Topology': mod[0].topology, 'Organe': mod.name, 'ObjetOrgane': mod[0], 'Phase': mod[0].Phase})
+    df_organes = pd.DataFrame(liste_organes, columns=['Plante', 'id_talle', 'id_rang', 'Topology', 'Organe', 'ObjetOrgane', 'Phase'])
     
-    # Calcul LAI proximite
-    rapportS9_SSol_dict[id_plante] = LAI_proximite(id_plante)    
+    les_feuilles = df_organes[(df_organes['Organe'] == 'Feuille')] # Toutes les feuilles de toutes les plantes
     
-    # Mise a jour biomasse et pourcentage echelle plante
-    if Biomasse_aerienne[id_plante]>0 and t1[id_plante]*exp(TPS*t2[id_plante])-t1[id_plante]>0 and surface_foliaire_emergee[id_plante] > 0 and Demande_feuille[id_plante] != 0: #Verifie qu'il y a une partie aerienne et que TPS, t1 et t2 sont positifs          # surface_foliaire_emergee[ID] > 0 and Demande_feuille[ID] > 0 : ajout SIMON
-      # Calcul biomasse creee
-      if option_mophogenetic_regulation_by_carbone == True:
-        # Approche RUE
-        BiomassCree = BiomProd[id_plante]
-      else:
-        # Approche croissance biomasse exponentielle (cf thèse Vincent Migault)
-        BiomassCree=t2[id_plante]*(Biomasse_aerienne[id_plante]+t1[id_plante])*(1+Beta[id_plante]*Alpha[id_plante]*(Biomasse_aerienne[id_plante])**(Alpha[id_plante]-1))
+    rapportS9_SSol_dict = {}
+    for id_plante in les_feuilles['Plante'].unique():
+      les_feuilles_plante = les_feuilles[les_feuilles['Plante'] == id_plante]
+      Biomasse_aerienne[id_plante] = 0
+      surface_foliaire_emergee[id_plante] = 0
+      Demande_feuille[id_plante] = 0
+      for id_talle in les_feuilles_plante['id_talle'].unique():
+        # Toutes les feuilles de la talle
+        les_feuilles_talle = les_feuilles_plante[les_feuilles_plante['id_talle'] == id_talle]['ObjetOrgane'].tolist()
+        
+        # Demande croissance de toutes les feuilles de la talle
+        Demande_feuille[id_plante] += sum([x.Besoinencroiss for x in les_feuilles_talle])
+        
+        # Biomasse et surface des feuilles emergees uniquement
+        Biomasse_aerienne[id_plante] += sum([x.biomass for x in les_feuilles_talle])
+        surface_foliaire_emergee[id_plante] += sum([x.surface_limbe for x in les_feuilles_talle])  #: N'ajoute que les surfaces de limbes emerges
+        # ajoute les surfaces des gaines emergees à partir de Seuil
+        seuil_talle = Seuil[id_plante][id_talle]
+        diametre_seuil_talle = max((2 / pi) * (paramManagement['CoefDirLonLarAjust'] * log(max(seuil_talle * 5,1)) - paramManagement['OrdOriLonLarAjust']), 0.1)
+        surface_gaine_emergee = (seuil_talle * pi * diametre_seuil_talle) / 2  # Surface projetee
+        surface_foliaire_emergee[id_plante] += surface_gaine_emergee
+        
+        ##### Remplissage du fichier surface_biomass #####
+        surface_biomass.writerow([TPS,Espacement,Densite,id_plante+1, id_talle+1, les_feuilles_talle[0].topology, len(les_feuilles_talle),sum(x.biomass for x in les_feuilles_talle),sum(x.surface_limbe for x in les_feuilles_talle) + surface_gaine_emergee])
       
-      # Allocation aerien/racinaire + ratio offre/demande
-      if BiomassCree>0 and 0.99*BiomassCree > Demande_feuille[id_plante]:  # demande satisfaite
-        RootBiomassCree = BiomassCree - Demande_feuille[id_plante]  # Allocation surplus non utilise par parties aeriennes aux racines
-        Biomasse_racinaire[id_plante] += RootBiomassCree
-        PourcentageFeuilGrowthRealized[id_plante] = 1  # Pas de limitation croissance foliaire pour prochain pas de temps
-      else:  # Demande non satisafite
-        RootBiomassCree = 0.01*BiomassCree  # Racines ne prennent qu'1% de l'offre
-        Biomasse_racinaire[id_plante] += RootBiomassCree
-        BiomassFeuilCree = 0.99*BiomassCree
-        PourcentageFeuilGrowthRealized[id_plante] = max(0, BiomassFeuilCree / Demande_feuille[id_plante]) # Reduction croissance foliaire potentielle au prorata offre/demande pour prochain pas de temps
-    else:
-      RootBiomassCree=0
-      BiomassCree=0
-    
-    if RootPotentialNewBiomass[id_plante]==0:
-      PourcentageRootGrowthRealized[id_plante]=0
-      #Reserve[ID]=Reserve[ID]+RootBiomassCree
-    else:
-      PourcentageRootGrowthRealized[id_plante]=RootBiomassCree/RootPotentialNewBiomass[id_plante]
-      if PourcentageRootGrowthRealized[id_plante]>1:
-        PourcentageRootGrowthRealized[id_plante]=1
-        #Reserve[ID]=Reserve[ID]+(RootBiomassCree-RootPotentialNewBiomass[ID])
-      else:
-        if RootPotentialNewBiomass[id_plante]-RootBiomassCree < Reserve[id_plante]:
-          PourcentageRootGrowthRealized[id_plante]=1
-          #Reserve[ID]=Reserve[ID]-(RootPotentialNewBiomass[ID]-RootBiomassCree)
+      # Calcul LAI proximite
+      rapportS9_SSol_dict[id_plante] = LAI_proximite(id_plante)    
+      
+      # Mise a jour biomasse et pourcentage echelle plante
+      if Biomasse_aerienne[id_plante]>0 and t1[id_plante]*exp(TPS*t2[id_plante])-t1[id_plante]>0 and surface_foliaire_emergee[id_plante] > 0 and Demande_feuille[id_plante] != 0: #Verifie qu'il y a une partie aerienne et que TPS, t1 et t2 sont positifs          # surface_foliaire_emergee[ID] > 0 and Demande_feuille[ID] > 0 : ajout SIMON
+        # Calcul biomasse creee
+        if option_mophogenetic_regulation_by_carbone == True:
+          # Approche RUE
+          BiomassCree = BiomProd[id_plante]
         else:
-          PourcentageRootGrowthRealized[id_plante]=(RootBiomassCree+Reserve[id_plante])/RootPotentialNewBiomass[id_plante]
-          #Reserve[ID]=0
+          # Approche croissance biomasse exponentielle (cf thèse Vincent Migault)
+          BiomassCree=t2[id_plante]*(Biomasse_aerienne[id_plante]+t1[id_plante])*(1+Beta[id_plante]*Alpha[id_plante]*(Biomasse_aerienne[id_plante])**(Alpha[id_plante]-1))
+        
+        # Allocation aerien/racinaire + ratio offre/demande
+        if BiomassCree>0 and 0.99*BiomassCree > Demande_feuille[id_plante]:  # demande satisfaite
+          RootBiomassCree = BiomassCree - Demande_feuille[id_plante]  # Allocation surplus non utilise par parties aeriennes aux racines
+          Biomasse_racinaire[id_plante] += RootBiomassCree
+          PourcentageFeuilGrowthRealized[id_plante] = 1  # Pas de limitation croissance foliaire pour prochain pas de temps
+        else:  # Demande non satisafite
+          RootBiomassCree = 0.01*BiomassCree  # Racines ne prennent qu'1% de l'offre
+          Biomasse_racinaire[id_plante] += RootBiomassCree
+          BiomassFeuilCree = 0.99*BiomassCree
+          PourcentageFeuilGrowthRealized[id_plante] = max(0, BiomassFeuilCree / Demande_feuille[id_plante]) # Reduction croissance foliaire potentielle au prorata offre/demande pour prochain pas de temps
+      else:
+        RootBiomassCree=0
+        BiomassCree=0
+      
+      if RootPotentialNewBiomass[id_plante]==0:
+        PourcentageRootGrowthRealized[id_plante]=0
+        #Reserve[ID]=Reserve[ID]+RootBiomassCree
+      else:
+        PourcentageRootGrowthRealized[id_plante]=RootBiomassCree/RootPotentialNewBiomass[id_plante]
+        if PourcentageRootGrowthRealized[id_plante]>1:
+          PourcentageRootGrowthRealized[id_plante]=1
+          #Reserve[ID]=Reserve[ID]+(RootBiomassCree-RootPotentialNewBiomass[ID])
+        else:
+          if RootPotentialNewBiomass[id_plante]-RootBiomassCree < Reserve[id_plante]:
+            PourcentageRootGrowthRealized[id_plante]=1
+            #Reserve[ID]=Reserve[ID]-(RootPotentialNewBiomass[ID]-RootBiomassCree)
+          else:
+            PourcentageRootGrowthRealized[id_plante]=(RootBiomassCree+Reserve[id_plante])/RootPotentialNewBiomass[id_plante]
+            #Reserve[ID]=0
     
-  if groupe == 'defoliation':
+  else:  # Groupe defoliation
     les_segments_feuilles = [x for x in lstring if x.name=='SegFeuille']
   
   if OptionRacine!='SansRacines':
@@ -1110,7 +1094,6 @@ def End(lstring,lscene): #Ecriture et fermeture des fichiers de sortie
   global TPS,timing,chemin_fichier1,chemin_fichier2,chemin_fichier3,mtg,long_root, les_racines, apex_characteristics, internode_characteristics
   global df_induction, df_organ_lengths
   
-  print(lstring)
   ### Remplissage du fichier taille_finale_feuille ###
   for ID in range(nb_plantes):
     les_feuilles_emergees = les_feuilles[(les_feuilles['Plante'] == ID) & (les_feuilles['Phase'] == 'mature')]['ObjetOrgane'].tolist()
@@ -1167,6 +1150,12 @@ def End(lstring,lscene): #Ecriture et fermeture des fichiers de sortie
   df_induction.to_csv(os.path.join(OUTPUTS_DIRPATH, output_induction_file_name + '.csv'), index = False)
   df_organ_lengths.to_csv(os.path.join(OUTPUTS_DIRPATH, output_organ_lengths_file_name + '.csv'), index = False)
   
+  with open(os.path.join(OUTPUTS_DIRPATH,'recolte_biomasse.csv'), 'w') as csv_file:  
+    writer = csv.writer(csv_file)
+    writer.writerow(['Day', 'Biomass (g)'])
+    for key, value in recolte_biomasse.items():
+       writer.writerow([key, value])
+       
   if option_graphic_outputs == True:
     from lgrass import Lgrass_plot_functions
     graphic = Lgrass_plot_functions.GraphicOutputs(GRAPHS_DIRPATH)
@@ -1193,10 +1182,9 @@ def Tregul_timestep(daily_temperature):
   Tmax = paramManagement['Tmax']
   Tref = paramManagement['Tref']
   q = paramManagement['q']
-  dt_max=paramManagement['dt_max']
   
   if Tmin < daily_temperature < Tmax:
-    dt = dt_max * ((daily_temperature - Tmin) / (Tref - Tmin))**q * ((Tmax - daily_temperature) / (Tmax - Tref))
+    dt = ((daily_temperature - Tmin) / (Tref - Tmin))**q * ((Tmax - daily_temperature) / (Tmax - Tref))
   else:
     dt = 0 
   return dt
@@ -1288,16 +1276,16 @@ CouvertVegetal(X):
           nproduce IN SB() RollR(45) MoveTo(j*Espacement,Espacement*i,0) Plante(param, True) IN EB()
     else:
       produce CouvertVegetal(X+1)
-  if groupe=='defoliation':
+  else: # groupe=='defoliation'
     produce CouvertVegetal(X)
 
 
 Plante(X,init_plt):
   global TPS,groupe, current_day
   if groupe=='croissance':
-    if init_plt: #TPS ==2:
+    if init_plt:
       Y1=ParamPhytomere(id_plante = X.id_plante, id_talle = 0, id_rang=1)
-      YF=ParamFeuille(age=0, Agecroiss=0, Taillefeuille=0, id_plante=X.id_plante ,id_rang=1, Ymax=Premiecroiss[X.id_plante], Taillefinalelimbe=0.8*Premiecroiss[X.id_plante], Taillefinalegaine=0.2*Premiecroiss[X.id_plante],id_geno=X.id_geno)
+      YF=ParamFeuille(age=0, Agecroiss=0, Taillefeuille=0, id_plante=X.id_plante ,id_rang=1, Ymax=Premiecroiss[X.id_plante], Taillefinalelimbe=(1-paramManagement['Rsalpha'])*Premiecroiss[X.id_plante], Taillefinalegaine=paramManagement['Rsalpha']*Premiecroiss[X.id_plante],id_geno=X.id_geno)
       Yb=ParambourgeonRoot(X.id_plante,id_talle=0,id_rang=1,id_geno=X.id_geno)
       YAT=ParamApexTal(X.id_plante,id_talle=0,id_rang=1,id_geno=X.id_geno)
       YA=ParamApex(X.id_plante, id_talle=0 ,id_rang=1, id_geno=X.id_geno, total_created_leaves=1, Premiecroiss=ParamP[X.id_plante]['Premiecroiss'], C=ParamP[X.id_plante]['C'])
@@ -1333,38 +1321,40 @@ Feuille(X, X_apex, X_phytomere):
   global NewShootBiomass,longueur_totale_feuille,les_feuilles, les_segments_feuilles, Surfoliaireencours,groupe,daily_temperature
   
   X.surface_limbe = 0
-  Jled = Tregul_timestep(daily_temperature)
+  Jled = paramManagement['Jled']  # Called omega in Verdenal et al. (2008)
   
   if groupe=='croissance':
-    X.age+=dt
+    X.age += dt
     
     if(X.angleinsert<=ParamP[X.id_plante]['INSERTIONLIMBE'] and X.Taillegaine>Taille_finale_gaine[X.id_plante][X.id_talle][X.id_rang-1] +1):
       X.angleinsert=X.angleinsert+1    
     
-    Seuil[X.id_plante][X.id_talle]=max(Seuil[X.id_plante][X.id_talle],X.Taillegaine)
-    Taille_finale_gaine[X.id_plante][X.id_talle][X.id_rang]=max(Taille_finale_gaine[X.id_plante][X.id_talle][X.id_rang],X.Taillegaine)
+    Seuil[X.id_plante][X.id_talle] = max(Seuil[X.id_plante][X.id_talle], X.Taillegaine)
+    Taille_finale_gaine[X.id_plante][X.id_talle][X.id_rang] = max(Taille_finale_gaine[X.id_plante][X.id_talle][X.id_rang], X.Taillegaine)
     
     if X.Phase!='mature':
       ##### Modif potentiel apres coupe ######
       if reprise_coupe==True and X.Phase=='visible':
-        LEDGAINE=((0.2*X_apex.Premiecroiss*5)*2)-X_apex.Premiecroiss		
-        TrueAge=TpourY2(Seuil[X.id_plante][X.id_talle],paramManagement['Yfinit'], Jled*LEDGAINE,paramManagement['Kled']*Jled*LEDGAINE) #Jled*LEDGAINE correspond a te, Kled*Jled*LEDGAINE correspond a tm (These Alban Verdenal)
-        NewYmax=X_apex.C*((pow(paramManagement['T01'],(TrueAge+paramManagement['tb1'])*paramManagement['k1'])-paramManagement['Lpot'])-(pow(paramManagement['T02'],(TrueAge+paramManagement['tb2'])*paramManagement['k2']))) # Fonction potentiel de croissance
+        LEDGAINE = X_apex.Premiecroiss * Jled  # Simplification of LED equation for the first leaf
+        tm = LEDGAINE * paramManagement['Kled']
+        TrueAge = TpourY2(Seuil[X.id_plante][X.id_talle],paramManagement['Yfinit'], LEDGAINE, tm)
+        # Fonction potentiel de croissance
+        NewYmax = X_apex.C * ((pow(paramManagement['T01'],(TrueAge+paramManagement['tb1'])*paramManagement['k1'])-paramManagement['Lpot'])-(pow(paramManagement['T02'],(TrueAge+paramManagement['tb2'])*paramManagement['k2'])))
         if NewYmax>X.Ymax:
           NewYmax=X.Ymax
         elif NewYmax<X.Taillefeuille+X.coupe:
           X.Phase='mature'
         else:
           #LED1=((X.Taillefinalegaine*5)*2)-X.Ymax
-          NewTaillefinaleg=X.rapportK * NewYmax
-          LED2=((NewTaillefinaleg*5)*2)-NewYmax
-          X.Difftps=TpourY2(X.Taillefeuille+X.coupe,NewYmax,Jled*LED2,paramManagement['Kled']*Jled*LED2)-X.age
-          #TpourY2(Seuil[X.id_plante][X.id_talle], X.Ymax,paramManagement['Jled']*LED,paramManagement['Kled']*paramManagement['Jled']*LED)-X.age#TpourY2(X.Taillefeuille+X.coupe,paramManagement['Yfinit'], paramManagement['Jled']*LEDGAINE,paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)
-          X.Agecroiss=X.Difftps+X.age
-          X.Ymax=NewYmax
+          NewTaillefinaleg = X.rapportK * NewYmax
+          LED2 = (((NewTaillefinaleg / paramManagement['Rsalpha']) * 2) - NewYmax) * Jled
+          tm = paramManagement['Kled'] * LED2
+          X.Difftps = TpourY2(X.Taillefeuille+X.coupe, NewYmax, LED2, tm) - X.age
+          X.Agecroiss = X.Difftps + X.age
+          X.Ymax = NewYmax
         
-        X.Taillefinalelimbe=(1-X.rapportK)*X.Ymax
-        X.Taillefinalegaine=X.rapportK*X.Ymax
+        X.Taillefinalelimbe = (1 - X.rapportK) * X.Ymax
+        X.Taillefinalegaine = X.rapportK * X.Ymax
       
       ###### Gestion passage phase cachee a phase visible ######
       if X.Phase=='cachee':
@@ -1372,14 +1362,9 @@ Feuille(X, X_apex, X_phytomere):
           X.Phase='visible'
           X_apex.total_emerged_leaves += 1                                                      # Ajoute une feuille visible a l apex
           Seuil[X.id_plante][X.id_talle] *= 1.
-          LEDGAINE=((0.2*X_apex.Premiecroiss*5)*2)-X_apex.Premiecroiss
-          X.TailleEmergence=Seuil[X.id_plante][X.id_talle]
-          TrueAge=X.age-dt #On pourrait affiner la determination de TrueAge qui en realite a eu lieu entre age-dt et age-2dt (soit on prend la moyenne soit au prorata des longueurs)
-          
-          genotype=X.id_geno
-          
-          X.Ymax = X_apex.C*((pow(paramManagement['T01'],(TrueAge+paramManagement['tb1'])*paramManagement['k1'])-paramManagement['Lpot'])-(pow(paramManagement['T02'],(TrueAge+paramManagement['tb2'])*paramManagement['k2']))) #Alban
-          
+          X.TailleEmergence = Seuil[X.id_plante][X.id_talle]
+          TrueAge = X.age - dt #On pourrait affiner la determination de TrueAge qui en realite a eu lieu entre age-dt et age-2dt (soit on prend la moyenne soit au prorata des longueurs)
+          X.Ymax = X_apex.C * ((pow(paramManagement['T01'],(TrueAge+paramManagement['tb1'])*paramManagement['k1'])-paramManagement['Lpot'])-(pow(paramManagement['T02'],(TrueAge+paramManagement['tb2'])*paramManagement['k2']))) #Alban
           # A REMETTRE SIMON
           #if TrueAge < 118:
           #  X.Ymax = ParamP[genotype]['C']*((pow(paramManagement['T01'],(TrueAge+paramManagement['tb1'])*paramManagement['k1'])-paramManagement['Lpot'])-(pow(paramManagement['T02'],(TrueAge+paramManagement['tb2'])*paramManagement['k2']))) #Alban
@@ -1396,27 +1381,28 @@ Feuille(X, X_apex, X_phytomere):
           #X.Ymax= ((pow(paramManagement['T01'],((X.age-1)+paramManagement['tb1'])*paramManagement['k1'])-paramManagement['Lpot'])-(pow(paramManagement['T02'],((X.age-1)+paramManagement['tb2'])*paramManagement['k2'])))   # FL
           #X.Ymax= 0.85*((pow(paramManagement['T01'],((X.age-1)+paramManagement['tb1'])*paramManagement['k1'])-paramManagement['Lpot'])-(pow(paramManagement['T02'],((X.age-1)+paramManagement['tb2'])*paramManagement['k2'])))   # New FC
           #X.Ymax=0.55*((615*pow(paramManagement['T01'],X.age*0.0053))-736.9-(0.1207*pow(paramManagement['T02'],X.age*0.062)))   # FC
-          X.rapportK=0.1+((TrueAge-1)/600.)
-          X.Taillefinalelimbe=(1-X.rapportK)*X.Ymax
-          X.Taillefinalegaine=X.Ymax*X.rapportK
-          
-          LED=((X.Taillefinalegaine*5)*2)-X.Ymax
-          #LEDGAINE=((0.2*110*5)*2)-110
-          X.Difftps=TpourY2(Seuil[X.id_plante][X.id_talle], X.Ymax,Jled*LED,paramManagement['Kled']*Jled*LED)-X.age#TpourY2(X.Taillefeuille+X.coupe,110, Jled*LEDGAINE,paramManagement['Kled']*Jled*LEDGAINE)
+
+          X.rapportK = paramManagement['Rsalpha'] + (TrueAge - dt) * paramManagement['a'] + paramManagement['b']  # Called Rsi in Verdenal et al. (2008)
+          X.Taillefinalelimbe = (1-X.rapportK)*X.Ymax
+          X.Taillefinalegaine = X.Ymax*X.rapportK
+          LED = (((X.Taillefinalegaine / paramManagement['Rsalpha']) * 2) - X.Ymax) * Jled
+          tm = LED * paramManagement['Kled']
+          X.Difftps = TpourY2(Seuil[X.id_plante][X.id_talle], X.Ymax, LED, tm) - X.age
       
       ###### croissance ######
-      LEDGAINE=((X.Taillefinalegaine*5)*2)-X.Ymax
+      LEDGAINE = (((X.Taillefinalegaine / paramManagement['Rsalpha']) * 2) - X.Ymax) * Jled
+      tm = LEDGAINE * paramManagement['Kled']
       Accroiss=0
       #if (X.Taillegaine< Taille_finale_gaine[X.id_plante][X.id_talle][X.id_rang-1] +13):
       
       if(X.Phase=='cachee'):
-        inversea=X.age-dt
-        AccroissDemande=FoncCroiss(inversea+dt, X.Ymax, Jled*LEDGAINE, paramManagement['Kled']*Jled*LEDGAINE)-FoncCroiss(inversea, X.Ymax, Jled*LEDGAINE, paramManagement['Kled']*Jled*LEDGAINE)
-        #Accroiss=FoncCroiss(X.age, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)-FoncCroiss(X.age-1, X.Ymax, paramManagement['Jled']*LEDGAINE, paramManagement['Kled']*paramManagement['Jled']*LEDGAINE)
-        X.Agecroiss=X.age
+        inversea = X.age - dt
+        AccroissDemande = FoncCroiss(inversea+dt, X.Ymax, LEDGAINE, tm) - FoncCroiss(inversea, X.Ymax, LEDGAINE, tm)
+        X.Agecroiss = X.age
+      
       if(X.Phase=='visible'):
-        AccroissDemande=(FoncCroiss(X.Agecroiss+1, X.Ymax, Jled*LEDGAINE, paramManagement['Kled']*Jled*LEDGAINE)-FoncCroiss(X.Agecroiss, X.Ymax, Jled*LEDGAINE, paramManagement['Kled']*Jled*LEDGAINE))
-        X.Agecroiss=X.age+X.Difftps
+        AccroissDemande = (FoncCroiss(X.Agecroiss+dt, X.Ymax, LEDGAINE, tm) - FoncCroiss(X.Agecroiss, X.Ymax, LEDGAINE, tm))
+        X.Agecroiss = X.age + X.Difftps
       Pourcent=PourcentageFeuilGrowthRealized[X.id_plante]
       
       if(X.Phase=='mature'):
@@ -1438,7 +1424,7 @@ Feuille(X, X_apex, X_phytomere):
       #  Accroiss=0
       
       #taillefictive=TpourY()
-      limbefictif=0.973*FoncCroiss(X.Agecroiss-dt, X.Ymax, Jled*LEDGAINE, paramManagement['Kled']*Jled*LEDGAINE)
+      limbefictif=0.973*FoncCroiss(X.Agecroiss-dt, X.Ymax, LEDGAINE, tm)
       
       #if X.R==0.973 and limbefictif>(0.75*X.Taillefinalelimbe):
       #  X.R=0.965
@@ -1473,9 +1459,9 @@ Feuille(X, X_apex, X_phytomere):
       if X.Phase!='mature':
         if (X.Taillegaine< Taille_finale_gaine[X.id_plante][X.id_talle][X.id_rang-1] +13):
           if(X.Phase=='cachee'):
-            NextAccroiss=FoncCroiss(X.age+dt, X.Ymax, Jled*LEDGAINE, paramManagement['Kled']*Jled*LEDGAINE)-FoncCroiss(X.age, X.Ymax, Jled*LEDGAINE, paramManagement['Kled']*Jled*LEDGAINE)
+            NextAccroiss=FoncCroiss(X.age+dt, X.Ymax, LEDGAINE, tm) - FoncCroiss(X.age, X.Ymax, LEDGAINE, tm)
           else: # X.Phase=='visible'
-            NextAccroiss=(FoncCroiss(X.Agecroiss+dt, X.Ymax, Jled*LEDGAINE, paramManagement['Kled']*Jled*LEDGAINE)-FoncCroiss(X.Agecroiss, X.Ymax, Jled*LEDGAINE, paramManagement['Kled']*Jled*LEDGAINE))         
+            NextAccroiss=(FoncCroiss(X.Agecroiss+dt, X.Ymax, LEDGAINE, tm) - FoncCroiss(X.Agecroiss, X.Ymax, LEDGAINE, tm))         
         if (X.Taillegaine>0.98*X.Taillefinalegaine and X.Taillegaine<=Taille_finale_gaine[X.id_plante][X.id_talle][X.id_rang-1] -5 and X.Phase=='visible'):
           NextAccroiss=1        
         if (X.Taillegaine>=Taille_finale_gaine[X.id_plante][X.id_talle][X.id_rang-1] +13 and X.Phase=='visible'):
@@ -1485,14 +1471,14 @@ Feuille(X, X_apex, X_phytomere):
         Next_feuil=BiomassFeuille(long,X.coupe,X.id_geno)
         X.Besoinencroiss=Next_feuil-X.biomass
         
-    else:      
+    else: # Feuille mature
       long=X.Taillefeuille
       coupe=X.coupe
       Next_feuil=paramManagement['FacBiom1']*(paramManagement['b0']*exp(paramManagement['b1']*(long+coupe)**2+paramManagement['b2']*(long+coupe))-paramManagement['b0'])*(long/(long+coupe))
       
       ####### Senescence #######
       
-      Agesenesc = paramManagement['T0sen'] + X.Ymax * 1.5
+      Agesenesc = paramManagement['T0sen'] + X.Ymax * paramManagement['ksen']
       if X.age > Agesenesc and option_senescence:
         produce Cut() # Pour que la feuille soit vraiment coupee supprimee de la chaine, en ENTIER
         
@@ -1528,7 +1514,6 @@ Feuille(X, X_apex, X_phytomere):
       # Remplissage des hauteurs d organes
       X_apex.organ_lengths_dict[X.id_rang]['sheath'] = X.Taillegaine
       X_apex.organ_lengths_dict[X.id_rang]['limb'] = X.Taillelimbe
-      
       produce Feuille(X, X_apex, X_phytomere)
   
   ##### Coupe des feuilles #####
@@ -1537,7 +1522,7 @@ Feuille(X, X_apex, X_phytomere):
     curve=ParamP[X.id_plante]['curve']*LSTEP
     
     ### Creation de la doublure de la plante ###
-    if TPS==ParamP[X.id_plante]['DCOUP']:
+    if step_cut == 1:
       nproduce Feuille(X, X_apex, X_phytomere) IN SB
       
       if (X.Phase=='cachee'):
@@ -1616,12 +1601,20 @@ Feuille(X, X_apex, X_phytomere):
                   nproduce GetPos(0,0,0)SegFeuille(PS)
       produce IN EB
     
+    elif step_cut == 2:
+      # Remplissage des hauteurs d organes 
+      X_apex.organ_lengths_dict[X.id_rang]['sheath'] = X.Taillegaine
+      X_apex.organ_lengths_dict[X.id_rang]['limb'] = X.Taillelimbe
+      produce Feuille(X, X_apex, X_phytomere)
+    
     ### Realisation de la coupe ###
-    elif TPS==ParamP[X.id_plante]['DCOUP']+0.5:
+    elif step_cut == 3:
         segments_feuille=[x for x in les_segments_feuilles if (x[0].id_plante==X.id_plante and x[0].id_talle==X.id_talle and x[0].id_rang==X.id_rang)]
         longcoupee=LongueurFeuilleCoupee(segments_feuille,X.id_plante)
         if longcoupee!=-1:
           X.coupe=X.Taillefeuille-longcoupee
+          biomasse_coupee = BiomassFeuille(X.coupe, 0, X.id_geno)
+          recolte_biomasse[current_day] += biomasse_coupee
           X.Taillefeuille=longcoupee
           if X.Taillefeuille<X.Taillegaine:
             X.Taillegaine=X.Taillefeuille
@@ -1638,31 +1631,29 @@ Feuille(X, X_apex, X_phytomere):
         produce Feuille(X, X_apex, X_phytomere)
     
     ### Recalcul de la biomasse foliaire ###
-    elif TPS==ParamP[X.id_plante]['DCOUP']+0.75*dt:
+    else:
       if X.Taillegaine*1.>Seuil[X.id_plante][X.id_talle]:
         Seuil[X.id_plante][X.id_talle]=X.Taillegaine
       
       Taille_finale_gaine[X.id_plante][X.id_talle][X.id_rang]=X.Taillegaine
       
       if X.id_rang==1 and X.id_talle>0 and X.topology!=(0,0):  # Premiere feuille de chaque talle sauf brin maitre et talle coleoptile
-        feuille_ref = les_feuilles[(les_feuilles['Plante'] == X.id_plante) & (les_feuilles['Topology'] == X.topology[:-1]) & (les_feuilles['id_rang'] == max(1, X.topology[-1]))].iloc[0]['ObjetOrgane']    # Feuille axillante de l'ordre précédent (le max sert a traiter les cas des 1ers rangs)
+        try:
+          feuille_ref = les_feuilles[(les_feuilles['Plante'] == X.id_plante) & (les_feuilles['Topology'] == X.topology[:-1]) & (les_feuilles['id_rang'] == max(1, X.topology[-1]))].iloc[0]['ObjetOrgane']    # Feuille axillante de l'ordre précédent (le max sert a traiter les cas des 1ers rangs)
+        except:
+          print(les_feuilles['Topology'], X.topology)
         Seuil[X.id_plante][X.id_talle]=max(Seuil[X.id_plante][X.id_talle], feuille_ref.Taillegaine)
       X.biomass=BiomassFeuille(X.Taillefeuille,X.coupe,X.id_geno)
-    else:
-      # Remplissage des hauteurs d organes 
-      X_apex.organ_lengths_dict[X.id_rang]['sheath'] = X.Taillegaine
-      X_apex.organ_lengths_dict[X.id_rang]['limb'] = X.Taillelimbe
-      produce Feuille(X, X_apex, X_phytomere)
 
 
 GetPos(a,b,c):
   for ID in range(nb_plantes):
-    if TPS==ParamP[ID]['DCOUP']+0.5*dt:
+    if step_cut == 3:
       produce
 
 
 SegFeuille(X):
-  if TPS==ParamP[X.id_plante]['DCOUP']+0.75*dt:
+  if step_cut == 4:
     produce
 
 
@@ -1755,7 +1746,7 @@ apex(X):
         #Seuil[X.id_plante][X.id_talle]=Seuil[X.id_plante][X.id_talle] * 1.15
         Taille_finale_gaine[X.id_plante][X.id_talle].append(5.5)
         YP=ParamPhytomere(X.id_plante,X.id_talle,X.id_rang+1, topology=X.topology)
-        YF=ParamFeuille(age=0,Agecroiss=0,Taillefeuille=0,id_plante=X.id_plante,id_talle=X.id_talle,id_rang=X.id_rang+1,topology=X.topology, Ymax=X.Premiecroiss,Taillefinalelimbe=0.8*X.Premiecroiss,Taillefinalegaine=0.2*X.Premiecroiss, id_geno=X.id_geno)
+        YF=ParamFeuille(age=0,Agecroiss=0,Taillefeuille=0,id_plante=X.id_plante,id_talle=X.id_talle,id_rang=X.id_rang+1,topology=X.topology, Ymax=X.Premiecroiss,Taillefinalelimbe=(1-paramManagement['Rsalpha'])*X.Premiecroiss,Taillefinalegaine=paramManagement['Rsalpha']*X.Premiecroiss, id_geno=X.id_geno)
         Yb=ParambourgeonRoot(X.id_plante,X.id_talle,X.id_rang+1, id_geno=X.id_geno)
         YAT=ParamApexTal(id_plante = X.id_plante, id_talle = X.id_talle, id_rang = X.id_rang+1, topology=X.topology, id_geno=X.id_geno)
         YINT=ParamEntrenoeud(X.id_plante, X.id_talle, X.id_rang+1, topology=X.topology)      # AJOUT SIMON
@@ -1862,7 +1853,7 @@ ApexTal(X):
             Taille_finale_gaine[X.id_plante].append([5.5,5.5])
             tiller_topology = X.topology + (X.id_rang - 1,)  # Garde info topologique du phyto duquel la talle emergera. La talle de coleoptile sera (0,0)
             YP=ParamPhytomere(X.id_plante,nb_talle[X.id_plante],id_rang=1, topology=tiller_topology)
-            YF=ParamFeuille(age=0,Agecroiss=0,Taillefeuille=0,id_plante=X.id_plante,id_talle=nb_talle[X.id_plante],id_rang=1, topology=tiller_topology, Ymax=Premiecroiss[X.id_plante],Taillefinalelimbe=0.8*Premiecroiss[X.id_plante],Taillefinalegaine=0.2*Premiecroiss[X.id_plante])
+            YF=ParamFeuille(age=0,Agecroiss=0,Taillefeuille=0,id_plante=X.id_plante,id_talle=nb_talle[X.id_plante],id_rang=1, topology=tiller_topology, Ymax=Premiecroiss[X.id_plante],Taillefinalelimbe=(1-paramManagement['Rsalpha'])*Premiecroiss[X.id_plante],Taillefinalegaine=paramManagement['Rsalpha']*Premiecroiss[X.id_plante])
             Yb=ParambourgeonRoot(X.id_plante,nb_talle[X.id_plante],id_rang=1)
             YAT=ParamApexTal(X.id_plante,nb_talle[X.id_plante],id_rang=1, topology=tiller_topology)
             YA=ParamApex(X.id_plante,nb_talle[X.id_plante],id_rang=1, topology=tiller_topology, Premiecroiss=ParamP[X.id_plante]['Premiecroiss'], C=ParamP[X.id_plante]['C'])
@@ -1879,7 +1870,7 @@ ApexTal(X):
               Taille_finale_gaine[X.id_plante].append([5.5,5.5])
               tiller_topology = X.topology + (X.id_rang - 1,)
               YP=ParamPhytomere(X.id_plante,nb_talle[X.id_plante],id_rang=1, topology=tiller_topology)
-              YF=ParamFeuille(age=0,Agecroiss=0,Taillefeuille=0,id_plante=X.id_plante,id_talle=nb_talle[X.id_plante],id_rang=1, topology=tiller_topology, Ymax=Premiecroiss[X.id_plante],Taillefinalelimbe=0.8*Premiecroiss[X.id_plante],Taillefinalegaine=0.2*Premiecroiss[X.id_plante])
+              YF=ParamFeuille(age=0,Agecroiss=0,Taillefeuille=0,id_plante=X.id_plante,id_talle=nb_talle[X.id_plante],id_rang=1, topology=tiller_topology, Ymax=Premiecroiss[X.id_plante],Taillefinalelimbe=(1-paramManagement['Rsalpha'])*Premiecroiss[X.id_plante],Taillefinalegaine=paramManagement['Rsalpha']*Premiecroiss[X.id_plante])
               Yb=ParambourgeonRoot(X.id_plante,nb_talle[X.id_plante],id_rang=1)
               YAT=ParamApexTal(X.id_plante,nb_talle[X.id_plante],id_rang=1, topology=tiller_topology)
               YA=ParamApex(X.id_plante,nb_talle[X.id_plante],id_rang=1, topology=tiller_topology, Premiecroiss=ParamP[X.id_plante]['Premiecroiss'], C=ParamP[X.id_plante]['C'])

@@ -25,16 +25,17 @@ import lgrass
 
 INPUTS_DIRPATH = 'inputs'
 OUTPUTS_DIRPATH = 'outputs'
+GRAPHS_DIRPATH = 'graphs'
 
-NSTEP = 800
+NSTEP = 1500
 PRECISION = 3
 RELATIVE_TOLERANCE = 10**-PRECISION
 ABSOLUTE_TOLERANCE = RELATIVE_TOLERANCE
 
-DESIRED_SERIE_FOLIAIRE_FILENAME = 'desired_sorties_feuilles_finales_50_{}_30.csv'.format(NSTEP)
-DESIRED_SORTIE_SURFACE_BIOMASS_FILENAME = 'desired_surface_biomass_50_{}_30.csv'.format(NSTEP)
-DESIRED_OUTPUT_INDUCTION_FILENAME = 'desired_output_induction.csv'.format(NSTEP)
-DESIRED_OUTPUT_ORGAN_LENGTHS_FILENAME = 'desired_output_organ_lengths.csv'.format(NSTEP)
+DESIRED_SERIE_FOLIAIRE_FILENAME = 'desired_sorties_feuilles_finales.csv'
+DESIRED_SORTIE_SURFACE_BIOMASS_FILENAME = 'desired_surface_biomass.csv'
+DESIRED_OUTPUT_INDUCTION_FILENAME = 'desired_output_induction.csv'
+DESIRED_OUTPUT_ORGAN_LENGTHS_FILENAME = 'desired_output_organ_lengths.csv'
 
 
 def compare_actual_to_desired(data_dirpath, actual_data_df, desired_data_filename, actual_data_filename=None, overwrite_desired_data=False):
@@ -69,6 +70,7 @@ def test_run(overwrite_desired_data=False):
     lsys.meteo_path = os.path.join(INPUTS_DIRPATH, 'meteo_file.csv')
     lsys.INPUTS_DIRPATH = INPUTS_DIRPATH
     lsys.OUTPUTS_DIRPATH = OUTPUTS_DIRPATH
+    lsys.GRAPHS_DIRPATH = GRAPHS_DIRPATH
     lsys.derivationLength = NSTEP
     lsys.DureeExp = NSTEP
     lsys.option_tallage = True
@@ -100,4 +102,4 @@ def test_run(overwrite_desired_data=False):
 
 
 if __name__ == '__main__':
-    test_run(overwrite_desired_data=False)
+    test_run(overwrite_desired_data=True)
