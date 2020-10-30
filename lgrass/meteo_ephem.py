@@ -39,26 +39,7 @@ def thermal_time_calculation(meteo_data, sowing_date):
                 meteo_data.loc[id_missing_value, 'mean_temperature'] = np.mean([prev_value, next_value])
     meteo_data = meteo_data.loc[meteo_data['date'] >= pd.to_datetime(sowing_date, format='%Y_%m_%d')]
     meteo_data['thermal_time_cumul'] = meteo_data.mean_temperature.cumsum()
-    meteo_data['beta_cumul'] = meteo_data.mean_temperature.apply(beta_temperature, t_min=0, t_opt=23, t_max=40).cumsum()
     return meteo_data
-
-
-def beta_temperature(temperature, t_min, t_opt, t_max):
-    """
-
-    :param temperature:
-    :param t_min:
-    :param t_opt:
-    :param t_max:
-    :return:
-    """
-    if (temperature >= t_min) and (temperature <= t_max):
-        growth_relative_rate = ((t_max - temperature) / (t_max - t_opt)) * pow(((temperature - t_min) / (t_opt - t_min)), (
-                    (t_opt - t_min) / (t_max - t_opt)))
-        growth_relative_rate = round(t_opt * growth_relative_rate)
-    else:
-        growth_relative_rate = 0
-    return growth_relative_rate
 
 
 def set_observer(address):

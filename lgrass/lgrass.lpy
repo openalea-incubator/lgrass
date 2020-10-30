@@ -448,10 +448,6 @@ def apply_caribu(lscene, energy=1, azimuths=4, zeniths=5, diffuse_model='soc', s
   raw, c_res = output
   return c_res['default_band']
 
-
-
-
-
 ### Creation du MTG ###
 def my_axialtree2mtg(tree, scale, scene, parameters, TREE=[]):
   def scene_id(scene):
@@ -716,9 +712,6 @@ def BiomassFeuille(long,coupe,geno):
     else:
       MS=paramManagement['FacBiom2']*(paramManagement['b0']*exp(paramManagement['b1']*(long+coupe)**2+paramManagement['b2']*(long+coupe))-paramManagement['b0'])*(long/(long+coupe))
   return MS
-  
-  
-
 
 # --------------------------------------------
 #  ---------- LAI proximite ------------------
@@ -952,7 +945,7 @@ def EndEach(lstring, lscene):
   # 
   # ------------------------------------------------------------------------------------------------
   
-  if TPS >= meteo[meteo.experimental_day == current_day].beta_cumul.iloc[0] and option_caribu=='On':
+  if TPS >= meteo[meteo.experimental_day == current_day].thermal_time_cumul.iloc[0] and option_caribu=='On':
     timing_method1=t.time()
     res=apply_caribu(lscene, energy=meteo[meteo.experimental_day == current_day].PAR_incident.iloc[0], azimuths=azimuths, zeniths=zeniths, diffuse_model=diffuse_model, scene_unit=scene_unit)
     print('temps d exec de caribu:',t.time()-timing_method1)
@@ -1112,7 +1105,7 @@ def EndEach(lstring, lscene):
   # Date change occurs when the global time flow in growing degree day (GDD) reachs the GDD cumul of
   # the current day (from the start of the meteorological data)
   # ------------------------------------------------------------------------------------------------
-  if TPS >= meteo[meteo.experimental_day == current_day].beta_cumul.iloc[0]:
+  if TPS >= meteo[meteo.experimental_day == current_day].thermal_time_cumul.iloc[0]:
     current_day += 1
     
 
