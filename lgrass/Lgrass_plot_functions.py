@@ -67,10 +67,10 @@ class GraphicOutputs:
             data.groupby('TPS')['id talle'].count().plot(label=id_plant, legend=True)
 
         # Legends
-        plt.xlabel(u'Temps thermique (°C jour-1)')
+        plt.xlabel(u'Temps (heure)')
         plt.ylabel(u'Nombre de talles par n° plante')
         # Save plot
-        plt.savefig(os.path.join(csv_name + '_' + 'Nombre_talles' + '.PNG'))
+        plt.savefig(os.path.join(self.graph_dirpath, 'Nombre_talles.PNG'))
         plt.close()
 
     def graph_LAI(self, csv_name, pattern):
@@ -85,10 +85,10 @@ class GraphicOutputs:
         df.groupby('TPS')['LAI'].sum().plot()
 
         # Legends
-        plt.xlabel(u'Temps thermique (°C jour-1)')
+        plt.xlabel(u'Temps (heure)')
         plt.ylabel('LAI')
         # Save plot
-        plt.savefig(os.path.join(csv_name + '_' + 'LAI' + '.PNG'))
+        plt.savefig(os.path.join(self.graph_dirpath, 'LAI.PNG'))
         plt.close()
 
     def graph_leaf_number(self, csv_name):
@@ -103,7 +103,7 @@ class GraphicOutputs:
             plt.figure()
             data.groupby('TPS')['nb_feuille_emergees'].mean().plot(label=topo, legend=True)
             # Legends
-            plt.xlabel(u'Temps thermique (°C jour-1)')
+            plt.xlabel(u'Temps (heure)')
             plt.ylabel('Leaf number per axis')
             # Save plot
             pdf_file.savefig()
