@@ -565,7 +565,7 @@ def my_axialtree2mtg(tree, scale, scene, parameters, TREE=[]):
 def LongueurFeuilleCoupee(segments_feuille,ID): #Renvoie idLong si hauteur>HCOUP, renvoie -1 si hauteur<HCOUP
   for x in segments_feuille:
     if x[0].hauteur > ParamP[ID]['HCOUP']:
-      return x[0].idLong  # Retourne l'id du 1er segment coupï¿½
+      return x[0].idLong  # Retourne l'id du 1er segment coup?
   return -1 
 
 ########   Fonction racinaires   ########
@@ -800,7 +800,7 @@ def Start():
   ligule_height_dict = {}
   
   ##### Definition des groupes de production #####
-  surface_foliaire_emergee =[0.]*(nb_plantes) # Surface foliaire ï¿½mergï¿½e totale obtenue a la fin d'un pas
+  surface_foliaire_emergee =[0.]*(nb_plantes) # Surface foliaire ?merg?e totale obtenue a la fin d'un pas
   Surfoliaireencours=[0.]*(nb_plantes) # variable de calcul de la surface foliaire totale
   Premiecroiss=[ParamP[i]['Premiecroiss'] for i in range(nb_plantes)]
   
@@ -878,7 +878,7 @@ def StartEach(lstring):
       daily_temperature = meteo.mean_temperature[meteo.experimental_day == current_day].iloc[0]
       dt = Tregul_timestep(daily_temperature)
 
-#### Rï¿½gression des talles : Dï¿½termination des zones oï¿½ appliquer le Cut
+#### R?gression des talles : D?termination des zones o? appliquer le Cut
   if option_tiller_regression == True and current_day > 1:
     mortality_zone = pd.DataFrame()
     for i in [i for i in range(len(lstring))]:
@@ -954,7 +954,7 @@ def EndEach(lstring, lscene):
     # If the mother-tiller is reproductive but flowers are not formed: the young tillers survive
     # If the mother-tiller is reproductive and the formation of the flowers have start: the young 
     # tillers die
-    # minimum number of leaf = 3 verifier comment est calculï¿½ Leaf_produced
+    # minimum number of leaf = 3 verifier comment est calcul? Leaf_produced
     # ------------------------------------------------------------------------------------------------
     if option_tiller_regression == True and len(tiller_appearance) > 0:
       tiller_to_remove = pd.DataFrame()
@@ -1022,7 +1022,7 @@ def EndEach(lstring, lscene):
         # Biomasse et surface des feuilles emergees uniquement
         Biomasse_aerienne[id_plante] += sum([x.biomass for x in les_feuilles_talle])
         surface_foliaire_emergee[id_plante] += sum([x.surface_limbe for x in les_feuilles_talle])  #: N'ajoute que les surfaces de limbes emerges
-        # ajoute les surfaces des gaines emergees ï¿½ partir de Seuil
+        # ajoute les surfaces des gaines emergees ? partir de Seuil
         seuil_talle = Seuil[id_plante][id_talle]
         diametre_seuil_talle = max((2 / pi) * (paramManagement['CoefDirLonLarAjust'] * log(max(seuil_talle * 5,1)) - paramManagement['OrdOriLonLarAjust']), 0.1)
         surface_gaine_emergee = (seuil_talle * pi * diametre_seuil_talle) / 2  # Surface projetee
@@ -1041,7 +1041,7 @@ def EndEach(lstring, lscene):
           # Approche RUE
           BiomassCree = BiomProd[id_plante]
         else:
-          # Approche croissance biomasse exponentielle (cf thï¿½se Vincent Migault)
+          # Approche croissance biomasse exponentielle (cf th?se Vincent Migault)
           BiomassCree=t2[id_plante]*(Biomasse_aerienne[id_plante]+t1[id_plante])*(1+Beta[id_plante]*Alpha[id_plante]*(Biomasse_aerienne[id_plante])**(Alpha[id_plante]-1))
         
         # Allocation aerien/racinaire + ratio offre/demande
@@ -1380,7 +1380,7 @@ Feuille(X, X_apex, X_phytomere):
           X.TailleEmergence = Seuil[X.id_plante][X.id_talle]
           TrueAge = X.age - dt #On pourrait affiner la determination de TrueAge qui en realite a eu lieu entre age-dt et age-2dt (soit on prend la moyenne soit au prorata des longueurs)
 
-          tmax_potcroiss = 166.588 #conversion des Â°C jour en  heures pour manip a 17Â°C 118*24/17
+          tmax_potcroiss = 166.588 #conversion des °C jour en  heures pour manip a 17°C 118*24/17
           lmax_potcroiss = 338.5554 # mm
 
           if option_profile == "triangular":
@@ -1664,7 +1664,7 @@ Feuille(X, X_apex, X_phytomere):
       Taille_finale_gaine[X.id_plante][X.id_talle][X.id_rang]=X.Taillegaine
       
       if X.id_rang==1 and X.id_talle>0 and X.topology!=(0,0):  # Premiere feuille de chaque talle sauf brin maitre et talle coleoptile
-        if les_feuilles.isin([(les_feuilles['Plante'] == X.id_plante) & (les_feuilles['Topology'] == X.topology[:-1]) & (les_feuilles['id_rang'] == max(1, X.topology[-1]))])['ObjetOrgane'].any():    # Feuille axillante de l'ordre prï¿½cï¿½dent (le max sert a traiter les cas des 1ers rangs)
+        if les_feuilles.isin([(les_feuilles['Plante'] == X.id_plante) & (les_feuilles['Topology'] == X.topology[:-1]) & (les_feuilles['id_rang'] == max(1, X.topology[-1]))])['ObjetOrgane'].any():    # Feuille axillante de l'ordre pr?c?dent (le max sert a traiter les cas des 1ers rangs)
           feuille_ref = les_feuilles[(les_feuilles['Plante'] == X.id_plante) & (les_feuilles['Topology'] == X.topology[:-1]) & (les_feuilles['id_rang'] == max(1, X.topology[-1]))].iloc[0]['ObjetOrgane']
           Seuil[X.id_plante][X.id_talle]=max(Seuil[X.id_plante][X.id_talle], feuille_ref.Taillegaine)
         else: # Si la feuille axillante a disparu
@@ -1774,6 +1774,7 @@ apex(X):
           X.Premiecroiss = flowering_model.param.increase_growth_Premiecroiss * X.Premiecroiss
           X.C = flowering_model.param.increase_growth_C * X.C
 
+  
   
   
   if groupe=='croissance':     
@@ -2491,11 +2492,11 @@ def __initialiseContext__(context):
 	    )
 	profilefoldlimbe.name = "profilefoldlimbe"
 	profilegaine = pgl.NurbsCurve2D(	
-	    ctrlPointList = pgl.Point3Array([(-0.407478, -0.0511938, 1),(-0.390245, -0.17963, 1),(-0.355, -0.3575, 1),(-0.0025, -0.4925, 1),(0.363333, -0.355, 1),(0.47, -5.58794e-09, 1),(0.349167, 0.3425, 1),(0.005, 0.455, 1),(-0.3275, 0.3625, 1),(-0.380592, 0.203264, 1),(-0.402904, 0.0550844, 1)]) , 
+	    ctrlPointList = pgl.Point3Array([(-0.407478, -0.0511938, 1),(-0.390245, -0.17963, 1),(-0.355, -0.3575, 1),(-0.0025, -0.4925, 1),(0.363333, -0.355, 1),(0.47, -5.58794e-009, 1),(0.349167, 0.3425, 1),(0.005, 0.455, 1),(-0.3275, 0.3625, 1),(-0.380592, 0.203264, 1),(-0.402904, 0.0550844, 1)]) , 
 	    )
 	profilegaine.name = "profilegaine"
-	panel_0 = ({'name': 'Curve2D', 'active': True, 'visible': False},[('Curve2D',profilelimbe),('Curve2D',profilefoldlimbe),('Curve2D',profilegaine)])
-	panel_1 = ({'name': 'Panel 2', 'active': True, 'visible': False},[])
+	panel_0 = ({'active': True, 'visible': False, 'name': 'Curve2D'},[('Curve2D',profilelimbe),('Curve2D',profilefoldlimbe),('Curve2D',profilegaine)])
+	panel_1 = ({'active': True, 'visible': False, 'name': 'Panel 2'},[])
 	parameterset = [panel_0,panel_1,]
 	context["__functions__"] = []
 	context["__curves__"] = [('profilelimbe',profilelimbe),('profilefoldlimbe',profilefoldlimbe),('profilegaine',profilegaine),]
