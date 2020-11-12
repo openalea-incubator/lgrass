@@ -45,6 +45,7 @@ num_primordium=0
 
 LSTEP=1
 DureeExp = 1200
+dt = 1 # Pas de temps reel en heures
 
 ##### Parametre scene #####
 OptionRacine='SansRacines' 
@@ -757,7 +758,7 @@ def LAI_proximite(id_plante):
 # --------------------------------------------
 
 def Start():
-  global timing,dt,TPS,TPS_expe #Parametres de temps
+  global timing,dt_eff,TPS,TPS_expe #Parametres de temps
   global df_induction, df_organ_lengths
   global surface_biomass,chemin_fichier1,chemin_fichier2,chemin_fichier3,long_root,simul_expe,taille_finale_feuille, outvarfile #Fichiers de sortie
   global Biomasse_aerienne,Biomasse_racinaire,BiomProd,Ray,PourcentageRootGrowthRealized,PourcentageRootGrowthRealized,Reserve,Demande_feuille,PourcentageFeuilGrowthRealized,les_diametres,Seuil,Taille_finale_gaine,nb_talle #Parametres vides
@@ -775,13 +776,14 @@ def Start():
   TPS=0.
   TPS_expe=range(1000)
   
+  
   # ------------------------------------------------------------------------------------------------
   # -------------------------------- Thermal time calculation --------------------------------------
   # ------------------------------------------------------------------------------------------------
   meteo = meteo_ephem.import_meteo_data(meteo_path, sowing_date, site)
-  current_day = meteo.experimental_day.tolist()[0]
+  current_day = 1
   daily_temperature = meteo.mean_temperature[meteo.experimental_day == current_day].iloc[0]
-  dt = Tregul_timestep(daily_temperature)
+  dt_eff = dt * Tregul_timestep(daily_temperature)   # dt_eff : dt corrige par la temperature
   step_cut = 0
   ##### Creation de parametres vides #####
   Biomasse_aerienne=[0.]*(nb_plantes) # Biomasse foliaire totale
@@ -812,9 +814,9 @@ def Start():
   #t3=[ParamP[i]['t3'] for i in range(nb_plantes)]
   option_caribu="Off"
   
-  df_induction = pd.DataFrame(columns = ['GDD', 'Date', 'Site', 'Day', 'Daily_mean_temperature', 'Daily_daylength', 'Id_plante', 'Id_talle', 'topology', 'Leaf_produced', 'Primordia_on_apex', 'Spikelet_number', 'Vernalisation_rate', 'Secondary_induction_rate', 'Heading_date'])
+  df_induction = pd.DataFrame(columns = ['Time', 'Date', 'Site', 'Day', 'Daily_mean_temperature', 'Daily_daylength', 'Id_plante', 'Id_talle', 'topology', 'Leaf_produced', 'Primordia_on_apex', 'Spikelet_number', 'Vernalisation_rate', 'Secondary_induction_rate', 'Heading_date'])
   
-  df_organ_lengths = pd.DataFrame(columns = ['GDD', 'Date', 'Site', 'Day', 'Id_plante', 'Id_talle', 'Id_rang', 'Organ', 'Length'])
+  df_organ_lengths = pd.DataFrame(columns = ['Time', 'Date', 'Site', 'Day', 'Id_plante', 'Id_talle', 'Id_rang', 'Organ', 'Length'])
   
   tiller_appearance = pd.DataFrame()
   
@@ -838,7 +840,7 @@ def Start():
 
 
 def StartEach(lstring):
-  global RootPotentialNewBiomass,longueur_totale_feuille,Rootbiom,groupe,dt,reprise_coupe,CoupeTaille
+  global RootPotentialNewBiomass,longueur_totale_feuille,Rootbiom,groupe,dt_eff,reprise_coupe,CoupeTaille
   global df_induction, df_organ_lengths
   global current_day, meteo, tiller_appearance, tiller_to_remove, mortality_zone, step_cut
 #  global apex_characteristics, internode_characteristics
@@ -847,36 +849,30 @@ def StartEach(lstring):
   longueur_totale_feuille=0
   Rootbiom=0
   
+  daily_temperature = meteo.mean_temperature[meteo.experimental_day == current_day].iloc[0]
+  dt_eff = dt * Tregul_timestep(daily_temperature)
+  
   if groupe == 'croissance':
-    daily_temperature = meteo.mean_temperature[meteo.experimental_day == current_day].iloc[0]
-    dt = Tregul_timestep(daily_temperature)
-    
     ### Declenchement de la coupe selon la date ###
     if meteo[meteo.experimental_day == current_day]['Cut'].iloc[0] == True and current_day not in recolte_biomasse.keys():
       groupe='defoliation'
       print('coupe')
       recolte_biomasse[current_day] = 0
       step_cut = 1
-      dt = 0
   # Coupe
   else:
     if step_cut in (1, 2):
       step_cut += 1        
-      dt = 0
-
     elif step_cut == 3:
       for i in range(len(Seuil)):
         for j in range(len(Seuil[i])):
           Seuil[i][j]=5.5
       step_cut = 4
-      dt = 0
     
     else:
       reprise_coupe=True
       groupe='croissance'
       step_cut = 0
-      daily_temperature = meteo.mean_temperature[meteo.experimental_day == current_day].iloc[0]
-      dt = Tregul_timestep(daily_temperature)
 
 #### R?gression des talles : D?termination des zones o? appliquer le Cut
   if option_tiller_regression == True and current_day > 1:
@@ -911,13 +907,14 @@ def StartEach(lstring):
 
 def EndEach(lstring, lscene):
   global simul_expe,surface_biomass,taille_finale_feuille
-  global TPS,dt,mtg,surface_foliaire_emergee,les_pointes,les_primordiums,RootPotentialNewBiomass,les_feuilles,les_feuilles_emergees, les_segments_feuilles, les_racines, Reserve,Biomasse_aerienne,Surfoliaireencours,Biomasse_racinaire,fichier_test,groupe,PourcentageRootGrowthRealized,PourcentageFeuilGrowthRealized,Demande_feuille,C,reprise_coupe,Ray,BiomProd,option_caribu, rapportS9_SSol_dict
+  global TPS,dt_eff,mtg,surface_foliaire_emergee,les_pointes,les_primordiums,RootPotentialNewBiomass,les_feuilles,les_feuilles_emergees, les_segments_feuilles, les_racines, Reserve,Biomasse_aerienne,Surfoliaireencours,Biomasse_racinaire,fichier_test,groupe,PourcentageRootGrowthRealized,PourcentageFeuilGrowthRealized,Demande_feuille,C,reprise_coupe,Ray,BiomProd,option_caribu, rapportS9_SSol_dict
   global current_day, meteo
   global df_induction, df_organ_lengths, radiation_interception, tiller_appearance, tiller_to_remove
 #  global apex_characteristics, internode_characteristics # AJOUT SIMON
   
-  TPS=TPS+dt
-  print('TPS :',TPS , 'Current day :', current_day) # AJOUT SIMON
+  if groupe=="croissance":
+    TPS+=dt
+  print('TPS :',TPS, "h", 'Current day :', current_day) # AJOUT SIMON
   
   if reprise_coupe==True:
     reprise_coupe=False
@@ -925,11 +922,11 @@ def EndEach(lstring, lscene):
   # ------------------------------------------------------------------------------------------------
   # -------------------------------------- Use of Caribu -------------------------------------------
   # ------------------------------------------------------------------------------------------------
-  # Caribu is used at the end of each day
+  # 
   # 
   # ------------------------------------------------------------------------------------------------
   
-  if TPS >= meteo[meteo.experimental_day == current_day].thermal_time_cumul.iloc[0] and option_caribu=='On':
+  if option_caribu=='On':
     timing_method1=t.time()
     res=apply_caribu(lscene, energy=meteo[meteo.experimental_day == current_day].PAR_incident.iloc[0], azimuths=azimuths, zeniths=zeniths, diffuse_model=diffuse_model, scene_unit=scene_unit)
     print('temps d exec de caribu:',t.time()-timing_method1)
@@ -959,15 +956,15 @@ def EndEach(lstring, lscene):
     if option_tiller_regression == True and len(tiller_appearance) > 0:
       tiller_to_remove = pd.DataFrame()
       
-      for id_plante in df_induction.id_plante[df_induction.GDD == TPS]:
-        dependent_tillers = df_induction[(df_induction.GDD == TPS) & (df_induction.Leaf_produced <= 4)]
+      for id_plante in df_induction.id_plante[df_induction.Time == TPS]:
+        dependent_tillers = df_induction[(df_induction.Time == TPS) & (df_induction.Leaf_produced <= 4)]
         for id_talle in dependent_tillers.id_talle:
           if radiation_interception.Ei[(radiation_interception.id_plante == id_plante) & (radiation_interception.id_talle == id_talle)] < ParamP[id_plante]['PS_compensation_point']:  #unite de Ei ???      + verifier ParamP(id_plante)
-            mother_tiller_id = df_induction.topology[(df_induction.GDD == TPS) & (df_induction.id_plante == id_plante) & (df_induction.id_talle == id_talle)][-2]
-            if df_induction.Secondary_induction_rate[(df_induction.GDD == TPS) & (df_induction.id_plante == id_plante) & (df_induction.id_talle == mother_tiller_id)] < 1:  # vegetative_tiller
+            mother_tiller_id = df_induction.topology[(df_induction.Time == TPS) & (df_induction.id_plante == id_plante) & (df_induction.id_talle == id_talle)][-2]
+            if df_induction.Secondary_induction_rate[(df_induction.Time == TPS) & (df_induction.id_plante == id_plante) & (df_induction.id_talle == mother_tiller_id)] < 1:  # vegetative_tiller
               if radiation_interception.Ei[(radiation_interception.id_plante == id_plante) & (radiation_interception.id_talle == id_talle)] < ParamP[id_plante]['PS_compensation_point'] :        #unite de Ei ???      + verifier ParamP(id_plante)
                 tiller_to_remove = tiller_to_remove.append(pd.DataFrame({'id_plante': [id_plante], 'id_talle': [id_talle]}))
-            elif df_induction.Heading_date[(df_induction.GDD == TPS) & (df_induction.id_plante == id_plante) & (df_induction.id_talle == mother_tiller_id)] > 0:  # headed
+            elif df_induction.Heading_date[(df_induction.Time == TPS) & (df_induction.id_plante == id_plante) & (df_induction.id_talle == mother_tiller_id)] > 0:  # headed
                 tiller_to_remove = tiller_to_remove.append(pd.DataFrame({'id_plante': [id_plante], 'id_talle': [id_talle]}))
       
       
@@ -1087,11 +1084,9 @@ def EndEach(lstring, lscene):
   # ------------------------------------------------------------------------------------------------
   # -------------------------------- Date change management ----------------------------------------
   # ------------------------------------------------------------------------------------------------
-  # Date change occurs when the global time flow in growing degree day (GDD) reachs the GDD cumul of
-  # the current day (from the start of the meteorological data)
+  # Date change each 24 hours
   # ------------------------------------------------------------------------------------------------
-  if TPS >= meteo[meteo.experimental_day == current_day].thermal_time_cumul.iloc[0]:
-    current_day += 1
+  current_day = TPS//24 +1     # +1 car premier jour est le jour 1
     
 
 def End(lstring,lscene): #Ecriture et fermeture des fichiers de sortie
@@ -1189,16 +1184,16 @@ def Tregul_timestep(daily_temperature):
   q = paramManagement['q']
   
   if Tmin < daily_temperature < Tmax:
-    dt = ((daily_temperature - Tmin) / (Tref - Tmin))**q * ((Tmax - daily_temperature) / (Tmax - Tref))
+    dt_eff = ((daily_temperature - Tmin) / (Tref - Tmin))**q * ((Tmax - daily_temperature) / (Tmax - Tref))
   else:
-    dt = 0 
-  return dt
+    dt_eff = 0 
+  return dt_eff
 
 def FoncCroiss(t, Ymax, tend, tmax, phase): # fonction de croissance de feuille
   if t>tmax and phase == "cachee":
     yTm = Ymax*(1+((tend-tmax)/(tend-tmax)))*(pow((tmax/tend),(tend/(tend-tmax))))              # passage a une fonction lineaire pour eviter de borner la croissance cachee des feuilles
-    yTm_1 = Ymax*(1+((tend-(tmax-dt))/(tend-tmax)))*(pow(((tmax-dt)/tend),(tend/(tend-tmax))))
-    y = ((yTm - yTm_1)/dt)  * t + yTm -((yTm - yTm_1)/dt)*tmax
+    yTm_1 = Ymax*(1+((tend-(tmax-dt_eff))/(tend-tmax)))*(pow(((tmax-dt_eff)/tend),(tend/(tend-tmax))))
+    y = ((yTm - yTm_1)/dt_eff)  * t + yTm -((yTm - yTm_1)/dt_eff)*tmax
   else:
     if t>tend:
       y = Ymax
@@ -1321,7 +1316,7 @@ phytomere(X, X_AP):
         produce Cut()
   else:
     if groupe == 'croissance':
-      X.age=X.age+dt#thermal time with beta
+      X.age+=dt_eff # Age en heures corrigees par la temperature
       if (X.id_talle!=0 and X.id_rang==1):
         if (X.age>=120 and X.angletal<=ParamP[X.id_plante]['divergetalle']):
           X.angletal=X.angletal+(1./3.)
@@ -1336,7 +1331,7 @@ Feuille(X, X_apex, X_phytomere):
   Jled = paramManagement['Jled']  # Called omega in Verdenal et al. (2008)
   
   if groupe=='croissance':
-    X.age += dt
+    X.age += dt_eff
     
     if(X.angleinsert<=ParamP[X.id_plante]['INSERTIONLIMBE'] and X.Taillegaine>Taille_finale_gaine[X.id_plante][X.id_talle][X.id_rang-1] +1):
       X.angleinsert=X.angleinsert+1    
@@ -1378,7 +1373,7 @@ Feuille(X, X_apex, X_phytomere):
           X_apex.leaf_phases_dict[X.id_rang] = X.Phase
           Seuil[X.id_plante][X.id_talle] *= 1.
           X.TailleEmergence = Seuil[X.id_plante][X.id_talle]
-          TrueAge = X.age - dt #On pourrait affiner la determination de TrueAge qui en realite a eu lieu entre age-dt et age-2dt (soit on prend la moyenne soit au prorata des longueurs)
+          TrueAge = X.age - dt_eff #On pourrait affiner la determination de TrueAge qui en realite a eu lieu entre age-dt_eff et age-2dt_eff (soit on prend la moyenne soit au prorata des longueurs)
 
           tmax_potcroiss = 166.588 #conversion des °C jour en  heures pour manip a 17°C 118*24/17
           lmax_potcroiss = 338.5554 # mm
@@ -1401,7 +1396,7 @@ Feuille(X, X_apex, X_phytomere):
           #X.Ymax= 0.85*((pow(paramManagement['T01'],((X.age-1)+paramManagement['tb1'])*paramManagement['k1'])-paramManagement['Lpot'])-(pow(paramManagement['T02'],((X.age-1)+paramManagement['tb2'])*paramManagement['k2'])))   # New FC
           #X.Ymax=0.55*((615*pow(paramManagement['T01'],X.age*0.0053))-736.9-(0.1207*pow(paramManagement['T02'],X.age*0.062)))   # FC
 
-          X.rapportK = paramManagement['Rsalpha'] + (TrueAge - dt) * paramManagement['a'] + paramManagement['b']  # Called Rsi in Verdenal et al. (2008)
+          X.rapportK = paramManagement['Rsalpha'] + (TrueAge - dt_eff) * paramManagement['a'] + paramManagement['b']  # Called Rsi in Verdenal et al. (2008)
           X.Taillefinalelimbe = (1-X.rapportK)*X.Ymax
           X.Taillefinalegaine = X.Ymax*X.rapportK
           LED = (((X.Taillefinalegaine / paramManagement['Rsalpha']) * 2) - X.Ymax) * Jled
@@ -1415,12 +1410,12 @@ Feuille(X, X_apex, X_phytomere):
       #if (X.Taillegaine< Taille_finale_gaine[X.id_plante][X.id_talle][X.id_rang-1] +13):
       
       if(X.Phase=='cachee'):
-        inversea = X.age - dt
-        AccroissDemande = FoncCroiss(inversea+dt, X.Ymax, LEDGAINE, tm, X.Phase) - FoncCroiss(inversea, X.Ymax, LEDGAINE, tm, X.Phase)
+        inversea = X.age - dt_eff
+        AccroissDemande = FoncCroiss(inversea+dt_eff, X.Ymax, LEDGAINE, tm, X.Phase) - FoncCroiss(inversea, X.Ymax, LEDGAINE, tm, X.Phase)
         X.Agecroiss = X.age
       
       if(X.Phase=='visible'):
-        AccroissDemande = (FoncCroiss(X.Agecroiss+dt, X.Ymax, LEDGAINE, tm, X.Phase) - FoncCroiss(X.Agecroiss, X.Ymax, LEDGAINE, tm, X.Phase))
+        AccroissDemande = (FoncCroiss(X.Agecroiss+dt_eff, X.Ymax, LEDGAINE, tm, X.Phase) - FoncCroiss(X.Agecroiss, X.Ymax, LEDGAINE, tm, X.Phase))
         X.Agecroiss = X.age + X.Difftps
       Pourcent=PourcentageFeuilGrowthRealized[X.id_plante]
       
@@ -1445,7 +1440,7 @@ Feuille(X, X_apex, X_phytomere):
       #  Accroiss=0
       
       #taillefictive=TpourY()
-      limbefictif=0.973*FoncCroiss(X.Agecroiss-dt, X.Ymax, LEDGAINE, tm, X.Phase)
+      limbefictif=0.973*FoncCroiss(X.Agecroiss-dt_eff, X.Ymax, LEDGAINE, tm, X.Phase)
       
       #if X.R==0.973 and limbefictif>(0.75*X.Taillefinalelimbe):
       #  X.R=0.965
@@ -1482,9 +1477,9 @@ Feuille(X, X_apex, X_phytomere):
       if X.Phase!='mature':
         if (X.Taillegaine< Seuil[X.id_plante][X.id_talle] +13):
           if(X.Phase=='cachee'):
-            NextAccroiss=FoncCroiss(X.age+dt, X.Ymax, LEDGAINE, tm, X.Phase) - FoncCroiss(X.age, X.Ymax, LEDGAINE, tm, X.Phase)
+            NextAccroiss=FoncCroiss(X.age+dt_eff, X.Ymax, LEDGAINE, tm, X.Phase) - FoncCroiss(X.age, X.Ymax, LEDGAINE, tm, X.Phase)
           else: # X.Phase=='visible'
-            NextAccroiss=(FoncCroiss(X.Agecroiss+dt, X.Ymax, LEDGAINE, tm, X.Phase) - FoncCroiss(X.Agecroiss, X.Ymax, LEDGAINE, tm, X.Phase))
+            NextAccroiss=(FoncCroiss(X.Agecroiss+dt_eff, X.Ymax, LEDGAINE, tm, X.Phase) - FoncCroiss(X.Agecroiss, X.Ymax, LEDGAINE, tm, X.Phase))
         if (X.Taillegaine>0.98*X.Taillefinalegaine and X.Taillegaine<=Seuil[X.id_plante][X.id_talle] -5 and X.Phase=='visible'):
           NextAccroiss=1        
         if (X.Taillegaine>=Seuil[X.id_plante][X.id_talle] +13 and X.Phase=='visible'):
@@ -1718,7 +1713,7 @@ apex(X):
     
     for phytomere_rank in X.organ_lengths_dict.keys():
       for organ in X.organ_lengths_dict[phytomere_rank].keys():
-        df_organ_lengths = df_organ_lengths.append({'GDD': TPS, 'Date': date, 'Site': site, 'Day': current_day, 'Id_plante': X.id_plante, 'Id_talle': X.id_talle, 'Id_rang': phytomere_rank, 'Organ': organ, 'Length': X.organ_lengths_dict[phytomere_rank][organ]}, ignore_index = True)
+        df_organ_lengths = df_organ_lengths.append({'Time': TPS, 'Date': date, 'Site': site, 'Day': current_day, 'Id_plante': X.id_plante, 'Id_talle': X.id_talle, 'Id_rang': phytomere_rank, 'Organ': organ, 'Length': X.organ_lengths_dict[phytomere_rank][organ]}, ignore_index = True)
     
     # ------------------------------------------------------------------------------------------------
     # ------------------------- Management of the flowering state of the apex ------------------------
@@ -1748,7 +1743,7 @@ apex(X):
           X.phenological_state = 'reproductive'
           print('reproductive')
           
-    df_induction = df_induction.append({'GDD': TPS, 'Date': date, 'Site': site, 'Day': current_day, 'Daily_mean_temperature': daily_temperature, 'Daily_daylength': daily_daylength, 'Id_plante': X.id_plante, 'Id_talle': X.id_talle, 'topology':X.topology, 'Leaf_produced': X.total_created_leaves, 'Primordia_on_apex': X.primordia_number, 'Spikelet_number': X.spikelet_created, 'Vernalisation_rate': X.primary_induction_index, 'Secondary_induction_rate': X.secondary_induction_index, 'Heading_date': X.heading_date}, ignore_index = True)
+    df_induction = df_induction.append({'Time': TPS, 'Date': date, 'Site': site, 'Day': current_day, 'Daily_mean_temperature': daily_temperature, 'Daily_daylength': daily_daylength, 'Id_plante': X.id_plante, 'Id_talle': X.id_talle, 'topology':X.topology, 'Leaf_produced': X.total_created_leaves, 'Primordia_on_apex': X.primordia_number, 'Spikelet_number': X.spikelet_created, 'Vernalisation_rate': X.primary_induction_index, 'Secondary_induction_rate': X.secondary_induction_index, 'Heading_date': X.heading_date}, ignore_index = True)
     
     # ------------------------------------------------------------------------------------------------
     # --------------- Management of the phenological increase in leaf growth rate --------------------
@@ -2147,7 +2142,7 @@ tip(X):
       produce *
   else:
     if groupe=='croissance' and not X.arretee:
-      X.age=X.age+dt
+      X.age+=dt_eff
       for x in les_pointes:
         if x[0]==X.id_pointe:
           vertex_pointe=x[1]
@@ -2240,7 +2235,7 @@ Site(X):
       if X.diametre < ParamP[X.id_plante]['P_diamMin']:
         produce 
       elif X.age < ParamP[X.id_plante]['P_ageMaturitePointe']:
-        X.age=X.age+dt
+        X.age+=dt_eff
       else:
         num_pointe=num_pointe+1
         Y=pte(id_pointe=num_pointe,age=0,Tortue=X.Tortue,diametre=X.diametre,posO=X.posO)

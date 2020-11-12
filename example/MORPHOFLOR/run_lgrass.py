@@ -31,6 +31,7 @@ def run_lgrass(scenario_id=1, inputs_dir_path='inputs', outputs_dir_path='output
     lsystem = Lsystem(lpy_filename)
 
     # Update parameters
+    lsystem.dt = 1
     lsystem.option_profile = "plateau"
     lsystem.flowering_model = flowering_model
     lsystem.derivationLength = int(scenario['derivationLength'])
@@ -42,9 +43,6 @@ def run_lgrass(scenario_id=1, inputs_dir_path='inputs', outputs_dir_path='output
     lsystem.site = scenario['site']
     lsystem.output_induction_file_name = '{}_induction'.format(scenario_name)
     lsystem.output_organ_lengths_file_name = '{}_organ_lengths'.format(scenario_name)
-    lsystem.cutting_dates = [] if pd.isna(scenario['cutting_dates']) \
-        else [scenario['cutting_dates']] if isinstance(scenario['cutting_dates'], int) \
-        else [int(i) for i in scenario['cutting_dates'].split("_")]
     lsystem.ParamP[0]['C'] = scenario['value_C']
     lsystem.ParamP[0]['Premiecroiss'] = scenario['Premiecroiss']
     lsystem.ParamP[0]['PS_compensation_point'] = scenario['PS_compensation_point']
@@ -62,7 +60,7 @@ def run_lgrass(scenario_id=1, inputs_dir_path='inputs', outputs_dir_path='output
 if __name__ == '__main__':
     inputs = 'inputs'
     outputs = 'outputs'
-    scenario = 5
+    scenario = 1000
 
     try:
         opts, args = getopt.getopt(sys.argv[1:], "i:o:s:d", ["inputs=", "outputs=", "scenario="])
