@@ -1746,7 +1746,7 @@ apex(X):
           print('vernalized')         
       
       elif (X.phenological_state == 'vernalized' and X.total_created_leaves > 1):
-        X.secondary_induction_index = min(1, X.secondary_induction_index + flowering_model.photoperiod_induction_function(daily_daylength))
+        X.secondary_induction_index = min(1, X.secondary_induction_index + flowering_model.photoperiod_induction_function(daily_daylength, X.total_created_leaves))
         # Debut indution secondaire
         if X.secondary_induction_index > 0 and X.start_secondary_induction is None:
           X.start_secondary_induction = X.Age
@@ -1783,7 +1783,7 @@ apex(X):
           X.leaf_phenological_state = 'primary_induced'          
       
       elif (X.leaf_phenological_state == 'primary_induced' and X.total_created_leaves > 1):
-        X.leaf_secondary_induction_index = min(1, X.leaf_secondary_induction_index + flowering_model.param.leaf_secondary_induction_coeff * flowering_model.photoperiod_induction_function(daily_daylength))
+        X.leaf_secondary_induction_index = min(1, X.leaf_secondary_induction_index + flowering_model.param.leaf_secondary_induction_coeff * flowering_model.photoperiod_induction_function(daily_daylength, X.total_created_leaves))
         if X.leaf_secondary_induction_index >= 1:
           X.leaf_phenological_state = 'secondary_induced'
           X.Premiecroiss = flowering_model.param.increase_growth_Premiecroiss * X.Premiecroiss
