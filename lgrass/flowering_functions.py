@@ -30,7 +30,7 @@ class FloweringFunctions:
         :return:
         """
         if leaf_number <= self.param.leaf_number_max:
-            max_photo_ind_rate = leaf_number * self.PPRM / self.param.leaf_number_max
+            max_photo_ind_rate = leaf_number * self.param.PPRM / self.param.leaf_number_max
         else:
             max_photo_ind_rate = self.param.PPRM
         return max_photo_ind_rate
