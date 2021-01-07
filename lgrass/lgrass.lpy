@@ -1755,13 +1755,13 @@ apex(X):
         if X.secondary_induction_index >= 1:
           X.phenological_state = 'reproductive'
           print('reproductive')
-          leaves_produced_during_secondary_ind = X.leaf_number_at_secondary_induction_start - X.total_created_leaves
+          leaves_produced_during_secondary_ind = X.total_created_leaves - X.leaf_number_at_secondary_induction_start
           if leaves_produced_during_secondary_ind == 0:
             X.end_secondary_induction = X.Age
             diff = X.end_secondary_induction - X.start_secondary_induction
             mean_phyllochrone = X.end_secondary_induction / X.total_emerged_leaves
             X.primordia_number += ceil(flowering_model.param.coeff_primordia_emission_reproductive * diff / mean_phyllochrone)
-            X.final_leaf_number = X.total_created_leaves + X.primordia_number
+          X.final_leaf_number = X.total_created_leaves + X.primordia_number
          
     df_induction = df_induction.append({'Time': TPS, 'Date': date, 'Site': site, 'Day': current_day, 'Daily_mean_temperature': daily_temperature, 'Daily_daylength': daily_daylength, 'Id_plante': X.id_plante, 'Id_talle': X.id_talle, 'topology':X.topology, 'Leaf_produced': X.total_created_leaves, 'Primordia_on_apex': X.primordia_number, 'Spikelet_number': X.spikelet_created, 'Vernalisation_rate': X.primary_induction_index, 'Secondary_induction_rate': X.secondary_induction_index, 'Heading_date': X.heading_date}, ignore_index = True)
     
@@ -1792,7 +1792,7 @@ apex(X):
   
   
   
-  if groupe=='croissance':     
+  if groupe=='croissance':
     if (X.phenological_state == 'vegetative' or X.phenological_state == 'vernalized' or (X.phenological_state == 'reproductive' and X.total_created_leaves < X.final_leaf_number)):
       feuille_ref = les_feuilles[(les_feuilles['Plante'] == X.id_plante) & (les_feuilles['id_talle'] == X.id_talle) & (les_feuilles['id_rang'] == X.id_rang)].iloc[0]['ObjetOrgane']
       if X.retard==2:
