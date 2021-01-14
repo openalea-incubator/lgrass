@@ -5,7 +5,7 @@ import os
 
 plantes_Bronsyn = pd.read_csv(
      'D:/Simon/Objectifs_modelisation/Reproductif_temps_eff/meilleures_simulations_V1.csv')
-plantes_Bronsyn = plantes_Bronsyn[["Id_plante", "C", "VR1", "LNM", "PPRM", "rho1", "L_ind", "kC", "kPremierCroiss", "PremierCroiss"]]
+plantes_Bronsyn = plantes_Bronsyn[["C", "VR1", "LNM", "PPRM", "rho1", "L_ind", "kC", "kPremierCroiss", "PremierCroiss"]]
 plantes_Bronsyn.rename(columns={'C': 'value_C'}, inplace=True)
 plantes_Bronsyn.rename(columns={'VR1': 'daily_vern_rate'}, inplace=True)
 plantes_Bronsyn.rename(columns={'LNM': 'leaf_number_max'}, inplace=True)
@@ -16,6 +16,7 @@ plantes_Bronsyn.rename(columns={'kC': 'increase_growth_C'}, inplace=True)
 plantes_Bronsyn.rename(columns={'kPremierCroiss': 'increase_growth_Premiecroiss'}, inplace=True)
 plantes_Bronsyn.rename(columns={'PremierCroiss': 'Premiecroiss'}, inplace=True)
 plantes_Bronsyn['variete'] = 'Bronsyn'
+plantes_Bronsyn = plantes_Bronsyn.drop_duplicates()
 
 annees_a_simuler = pd.read_csv('D:/Simon/Objectifs_modelisation/GEVES/dates_epiaison_mesurees_GEVES.csv')
 annees_a_simuler.annee = annees_a_simuler.annee.apply(str)
@@ -36,11 +37,11 @@ derivationLength_list = [5136]
 option_tallage_list = ["False"]
 option_senescence_list = ["False"]
 option_floraison_list = ["True"]
-cutting_height_list = [None, 20]
-cutting_end_list = [None, '2016-12-31']
+cutting_height_list = [None]
+cutting_end_list = [None]
 PS_compensation_point_list = [14.1]
 meteo_filename_list = ["Meteo_GEVES.csv"]
-cutting_dates_list = [np.nan]
+cutting_dates_list = ['']
 leaf_primary_induction_coeff_list = [1]
 
 
@@ -62,7 +63,6 @@ simulation_plan = pd.DataFrame(columns=["temp_vern_min",
                                         "cutting_dates",
                                         "PS_compensation_point",
                                         "leaf_primary_induction_coeff",
-                                        "Id_plante",
                                         "value_C",
                                         "daily_vern_rate",
                                         "leaf_number_max",
@@ -113,7 +113,6 @@ for i in itertools.product(temp_vern_min_list,
                                                                                 "cutting_dates",
                                                                                 "PS_compensation_point",
                                                                                 "leaf_primary_induction_coeff",
-                                                                                "Id_plante",
                                                                                 "value_C",
                                                                                 "daily_vern_rate",
                                                                                 "leaf_number_max",
