@@ -28,6 +28,7 @@ leaf_primary_induction_coeff_list = [1]
 leaf_secondary_induction_coeff_list = [1]
 increase_growth_Premiecroiss_list = [1]
 increase_growth_C_list = [1]
+HCOUP_list = [50]
 
 
 simulation_plan = pd.DataFrame(columns=["temp_vern_min",
@@ -53,7 +54,8 @@ simulation_plan = pd.DataFrame(columns=["temp_vern_min",
                            "leaf_primary_induction_coeff",
                            "leaf_secondary_induction_coeff",
                            "increase_growth_Premiecroiss",
-                           "increase_growth_C"])
+                           "increase_growth_C",
+                           "HCOUP"])
 
 for i in itertools.product(temp_vern_min_list,
                            temp_vern_inter_list,
@@ -78,7 +80,8 @@ for i in itertools.product(temp_vern_min_list,
                            leaf_primary_induction_coeff_list,
                            leaf_secondary_induction_coeff_list,
                            increase_growth_Premiecroiss_list,
-                           increase_growth_C_list):
+                           increase_growth_C_list,
+                           HCOUP_list):
     simulation_plan = simulation_plan.append(pd.DataFrame([i], columns=["temp_vern_min",
                            "temp_vern_inter",
                            "temp_vern_max",
@@ -102,7 +105,8 @@ for i in itertools.product(temp_vern_min_list,
                            "leaf_primary_induction_coeff",
                            "leaf_secondary_induction_coeff",
                            "increase_growth_Premiecroiss",
-                           "increase_growth_C"]))
+                           "increase_growth_C",
+                           "HCOUP"]))
 
 
 id_first_simulation = 314

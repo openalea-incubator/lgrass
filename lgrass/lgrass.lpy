@@ -96,6 +96,14 @@ option_graphic_outputs = True
 option_profile = "triangular" # triangular or plateau
 
 
+##### Option cutting_height
+cutting_height = None  # None or height in mm
+print(cutting_height)
+
+# Date limite de coupe
+cutting_end = None   # None or date ('YYYY_mm_dd')
+
+
 #### Load flowering model
 from lgrass import flowering_functions
 flowering_model = flowering_functions.FloweringFunctions()
@@ -117,6 +125,8 @@ sowing_date = "2018_11_13"
 site = 'LUSIGNAN'
 meteo_path = os.path.join('inputs', 'meteo_file.csv')
 
+# Set cutting dates
+cutting_dates = ''
 
 
 
@@ -769,11 +779,10 @@ def Start():
   global NBlignes,NBcolonnes,posPlante,Espacement #Parametres scene
   global surface_foliaire_emergee,Surfoliaireencours,Premiecroiss #Definition des groupes de production
   global Alpha,Beta,t1,t2,t3,Caribu #Relation allometrique
-  global current_day, meteo, radiation_interception, tiller_appearance, tiller_to_remove, daily_temperature, step_cut
+  global current_day, meteo, radiation_interception, tiller_appearance, tiller_to_remove, daily_temperature, step_cut, cutting_dates
   
   # Camera setting
   #Viewer.camera.lookAt((250,250,50),(-100,-100,50))#((Position),(direction))
-  
   
   ##### Parametres de temps #####
   timing=t.time()
@@ -789,6 +798,12 @@ def Start():
   daily_temperature = meteo.mean_temperature[meteo.experimental_day == current_day].iloc[0]
   dt_eff = dt * Tregul_timestep(daily_temperature)   # dt_eff : dt corrige par la temperature
   step_cut = 0
+  
+  # Set cutting dates
+  cutting_dates = pd.to_datetime(cutting_dates.split("x"), format='%Y_%m_%d')
+  meteo.loc[meteo['date'].isin(cutting_dates), 'Cut'] = True
+  print(cutting_dates)
+  
   ##### Creation de parametres vides #####
   Biomasse_aerienne=[0.]*(nb_plantes) # Biomasse foliaire totale
   Biomasse_racinaire=[0.]*(nb_plantes) # Biomasse racinaire
@@ -849,6 +864,7 @@ def StartEach(lstring):
   global current_day, meteo, tiller_appearance, tiller_to_remove, mortality_zone, step_cut
 #  global apex_characteristics, internode_characteristics
   
+  
   RootPotentialNewBiomass=[0]*(nb_plantes)
   longueur_totale_feuille=0
   Rootbiom=0
@@ -863,6 +879,21 @@ def StartEach(lstring):
       print('coupe')
       recolte_biomasse[current_day] = 0
       step_cut = 1
+    ### Declenchement de la coupe en fonction de la hauteur de l herbe
+    # Get the highest phytomer (ex: for a leaf: length from the soil to the tip of the stretched leaf)
+    if pd.notna(cutting_height) and (pd.isna(cutting_end) or (pd.notna(cutting_end) and meteo.date[meteo.experimental_day == current_day].iloc[0] <= pd.to_datetime(cutting_end, format='%Y_%m_%d'))) and (not recolte_biomasse.keys() or current_day > max(recolte_biomasse.keys()) + 1):
+      # (not recolte_biomasse.keys() or current_day > max(recolte_biomasse.keys()) + 1)          this condition is used to avoid that to cutting occurs before df_organ_lengths update
+      df_OL = df_organ_lengths[df_organ_lengths["Day"] == current_day - 1]
+      df_OL_groupby = df_OL.groupby(["Id_plante", "Id_talle", "Id_rang"])
+      highest_organ = 0
+      for i, j in df_OL_groupby:
+        highest_organ = max(highest_organ, sum(j['Length']) + sum(df_OL[(df_OL['Id_plante'] == i[0]) & (df_OL['Id_talle'] == i[1]) & (df_OL['Id_rang'] < i[2]) & (df_OL['Organ'] == 'internode')]['Length']))
+      print(highest_organ)
+      if highest_organ > cutting_height:
+        groupe='defoliation'
+        print('coupe')
+        recolte_biomasse[current_day] = 0
+        step_cut = 1
   # Coupe
   else:
     if step_cut in (1, 2):
@@ -1695,7 +1726,7 @@ Entrenoeud(X_EN, X_AP, X_F, X_phytomere):
   # A "long_internode" starts to elongate when the previous leaf's state turn to "mature".
   # From that time, the tiller elongate linearly until 5 mm more than the final length of the sheath.
   # --------------------------------------------------------------------------------------------------
-
+  
   if (X_EN.internode_type != 'long_internode' and X_AP.phenological_state == 'reproductive' and X_F.Phase != 'mature'):
     X_EN.internode_type = 'long_internode'
   if (X_EN.internode_type == 'long_internode' and X_AP.leaf_phases_dict[X_F.id_rang - 1] == 'ligulee' and X_EN.length < X_F.Taillefinalegaine + 5):              # condition pour arreter la croissance des entrenoeuds
@@ -1718,6 +1749,7 @@ apex(X):
     daily_temperature = meteo.mean_temperature[meteo.experimental_day == current_day].iloc[0]
     daily_daylength = meteo.daylength[meteo.experimental_day == current_day].iloc[0]
     
+    phytomer_height = dict()
     for phytomere_rank in X.organ_lengths_dict.keys():
       for organ in X.organ_lengths_dict[phytomere_rank].keys():
         df_organ_lengths = df_organ_lengths.append({'Time': TPS, 'Date': date, 'Site': site, 'Day': current_day, 'Id_plante': X.id_plante, 'Id_talle': X.id_talle, 'Id_rang': phytomere_rank, 'Organ': organ, 'Length': X.organ_lengths_dict[phytomere_rank][organ]}, ignore_index = True)
