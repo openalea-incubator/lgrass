@@ -13,12 +13,13 @@ class FloweringFunctions:
         :return:
         """
         if self.param.temp_vern_min <= temperature <= self.param.temp_vern_inter:
-            primary_induction_increment = self.param.daily_vern_rate * temperature + self.param.basic_vern_rate
+            primary_induction_increment = (self.param.daily_vern_rate /
+                                           (self.param.temp_vern_inter - self.param.temp_vern_min)) * \
+                                          (temperature - self.param.temp_vern_min)
         elif self.param.temp_vern_inter < temperature <= self.param.temp_vern_max:
-            # primary_induction_increment = (self.param.daily_vern_rate * temperature + self.param.basic_vern_rate) * (self.param.temp_vern_max - temperature) / (self.param.temp_vern_max - self.param.temp_vern_inter)
-            primary_induction_increment = (-temperature + self.param.temp_vern_max) * (
-                        self.param.daily_vern_rate * self.param.temp_vern_inter + self.param.basic_vern_rate) / (
-                                                      self.param.temp_vern_max - self.param.temp_vern_inter)
+            primary_induction_increment = (self.param.daily_vern_rate /
+                                           (self.param.temp_vern_inter - self.param.temp_vern_max)) * \
+                                          (temperature - self.param.temp_vern_max)
         else:
             primary_induction_increment = 0
         return primary_induction_increment
