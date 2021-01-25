@@ -1793,7 +1793,7 @@ apex(X):
             diff = X.end_secondary_induction - X.start_secondary_induction
             mean_phyllochrone = X.end_secondary_induction / X.total_emerged_leaves
             X.primordia_number += ceil(flowering_model.param.coeff_primordia_emission_reproductive * diff / mean_phyllochrone)
-          X.final_leaf_number = X.total_created_leaves + X.primordia_number
+          X.final_leaf_number = ceil(X.total_created_leaves + X.primordia_number)
          
     df_induction = df_induction.append({'Time': TPS, 'Date': date, 'Site': site, 'Day': current_day, 'Daily_mean_temperature': daily_temperature, 'Daily_daylength': daily_daylength, 'Id_plante': X.id_plante, 'Id_talle': X.id_talle, 'topology':X.topology, 'Leaf_produced': X.total_created_leaves, 'Primordia_on_apex': X.primordia_number, 'Spikelet_number': X.spikelet_created, 'Vernalisation_rate': X.primary_induction_index, 'Secondary_induction_rate': X.secondary_induction_index, 'Heading_date': X.heading_date}, ignore_index = True)
     
