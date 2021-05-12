@@ -14,7 +14,7 @@ from copy import *
 #import IOxls
 import os
 import pandas as pd
-
+from lgrass.stand import AgronomicStand
 
 ##### Configuration du chemin #####
 INPUTS_DIRPATH = 'inputs'
@@ -36,8 +36,19 @@ paramP2=dict(zip(TableParamP2['name'],TableParamP2['value']))
 
 TableManagement=pd.read_excel(path_param,sheet_name='Management')
 paramManagement=dict(zip(TableManagement['name'],TableManagement['value']))
-ParamP=[paramP2] #liste des parametres plante
-nb_plantes=len(ParamP)
+
+
+
+### Creates the stand ###
+density = paramManagement['Density'] # number of plants per square meter
+nb_plants = paramManagement['nb_plants'] # number of plants
+inter_row = paramManagement['inter_row'] # inter row space (m)
+stand = AgronomicStand(sowing_density=density, plant_density=density,inter_row=inter_row)
+nb_plants, domain, posPlante, _,  NBlignes, NBcolonnes = stand.smart_stand(nb_plants)
+ParamP=[paramP2]*nb_plants #liste des parametres plante
+
+genotype=[0]
+
 
 num_pointe=0
 num_primordium=0
@@ -51,12 +62,7 @@ dt = 1 # Pas de temps reel en heures
 OptionRacine='SansRacines' 
 #OptionRacine='AvecRacines'
 
-Densite=400 #en nb de plante par m2
-Espacement=10*sqrt(10000/Densite) #en mm
-NBlignes=int(ceil(sqrt(nb_plantes)))
-NBcolonnes=int(floor(sqrt(nb_plantes)))
-posPlante=[[i,j] for i,j in zip(sorted(list(range(NBlignes))*NBcolonnes),list(range(NBcolonnes))*NBlignes)]
-genotype=[0]
+
 
 ##### Definition des contours pour la sortie graphique #####
 limbo=profilelimbe.deepcopy()
@@ -194,7 +200,7 @@ class ParamFeuille:
     self.age=age                             # Age de la feuille
     self.Agecroiss=Agecroiss                 # 
     self.Taillefeuille=Taillefeuille         # Taille de la feuille au temps t
-    self.id_plante=id_plante                 # Identifiant de la plante (compris entre 0 et nb_plantes)
+    self.id_plante=id_plante                 # Identifiant de la plante (compris entre 0 et nb_plants)
     self.id_talle=id_talle                   # Identifiant de la talle
     self.id_rang=id_rang                     # Rang de la feuille
     self.topology=topology                   # Topological information
@@ -433,7 +439,7 @@ def apply_caribu(lscene, energy=1, azimuths=4, zeniths=5, diffuse_model='soc', s
           t = tuple((float(string_split[0]), tuple((float(string_split[1]), float(string_split[2]), float(string_split[3])))))
           sky.append(t) 
   # Generation du pattern
-  Pattern=(-Espacement/2, -Espacement/2, Espacement*(NBlignes-1)+Espacement/2, Espacement*(NBcolonnes-1)+Espacement/2)
+  Pattern = domain
   c_scene=CaribuScene(scene=lscene, light=sky, pattern=Pattern, scene_unit=scene_unit)
   if Pattern!=None:
     output=c_scene.run(direct=True,infinite=True)
@@ -718,7 +724,7 @@ def LAI_proximite(id_plante):
   def posTOnum(pos): #Determination de l'id de la plante a partir de la position
     id_plante = -1
     for i in range((NBlignes)*(NBcolonnes)):
-      if (posPlante[i] == pos):
+      if (list(posPlante[i]) == pos):
         id_plante = i
     return id_plante
   
@@ -751,8 +757,9 @@ def LAI_proximite(id_plante):
         surface_9_plantes += surface_foliaire_emergee[posTOnum(p)]
     return surface_9_plantes
   
-  nb_plantes = 9
-  LAI_proximite = surfol9Plantes(id_plante) / (Espacement**2 * nb_plantes)
+  nb_plantes_voisines = 9
+
+  LAI_proximite = surfol9Plantes(id_plante) / (inter_row**2 * nb_plantes_voisines)
   return LAI_proximite
 
 # --------------------------------------------
@@ -762,7 +769,7 @@ def Start():
   global df_induction, df_organ_lengths
   global surface_biomass,chemin_fichier1,chemin_fichier2,chemin_fichier3,long_root,simul_expe,taille_finale_feuille, outvarfile #Fichiers de sortie
   global Biomasse_aerienne,Biomasse_racinaire,BiomProd,Ray,PourcentageRootGrowthRealized,PourcentageRootGrowthRealized,Reserve,Demande_feuille,PourcentageFeuilGrowthRealized,les_diametres,Seuil,Taille_finale_gaine,nb_talle #Parametres vides
-  global NBlignes,NBcolonnes,posPlante,Espacement #Parametres scene
+  global NBlignes,NBcolonnes,posPlante,inter_row #Parametres scene
   global surface_foliaire_emergee,Surfoliaireencours,Premiecroiss #Definition des groupes de production
   global Alpha,Beta,t1,t2,t3,Caribu #Relation allometrique
   global current_day, meteo, radiation_interception, tiller_appearance, tiller_to_remove, daily_temperature, step_cut
@@ -786,15 +793,15 @@ def Start():
   dt_eff = dt * Tregul_timestep(daily_temperature)   # dt_eff : dt corrige par la temperature
   step_cut = 0
   ##### Creation de parametres vides #####
-  Biomasse_aerienne=[0.]*(nb_plantes) # Biomasse foliaire totale
-  Biomasse_racinaire=[0.]*(nb_plantes) # Biomasse racinaire
-  BiomProd=[0.]*(nb_plantes)
-  Ray=[0.]*(nb_plantes)
-  PourcentageRootGrowthRealized=[0]*(nb_plantes)
-  Reserve=[0]*(nb_plantes) # Reserve de "biomass"
-  Demande_feuille=[0]*(nb_plantes)
-  #Next_biom_feuil=[0]*(nb_plantes)
-  PourcentageFeuilGrowthRealized=[1]*(nb_plantes)
+  Biomasse_aerienne=[0.]*(int(nb_plants)) # Biomasse foliaire totale
+  Biomasse_racinaire=[0.]*(nb_plants) # Biomasse racinaire
+  BiomProd=[0.]*(nb_plants)
+  Ray=[0.]*(nb_plants)
+  PourcentageRootGrowthRealized=[0]*(nb_plants)
+  Reserve=[0]*(nb_plants) # Reserve de "biomass"
+  Demande_feuille=[0]*(nb_plants)
+  #Next_biom_feuil=[0]*(nb_plants)
+  PourcentageFeuilGrowthRealized=[1]*(nb_plants)
   les_diametres=[]
   Seuil=[] # Taille a partir de laquelle la plante est consideree comme hors de la gaine
   Taille_finale_gaine=[]
@@ -802,16 +809,16 @@ def Start():
   ligule_height_dict = {}
   
   ##### Definition des groupes de production #####
-  surface_foliaire_emergee =[0.]*(nb_plantes) # Surface foliaire ?merg?e totale obtenue a la fin d'un pas
-  Surfoliaireencours=[0.]*(nb_plantes) # variable de calcul de la surface foliaire totale
-  Premiecroiss=[ParamP[i]['Premiecroiss'] for i in range(nb_plantes)]
+  surface_foliaire_emergee =[0.]*(nb_plants) # Surface foliaire ?merg?e totale obtenue a la fin d'un pas
+  Surfoliaireencours=[0.]*(nb_plants) # variable de calcul de la surface foliaire totale
+  Premiecroiss=[ParamP[i]['Premiecroiss'] for i in range(nb_plants)]
   
   ##### Relation allometrique #####
-  Alpha=[ParamP[i]['Alpha'] for i in range(nb_plantes)]
-  Beta=[ParamP[i]['Beta'] for i in range(nb_plantes)]
-  t1=[ParamP[i]['t1'] for i in range(nb_plantes)]
-  t2=[ParamP[i]['t2'] for i in range(nb_plantes)]
-  #t3=[ParamP[i]['t3'] for i in range(nb_plantes)]
+  Alpha=[ParamP[i]['Alpha'] for i in range(nb_plants)]
+  Beta=[ParamP[i]['Beta'] for i in range(nb_plants)]
+  t1=[ParamP[i]['t1'] for i in range(nb_plants)]
+  t2=[ParamP[i]['t2'] for i in range(nb_plants)]
+  #t3=[ParamP[i]['t3'] for i in range(nb_plants)]
   option_caribu="Off"
   
   df_induction = pd.DataFrame(columns = ['Time', 'Date', 'Site', 'Day', 'Daily_mean_temperature', 'Daily_daylength', 'Id_plante', 'Id_talle', 'topology', 'Leaf_produced', 'Primordia_on_apex', 'Spikelet_number', 'Vernalisation_rate', 'Secondary_induction_rate', 'Heading_date'])
@@ -827,16 +834,16 @@ def Start():
 #  ##### Ecriture des fichiers de sortie #####
   outvarfile='surface_biomass.csv'
   outvarfile2='sorties_feuilles_finales.csv'
-##output_apex = 'output_apex_%s_%s_%s.csv'%(int(Espacement),DureeExp,ParamP[0]['HCOUP'])                  # Ajout SIMON
-#output_organ_characteristics = 'output_organ_characteristics%s_%s_%s.csv'%(int(Espacement),DureeExp,ParamP[0]['HCOUP'])    
-#outimage='Scene\scene_'+str(int(Espacement))+'_'+t.strftime('%d-%m-%y_%Hh%M',t.localtime())+'.bmp'
+##output_apex = 'output_apex_%s_%s_%s.csv'%(int(inter_row),DureeExp,ParamP[0]['HCOUP'])                  # Ajout SIMON
+#output_organ_characteristics = 'output_organ_characteristics%s_%s_%s.csv'%(int(inter_row),DureeExp,ParamP[0]['HCOUP'])    
+#outimage='Scene\scene_'+str(int(inter_row))+'_'+t.strftime('%d-%m-%y_%Hh%M',t.localtime())+'.bmp'
   chemin_fichier1=open(os.path.join(OUTPUTS_DIRPATH,outvarfile),"w")
   surface_biomass=csv.writer(chemin_fichier1)
-  surface_biomass.writerow(["TPS","Espacement","Densite","id plante","id talle","topology","nb_feuille_emergees","Biomasse_feuilles_emergees","Surface_feuilles_emergees"])
+  surface_biomass.writerow(["TPS","inter_row","Densite","id plante","id talle","topology","nb_feuille_emergees","Biomasse_feuilles_emergees","Surface_feuilles_emergees"])
   
   chemin_fichier2=open(os.path.join(OUTPUTS_DIRPATH,outvarfile2),"w")
   taille_finale_feuille=csv.writer(chemin_fichier2)
-  taille_finale_feuille.writerow(["TPS","Espacement","Densite","id plante","talle","rang","Phase","taille feuille","taille gaine","taille limbe"])
+  taille_finale_feuille.writerow(["TPS","inter_row","Densite","id plante","talle","rang","Phase","taille feuille","taille gaine","taille limbe"])
 
 
 def StartEach(lstring):
@@ -845,7 +852,7 @@ def StartEach(lstring):
   global current_day, meteo, tiller_appearance, tiller_to_remove, mortality_zone, step_cut
 #  global apex_characteristics, internode_characteristics
   
-  RootPotentialNewBiomass=[0]*(nb_plantes)
+  RootPotentialNewBiomass=[0]*(nb_plants)
   longueur_totale_feuille=0
   Rootbiom=0
   
@@ -986,7 +993,7 @@ def EndEach(lstring, lscene):
       #          tiller_to_remove = tiller_to_remove.append(pd.DataFrame({'id_plante': [id_plante], 'id_talle': [potential_tiller_to_remove.id_talle.item()]}))
     
     if option_mophogenetic_regulation_by_carbone == True:
-      for ID in range(nb_plantes):
+      for ID in range(nb_plants):
         BiomProd[ID] = Ray[ID] * RUE # Ray: MJ PAR ; RUE : g MJ-1
         print('Plante %s, Ray: %s, BiomProd: %s' % (ID, Ray[ID],BiomProd[ID]))
   
@@ -1026,7 +1033,7 @@ def EndEach(lstring, lscene):
         surface_foliaire_emergee[id_plante] += surface_gaine_emergee
         
         ##### Remplissage du fichier surface_biomass #####
-        surface_biomass.writerow([TPS,Espacement,Densite,id_plante+1, id_talle+1, les_feuilles_talle[0].topology, len(les_feuilles_talle),sum(x.biomass for x in les_feuilles_talle),sum(x.surface_limbe for x in les_feuilles_talle) + surface_gaine_emergee])
+        surface_biomass.writerow([TPS,inter_row,density,id_plante+1, id_talle+1, les_feuilles_talle[0].topology, len(les_feuilles_talle),sum(x.biomass for x in les_feuilles_talle),sum(x.surface_limbe for x in les_feuilles_talle) + surface_gaine_emergee])
       
       # Calcul LAI proximite
       rapportS9_SSol_dict[id_plante] = LAI_proximite(id_plante)    
@@ -1090,21 +1097,21 @@ def EndEach(lstring, lscene):
     
 
 def End(lstring,lscene): #Ecriture et fermeture des fichiers de sortie
-  global taille_finale_feuille,surface_biomass,simul_expe, outvarfile, Espacement
+  global taille_finale_feuille,surface_biomass,simul_expe, outvarfile, inter_row
   global TPS,timing,chemin_fichier1,chemin_fichier2,chemin_fichier3,mtg,long_root, les_racines, apex_characteristics, internode_characteristics
   global df_induction, df_organ_lengths
   
   ### Remplissage du fichier taille_finale_feuille ###
-  for ID in range(nb_plantes):
+  for ID in range(nb_plants):
     les_feuilles_emergees = les_feuilles[(les_feuilles['Plante'] == ID) & (les_feuilles['Phase'] == 'mature')]['ObjetOrgane'].tolist()
     for x in les_feuilles_emergees:
-      taille_finale_feuille.writerow([TPS, Espacement, Densite,ID+1, x.id_talle+1, x.id_rang+1, x.Phase, x.Taillefeuille, x.Taillegaine, x.Taillelimbe])
+      taille_finale_feuille.writerow([TPS, inter_row, density,ID+1, x.id_talle+1, x.id_rang+1, x.Phase, x.Taillefeuille, x.Taillegaine, x.Taillelimbe])
   
-  nb_racines=[0]*nb_plantes
-  nb_racines_visible=[0]*nb_plantes
-  longroottotal=[0]*nb_plantes
-  longueurtotale=[0]*nb_plantes
-  profond=[0]*nb_plantes
+  nb_racines=[0]*nb_plants
+  nb_racines_visible=[0]*nb_plants
+  longroottotal=[0]*nb_plants
+  longueurtotale=[0]*nb_plants
+  profond=[0]*nb_plants
   
   if OptionRacine!='SansRacines':
     for x in les_racines:
@@ -1162,7 +1169,7 @@ def End(lstring,lscene): #Ecriture et fermeture des fichiers de sortie
     graphic.graph_induction(os.path.join(OUTPUTS_DIRPATH, output_induction_file_name))
     graphic.graph_length(os.path.join(OUTPUTS_DIRPATH, output_organ_lengths_file_name))
     graphic.graph_tiller_number(os.path.join(OUTPUTS_DIRPATH, outvarfile))
-    graphic.graph_LAI(os.path.join(OUTPUTS_DIRPATH, outvarfile), Espacement)
+    graphic.graph_LAI(os.path.join(OUTPUTS_DIRPATH, outvarfile), inter_row)
     graphic.graph_leaf_number(os.path.join(OUTPUTS_DIRPATH, outvarfile))
     
   
@@ -1270,16 +1277,16 @@ CouvertVegetal(X):
   if groupe=='croissance':
     if X==1:
       nproduce CouvertVegetal(2)
-      for i in range(NBlignes):
-        for j in range(NBcolonnes):
-          id_plante=i*NBcolonnes+j
-          id_geno=i
-          genotype.append(id_geno)
-          param=ParamPlante(id_plante,id_geno)
-          nb_talle.append(0)
-          Seuil.append([5.5])
-          Taille_finale_gaine.append([[5.5,5.5]])
-          nproduce IN SB() RollR(45) MoveTo(j*Espacement,Espacement*i,0) Plante(param, True) IN EB()
+      id_plante = 0
+      for plt in posPlante:
+        id_geno = 1
+        genotype.append(id_geno)
+        param=ParamPlante(id_plante,id_geno)
+        nb_talle.append(0)
+        Seuil.append([5.5])
+        Taille_finale_gaine.append([[5.5,5.5]])
+        id_plante += 1
+        nproduce IN SB() RollR(45) MoveTo(plt[0],plt[1], plt[2]) Plante(param, True) IN EB()
     else:
       produce CouvertVegetal(X+1)
   else: # groupe=='defoliation'
@@ -1668,7 +1675,7 @@ Feuille(X, X_apex, X_phytomere):
 
 
 GetPos(a,b,c):
-  for ID in range(nb_plantes):
+  for ID in range(nb_plants):
     if step_cut == 3:
       produce
 
@@ -2487,11 +2494,11 @@ def __initialiseContext__(context):
 	    )
 	profilefoldlimbe.name = "profilefoldlimbe"
 	profilegaine = pgl.NurbsCurve2D(	
-	    ctrlPointList = pgl.Point3Array([(-0.407478, -0.0511938, 1),(-0.390245, -0.17963, 1),(-0.355, -0.3575, 1),(-0.0025, -0.4925, 1),(0.363333, -0.355, 1),(0.47, -5.58794e-009, 1),(0.349167, 0.3425, 1),(0.005, 0.455, 1),(-0.3275, 0.3625, 1),(-0.380592, 0.203264, 1),(-0.402904, 0.0550844, 1)]) , 
+	    ctrlPointList = pgl.Point3Array([(-0.407478, -0.0511938, 1),(-0.390245, -0.17963, 1),(-0.355, -0.3575, 1),(-0.0025, -0.4925, 1),(0.363333, -0.355, 1),(0.47, -5.58794e-09, 1),(0.349167, 0.3425, 1),(0.005, 0.455, 1),(-0.3275, 0.3625, 1),(-0.380592, 0.203264, 1),(-0.402904, 0.0550844, 1)]) , 
 	    )
 	profilegaine.name = "profilegaine"
-	panel_0 = ({'active': True, 'visible': False, 'name': 'Curve2D'},[('Curve2D',profilelimbe),('Curve2D',profilefoldlimbe),('Curve2D',profilegaine)])
-	panel_1 = ({'active': True, 'visible': False, 'name': 'Panel 2'},[])
+	panel_0 = ({'name': 'Curve2D', 'active': True, 'visible': False},[('Curve2D',profilelimbe),('Curve2D',profilefoldlimbe),('Curve2D',profilegaine)])
+	panel_1 = ({'name': 'Panel 2', 'active': True, 'visible': False},[])
 	parameterset = [panel_0,panel_1,]
 	context["__functions__"] = []
 	context["__curves__"] = [('profilelimbe',profilelimbe),('profilefoldlimbe',profilefoldlimbe),('profilegaine',profilegaine),]
