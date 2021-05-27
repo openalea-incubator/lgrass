@@ -18,7 +18,7 @@ def run_lgrass(scenario_id=1, inputs_dir_path='inputs', outputs_dir_path='output
     """
 
     # Scenario to be run
-    scenarii_df = pd.read_csv(os.path.join('inputs', 'plan_simulation_Bronsyn_GEVES.csv'), index_col='Scenario')
+    scenarii_df = pd.read_csv(os.path.join('inputs', 'plan_simulation_calibration_GEVES.csv'), index_col='Scenario')
     scenario = scenarii_df.loc[scenario_id].to_dict()
     scenario_name = scenario['name']
 
@@ -64,7 +64,7 @@ def run_lgrass(scenario_id=1, inputs_dir_path='inputs', outputs_dir_path='output
 if __name__ == '__main__':
     inputs = 'inputs'
     outputs = 'outputs'
-    scenario = 1
+    scenario = 3
 
     try:
         opts, args = getopt.getopt(sys.argv[1:], "i:o:s:d", ["inputs=", "outputs=", "scenario="])
