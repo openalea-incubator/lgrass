@@ -96,6 +96,14 @@ option_graphic_outputs = True
 option_profile = "triangular" # triangular or plateau
 
 
+##### Option cutting_height
+cutting_height = None  # None or height in mm
+print(cutting_height)
+
+# Date limite de coupe
+cutting_end = None   # None or date ('YYYY_mm_dd')
+
+
 #### Load flowering model
 from lgrass import flowering_functions
 flowering_model = flowering_functions.FloweringFunctions()
@@ -117,6 +125,8 @@ sowing_date = "2018_11_13"
 site = 'LUSIGNAN'
 meteo_path = os.path.join('inputs', 'meteo_file.csv')
 
+# Set cutting dates
+cutting_dates = ''
 
 
 
@@ -244,11 +254,12 @@ scales['Entrenoeud']=4
 parameters['Entrenoeud']=['ParamEntrenoeud']
 
 class ParamApex:
-  def __init__(self, id_plante, id_talle, id_rang=1, topology=(0,), retard=0, total_emerged_leaves=0, total_mature_leaves=0, total_created_leaves=0, day=0, primary_induction_index=0, secondary_induction_index=0, phenological_state='vegetative', primordia_number=1, spikelet_created=0, final_leaf_number=None, final_spikelet_number=None, organ_lengths_dict={}, terminal_spikelet_height=0, heading_date=0, appearance_date=None, id_geno=0, Premiecroiss=0, C=0, leaf_primary_induction_index=0, leaf_secondary_induction_index=0, leaf_phenological_state='vegetative', leaf_phases_dict={}):   # PARAMETRE
+  def __init__(self, id_plante, id_talle, id_rang=1, topology=(0,), age = 0, retard=0, total_emerged_leaves=0, total_mature_leaves=0, total_created_leaves=0, day=0, primary_induction_index=0, secondary_induction_index=0, phenological_state='vegetative', primordia_number=1, spikelet_created=0, final_leaf_number=None, final_spikelet_number=None, organ_lengths_dict={}, terminal_spikelet_height=0, heading_date=0, appearance_date=None, id_geno=0, Premiecroiss=0, C=0, leaf_primary_induction_index=0, leaf_secondary_induction_index=0, leaf_phenological_state='vegetative', leaf_phases_dict={}, start_secondary_induction = None, end_secondary_induction = None, leaf_number_at_secondary_induction_start = None):   # PARAMETRE
     self.id_plante = id_plante
     self.id_talle = id_talle
     self.id_rang = id_rang
     self.topology=topology                        # Topological information
+    self.Age = age
     self.retard = retard
     self.total_emerged_leaves = total_emerged_leaves
     self.total_mature_leaves = total_mature_leaves
@@ -272,6 +283,9 @@ class ParamApex:
     self.leaf_secondary_induction_index = leaf_secondary_induction_index
     self.leaf_phenological_state = leaf_phenological_state
     self.leaf_phases_dict = leaf_phases_dict
+    self.start_secondary_induction = start_secondary_induction
+    self.end_secondary_induction = end_secondary_induction
+    self.leaf_number_at_secondary_induction_start = leaf_number_at_secondary_induction_start
 
 scales['apex']=4
 parameters['apex']=['ParamApex']
@@ -765,11 +779,10 @@ def Start():
   global NBlignes,NBcolonnes,posPlante,Espacement #Parametres scene
   global surface_foliaire_emergee,Surfoliaireencours,Premiecroiss #Definition des groupes de production
   global Alpha,Beta,t1,t2,t3,Caribu #Relation allometrique
-  global current_day, meteo, radiation_interception, tiller_appearance, tiller_to_remove, daily_temperature, step_cut
+  global current_day, meteo, radiation_interception, tiller_appearance, tiller_to_remove, daily_temperature, step_cut, cutting_dates
   
   # Camera setting
   #Viewer.camera.lookAt((250,250,50),(-100,-100,50))#((Position),(direction))
-  
   
   ##### Parametres de temps #####
   timing=t.time()
@@ -785,6 +798,12 @@ def Start():
   daily_temperature = meteo.mean_temperature[meteo.experimental_day == current_day].iloc[0]
   dt_eff = dt * Tregul_timestep(daily_temperature)   # dt_eff : dt corrige par la temperature
   step_cut = 0
+  
+  # Set cutting dates
+  cutting_dates = pd.to_datetime(cutting_dates.split("x"), format='%Y_%m_%d')
+  meteo.loc[meteo['date'].isin(cutting_dates), 'Cut'] = True
+  print(cutting_dates)
+  
   ##### Creation de parametres vides #####
   Biomasse_aerienne=[0.]*(nb_plantes) # Biomasse foliaire totale
   Biomasse_racinaire=[0.]*(nb_plantes) # Biomasse racinaire
@@ -845,6 +864,7 @@ def StartEach(lstring):
   global current_day, meteo, tiller_appearance, tiller_to_remove, mortality_zone, step_cut
 #  global apex_characteristics, internode_characteristics
   
+  
   RootPotentialNewBiomass=[0]*(nb_plantes)
   longueur_totale_feuille=0
   Rootbiom=0
@@ -859,6 +879,21 @@ def StartEach(lstring):
       print('coupe')
       recolte_biomasse[current_day] = 0
       step_cut = 1
+    ### Declenchement de la coupe en fonction de la hauteur de l herbe
+    # Get the highest phytomer (ex: for a leaf: length from the soil to the tip of the stretched leaf)
+    if pd.notna(cutting_height) and (pd.isna(cutting_end) or (pd.notna(cutting_end) and meteo.date[meteo.experimental_day == current_day].iloc[0] <= pd.to_datetime(cutting_end, format='%Y_%m_%d'))) and (not recolte_biomasse.keys() or current_day > max(recolte_biomasse.keys()) + 1):
+      # (not recolte_biomasse.keys() or current_day > max(recolte_biomasse.keys()) + 1)          this condition is used to avoid that to cutting occurs before df_organ_lengths update
+      df_OL = df_organ_lengths[df_organ_lengths["Day"] == current_day - 1]
+      df_OL_groupby = df_OL.groupby(["Id_plante", "Id_talle", "Id_rang"])
+      highest_organ = 0
+      for i, j in df_OL_groupby:
+        highest_organ = max(highest_organ, sum(j['Length']) + sum(df_OL[(df_OL['Id_plante'] == i[0]) & (df_OL['Id_talle'] == i[1]) & (df_OL['Id_rang'] < i[2]) & (df_OL['Organ'] == 'internode')]['Length']))
+      print(highest_organ)
+      if highest_organ > cutting_height:
+        groupe='defoliation'
+        print('coupe')
+        recolte_biomasse[current_day] = 0
+        step_cut = 1
   # Coupe
   else:
     if step_cut in (1, 2):
@@ -1300,7 +1335,7 @@ Plante(X,init_plt):
       # Remplissage des hauteurs d organes
       YA.organ_lengths_dict = {Y1.id_rang: {'limb': YF.Taillelimbe, 'sheath': YF.Taillegaine, 'internode': YINT.length}}
       YA.leaf_phases_dict[YF.id_rang] = YF.Phase
-
+      
       produce Plante(X,False) phytomere(Y1, YA) RollR(95) bourgeonRoot(Yb, YINT) ApexTal(YAT) Entrenoeud(YINT, YA, YF, Y1) FLW SB Feuille(YF, YA, Y1) FLW EB apex(YA)
       
   if groupe=='defoliation':
@@ -1374,10 +1409,10 @@ Feuille(X, X_apex, X_phytomere):
           Seuil[X.id_plante][X.id_talle] *= 1.
           X.TailleEmergence = Seuil[X.id_plante][X.id_talle]
           TrueAge = X.age - dt_eff #On pourrait affiner la determination de TrueAge qui en realite a eu lieu entre age-dt_eff et age-2dt_eff (soit on prend la moyenne soit au prorata des longueurs)
-
+          
           tmax_potcroiss = 166.588 #conversion des °C jour en  heures pour manip a 17°C 118*24/17
           lmax_potcroiss = 338.5554 # mm
-
+          
           if option_profile == "triangular":
             X.Ymax = X_apex.C*((pow(paramManagement['T01'],(TrueAge+paramManagement['tb1'])*paramManagement['k1'])-paramManagement['Lpot'])-(pow(paramManagement['T02'],(TrueAge+paramManagement['tb2'])*paramManagement['k2']))) #Alban
           elif option_profile == "plateau":
@@ -1395,13 +1430,14 @@ Feuille(X, X_apex, X_phytomere):
           #X.Ymax= ((pow(paramManagement['T01'],((X.age-1)+paramManagement['tb1'])*paramManagement['k1'])-paramManagement['Lpot'])-(pow(paramManagement['T02'],((X.age-1)+paramManagement['tb2'])*paramManagement['k2'])))   # FL
           #X.Ymax= 0.85*((pow(paramManagement['T01'],((X.age-1)+paramManagement['tb1'])*paramManagement['k1'])-paramManagement['Lpot'])-(pow(paramManagement['T02'],((X.age-1)+paramManagement['tb2'])*paramManagement['k2'])))   # New FC
           #X.Ymax=0.55*((615*pow(paramManagement['T01'],X.age*0.0053))-736.9-(0.1207*pow(paramManagement['T02'],X.age*0.062)))   # FC
-
+          
           X.rapportK = paramManagement['Rsalpha'] + (TrueAge - dt_eff) * paramManagement['a'] + paramManagement['b']  # Called Rsi in Verdenal et al. (2008)
           X.Taillefinalelimbe = (1-X.rapportK)*X.Ymax
           X.Taillefinalegaine = X.Ymax*X.rapportK
           LED = (((X.Taillefinalegaine / paramManagement['Rsalpha']) * 2) - X.Ymax) * Jled
           tm = LED * paramManagement['Kled']
           X.Difftps = TpourY2(Seuil[X.id_plante][X.id_talle], X.Ymax, LED, tm, X.Phase) - X.age
+          print(X.id_rang, X.Ymax)
       
       ###### croissance ######
       LEDGAINE = (((X.Taillefinalegaine / paramManagement['Rsalpha']) * 2) - X.Ymax) * Jled
@@ -1421,10 +1457,10 @@ Feuille(X, X_apex, X_phytomere):
       
       if(X.Phase=='mature'):
         AccroissDemande=0
-
+      
       if not option_mophogenetic_regulation_by_carbone:
         Pourcent = 1 #Forcage pour obtenir les longueurs potentielles
-
+      
       if Pourcent==1:
         Accroiss=AccroissDemande
       else:
@@ -1466,7 +1502,7 @@ Feuille(X, X_apex, X_phytomere):
         X.Phase='mature'
         X_apex.total_mature_leaves+=1
         X_apex.leaf_phases_dict[X.id_rang] = X.Phase
-
+      
       X.biomass=BiomassFeuille(X.Taillefeuille,X.coupe,X.id_geno)
       
       # Remplissage des hauteurs d organes
@@ -1486,8 +1522,8 @@ Feuille(X, X_apex, X_phytomere):
           NextAccroiss=0
         if X_apex.leaf_phases_dict[X.id_rang] == 'visible' and X.Taillegaine>=Seuil[X.id_plante][X.id_talle]:
           X_apex.leaf_phases_dict[X.id_rang] = 'ligulee'
-
-          
+        
+        
         long=X.Taillefeuille+NextAccroiss
         Next_feuil=BiomassFeuille(long,X.coupe,X.id_geno)
         X.Besoinencroiss=Next_feuil-X.biomass
@@ -1690,7 +1726,7 @@ Entrenoeud(X_EN, X_AP, X_F, X_phytomere):
   # A "long_internode" starts to elongate when the previous leaf's state turn to "mature".
   # From that time, the tiller elongate linearly until 5 mm more than the final length of the sheath.
   # --------------------------------------------------------------------------------------------------
-
+  
   if (X_EN.internode_type != 'long_internode' and X_AP.phenological_state == 'reproductive' and X_F.Phase != 'mature'):
     X_EN.internode_type = 'long_internode'
   if (X_EN.internode_type == 'long_internode' and X_AP.leaf_phases_dict[X_F.id_rang - 1] == 'ligulee' and X_EN.length < X_F.Taillefinalegaine + 5):              # condition pour arreter la croissance des entrenoeuds
@@ -1705,12 +1741,15 @@ Entrenoeud(X_EN, X_AP, X_F, X_phytomere):
 apex(X):
   global les_feuilles, current_day, meteo, df_induction, df_organ_lengths, tiller_appearance
   
+  X.Age += dt_eff
+  
   if X.day < current_day:
     X.day = current_day
     date = meteo.date[meteo.experimental_day == current_day].iloc[0]
     daily_temperature = meteo.mean_temperature[meteo.experimental_day == current_day].iloc[0]
     daily_daylength = meteo.daylength[meteo.experimental_day == current_day].iloc[0]
     
+    phytomer_height = dict()
     for phytomere_rank in X.organ_lengths_dict.keys():
       for organ in X.organ_lengths_dict[phytomere_rank].keys():
         df_organ_lengths = df_organ_lengths.append({'Time': TPS, 'Date': date, 'Site': site, 'Day': current_day, 'Id_plante': X.id_plante, 'Id_talle': X.id_talle, 'Id_rang': phytomere_rank, 'Organ': organ, 'Length': X.organ_lengths_dict[phytomere_rank][organ]}, ignore_index = True)
@@ -1732,17 +1771,30 @@ apex(X):
     
     if option_floraison == True:
       if X.phenological_state == 'vegetative':
+        X.primordia_number += flowering_model.param.coeff_primordia_emission_vegetative - 1    # 1 correspond to the new leaf produced
         X.primary_induction_index = min(1, X.primary_induction_index + flowering_model.vernalisation_function(daily_temperature))
         if X.primary_induction_index >= 1:
-          X.phenological_state = 'vernalized'          
+          X.phenological_state = 'vernalized'
+          print('vernalized')         
       
       elif (X.phenological_state == 'vernalized' and X.total_created_leaves > 1):
-        print('vernalized')
-        X.secondary_induction_index = min(1, X.secondary_induction_index + flowering_model.photoperiod_induction_function(daily_daylength))
+        X.secondary_induction_index = min(1, X.secondary_induction_index + flowering_model.photoperiod_induction_function(daily_daylength, X.total_created_leaves))
+        # Debut indution secondaire
+        if X.secondary_induction_index > 0 and X.start_secondary_induction is None:
+          X.start_secondary_induction = X.Age
+          X.leaf_number_at_secondary_induction_start = X.total_created_leaves
+        # Fin induction secondaire (ATTENTION : laisser le if pour le cas ou l induction second se fait en un pas de temps)
         if X.secondary_induction_index >= 1:
           X.phenological_state = 'reproductive'
           print('reproductive')
-          
+          leaves_produced_during_secondary_ind = X.total_created_leaves - X.leaf_number_at_secondary_induction_start
+          if leaves_produced_during_secondary_ind == 0:
+            X.end_secondary_induction = X.Age
+            diff = X.end_secondary_induction - X.start_secondary_induction
+            mean_phyllochrone = X.end_secondary_induction / X.total_emerged_leaves
+            X.primordia_number += ceil(flowering_model.param.coeff_primordia_emission_reproductive * diff / mean_phyllochrone)
+          X.final_leaf_number = ceil(X.total_created_leaves + X.primordia_number)
+         
     df_induction = df_induction.append({'Time': TPS, 'Date': date, 'Site': site, 'Day': current_day, 'Daily_mean_temperature': daily_temperature, 'Daily_daylength': daily_daylength, 'Id_plante': X.id_plante, 'Id_talle': X.id_talle, 'topology':X.topology, 'Leaf_produced': X.total_created_leaves, 'Primordia_on_apex': X.primordia_number, 'Spikelet_number': X.spikelet_created, 'Vernalisation_rate': X.primary_induction_index, 'Secondary_induction_rate': X.secondary_induction_index, 'Heading_date': X.heading_date}, ignore_index = True)
     
     # ------------------------------------------------------------------------------------------------
@@ -1763,17 +1815,17 @@ apex(X):
           X.leaf_phenological_state = 'primary_induced'          
       
       elif (X.leaf_phenological_state == 'primary_induced' and X.total_created_leaves > 1):
-        X.leaf_secondary_induction_index = min(1, X.leaf_secondary_induction_index + flowering_model.param.leaf_secondary_induction_coeff * flowering_model.photoperiod_induction_function(daily_daylength))
+        X.leaf_secondary_induction_index = min(1, X.leaf_secondary_induction_index + flowering_model.param.leaf_secondary_induction_coeff * flowering_model.photoperiod_induction_function(daily_daylength, X.total_created_leaves))
         if X.leaf_secondary_induction_index >= 1:
           X.leaf_phenological_state = 'secondary_induced'
           X.Premiecroiss = flowering_model.param.increase_growth_Premiecroiss * X.Premiecroiss
           X.C = flowering_model.param.increase_growth_C * X.C
-
   
   
   
-  if groupe=='croissance':     
-    if (X.phenological_state == 'vegetative' or X.phenological_state == 'vernalized' or (X.phenological_state == 'reproductive' and (X.final_leaf_number is None or X.total_created_leaves < X.final_leaf_number))):
+  
+  if groupe=='croissance':
+    if (X.phenological_state == 'vegetative' or X.phenological_state == 'vernalized' or (X.phenological_state == 'reproductive' and X.total_created_leaves < X.final_leaf_number)):
       feuille_ref = les_feuilles[(les_feuilles['Plante'] == X.id_plante) & (les_feuilles['id_talle'] == X.id_talle) & (les_feuilles['id_rang'] == X.id_rang)].iloc[0]['ObjetOrgane']
       if X.retard==2:
         #Seuil[X.id_plante][X.id_talle]=Seuil[X.id_plante][X.id_talle] * 1.15
@@ -1802,15 +1854,13 @@ apex(X):
         # - 'coeff_primordia_emission_reproductive' during and after secondary induction
         # When secondary induction is completed, all existing primodia will become leaves
         # When flag leaf is produced (emergence of the penultimate leaf), apex stop to produce spikelets
+        # Notice a mettre a jour
         # -------------------------------------------------------------------------------------------------
-        if X.secondary_induction_index == 0:
+        
+        if X.phenological_state in ('vegetative', 'vernalized') and X.secondary_induction_index == 0:
           X.primordia_number += flowering_model.param.coeff_primordia_emission_vegetative - 1    # 1 correspond to the new leaf produced
-        elif X.phenological_state == 'vernalized' and 0 < X.secondary_induction_index:
-          X.primordia_number += flowering_model.param.coeff_primordia_emission_reproductive - 1
-        elif X.phenological_state == 'reproductive' or X.secondary_induction_index >= 1:
-          if X.final_leaf_number is None:
-            X.final_leaf_number = X.total_created_leaves + X.primordia_number
-          X.primordia_number += flowering_model.param.coeff_primordia_emission_reproductive - 1
+        else : # ("reproductive" or during the secondary induction)
+          X.primordia_number += flowering_model.param.coeff_primordia_emission_reproductive - 1    # 1 correspond to the new leaf produced
         X.leaf_phases_dict[YF.id_rang] = YF.Phase
         produce RollR(180) phytomere(YP, X) bourgeonRoot(Yb, YINT) ApexTal(YAT) Entrenoeud(YINT, X, YF, YP) FLW SB Feuille(YF, X, YP) FLW EB apex(X)
         
