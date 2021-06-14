@@ -6,6 +6,7 @@ import numpy as np
 from geopy.geocoders import Nominatim
 from datetime import datetime, timedelta
 
+
 def import_meteo_data(meteo_path, sowing_date, site):
     meteo_data = pd.read_csv(meteo_path, sep=',')
     meteo_data = meteo_data[meteo_data.site == site]
@@ -49,7 +50,7 @@ def set_observer(address):
         address of the geographical location of the site to be simulated
         type: str
     """
-    geolocator = Nominatim(user_agent="rouet")
+    geolocator = Nominatim()
     location = geolocator.geocode(address)
     latitude = location.latitude
     longitude = location.longitude
@@ -80,7 +81,7 @@ def daylength_for_a_date(date, observer):
 
     return a daylength in hours
     """
-    date_at_noon = date + timedelta(hours=12)
+    date_at_noon = datetime.strptime(str(date), '%Y_%m_%d') + timedelta(hours=12)
     observer.date = date_at_noon
     sunrise = observer.previous_rising(ephem.Sun())                              # GTM hour
     sunrise = datetime.strptime(str(sunrise), '%Y/%m/%d %H:%M:%S')               # GTM hour

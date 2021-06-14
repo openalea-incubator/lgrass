@@ -18,7 +18,7 @@ def run_lgrass(scenario_id=1, inputs_dir_path='inputs', outputs_dir_path='output
     """
 
     # Scenario to be run
-    scenarii_df = pd.read_csv(os.path.join('inputs', 'plan_simulation_repro.csv'), index_col='Scenario')
+    scenarii_df = pd.read_csv(os.path.join('inputs', 'plan_simulation.csv'), index_col='Scenario')
     scenario = scenarii_df.loc[scenario_id].to_dict()
     scenario_name = scenario['name']
 
@@ -38,8 +38,6 @@ def run_lgrass(scenario_id=1, inputs_dir_path='inputs', outputs_dir_path='output
     lsystem.option_tallage = scenario['option_tallage']
     lsystem.option_senescence = scenario['option_senescence']
     lsystem.option_floraison = scenario['option_floraison']
-    lsystem.cutting_height = scenario['cutting_height']
-    lsystem.cutting_end = scenario['cutting_end']
     lsystem.meteo_path = os.path.join(inputs_dir_path, scenario['meteo_filename'])
     lsystem.sowing_date = scenario['sowing_date']
     lsystem.site = scenario['site']
@@ -62,7 +60,7 @@ def run_lgrass(scenario_id=1, inputs_dir_path='inputs', outputs_dir_path='output
 if __name__ == '__main__':
     inputs = 'inputs'
     outputs = 'outputs'
-    scenario = 11101
+    scenario = 1000
 
     try:
         opts, args = getopt.getopt(sys.argv[1:], "i:o:s:d", ["inputs=", "outputs=", "scenario="])
