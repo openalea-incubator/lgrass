@@ -126,7 +126,7 @@ site = 'LUSIGNAN'
 meteo_path = os.path.join('inputs', 'meteo_file.csv')
 
 # Set cutting dates
-cutting_dates = ''
+cutting_dates = None
 
 
 
