@@ -7,17 +7,20 @@ class FloweringFunctions:
         self.param = parameters.ParametersValues()
 
     def vernalisation_function(self, temperature):
+        """ Daily increment of primary induction. Triangluar function of daily temperature.
+
+        :param float temperature: Daily mean air temperature (°C)
+
+        :return: primary_induction_increment (dimensionless)
+        :rtype: float
         """
 
-        :param temperature:
-        :return:
-        """
         if self.param.temp_vern_min <= temperature <= self.param.temp_vern_inter:
-            primary_induction_increment = (self.param.daily_vern_rate /
+            primary_induction_increment = (self.param.daily_vern_increment /
                                            (self.param.temp_vern_inter - self.param.temp_vern_min)) * \
                                           (temperature - self.param.temp_vern_min)
         elif self.param.temp_vern_inter < temperature <= self.param.temp_vern_max:
-            primary_induction_increment = (self.param.daily_vern_rate /
+            primary_induction_increment = (self.param.daily_vern_increment /
                                            (self.param.temp_vern_inter - self.param.temp_vern_max)) * \
                                           (temperature - self.param.temp_vern_max)
         else:
@@ -25,24 +28,30 @@ class FloweringFunctions:
         return primary_induction_increment
 
     def PPR_function(self, leaf_number):
+        """ Calculate daily secondary induction increment as a function of leaf number.
+
+        :param int leaf_number: number of visible leaves on the tiller
+
+        :return: max_photo_ind_rate (dimensionless)
+        :rtype: float
         """
 
-        :param leaf_number:
-        :return:
-        """
         if leaf_number <= self.param.leaf_number_max:
-            max_photo_ind_rate = leaf_number * self.param.PPRM / self.param.leaf_number_max
+            max_photo_ind_increment = leaf_number * self.param.PPRM / self.param.leaf_number_max
         else:
-            max_photo_ind_rate = self.param.PPRM
-        return max_photo_ind_rate
+            max_photo_ind_increment = self.param.PPRM
+        return max_photo_ind_increment
 
     def photoperiod_induction_function(self, daylength, leaf_number):
+        """ Daily increment of secondary induction if photoperiod longer than a threshold. Daily increment regulated by leaf number.
+
+        :param float daylength: photoperiod of the day
+        :param int leaf_number: number of visible leaves on the tiller
+
+        :return: secondary_induction_increment (dimensionless)
+        :rtype: float
         """
 
-        :param daylength:
-        :param leaf_number:
-        :return:
-        """
         if daylength < self.param.photoperiod_min:
             secondary_induction_increment = 0
         else:
@@ -50,44 +59,3 @@ class FloweringFunctions:
                         daylength - self.param.photoperiod_min) / (
                                                             self.param.photoperiod_max - self.param.photoperiod_min))
         return secondary_induction_increment
-
-
-
-
-
-
-
-#    def final_phytomer_number
-
-
-#
-# def approx_final_leaf_number_calculation(self, daylength, potential_leaf_number):
-#     """
-#
-#     :param daylength:
-#     :param potential_leaf_number:
-#     :return:
-#     """
-#     approx_final_leaf_number = min(potential_leaf_number, potential_leaf_number + self.param.sldl * (self.param.saturation_daylength - daylength))
-#     return approx_final_leaf_number
-#
-#
-# def potential_leaf_number_calculation(self, primary_induction_index):
-#     """
-#
-#     :self.param primary_induction_index:
-#     :return:
-#     """
-#     potential_leaf_number = self.param.absolute_max_leaf_number - (self.param.absolute_max_leaf_number - self.param.absolute_min_leaf_number) * primary_induction_index
-#     return potential_leaf_number
-#
-# def test_vernalisation(self, primary_induction_index, potential_leaf_number, primordia_number):
-#     """
-#
-#     :self.param primary_induction_index:
-#     :self.param potential_leaf_number:
-#     :self.param primordia_number:
-#     :return:
-#     """
-#     if(primary_induction_index == 1 or potential_leaf_number == self.param.absolute_min_leaf_number or potential_leaf_number <= primordia_number):
-#         return True

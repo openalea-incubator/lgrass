@@ -32,8 +32,6 @@ class GraphicOutputs:
         pdf_file = matplotlib.backends.backend_pdf.PdfPages(os.path.join(csv_name + '_' +
                                                                          'longueur_feuilles' + '.pdf'))
         df = pd.read_csv(csv_name + '.csv')
-        number_of_tiller = len(np.unique(df.Id_talle.tolist()))
-        i = 0
         for tiller in set(df.Id_talle.tolist()):
             plt.ioff()
             plt.figure()
@@ -42,7 +40,7 @@ class GraphicOutputs:
             ax.set_xlabel(u'Day from sowing')
             ax.set_ylabel(u'Length (mm)')
             rank_number = float(len(set(df[df.Id_talle == tiller].Id_rang.tolist())))
-            colors = int(math.ceil(rank_number/ len(self.color_list)))*self.color_list
+            colors = int(math.ceil(rank_number / len(self.color_list)))*self.color_list
             for rank in set(df[df.Id_talle == tiller].Id_rang.tolist()):
                 col = colors[rank - 1]
                 ax.plot(u'Day', u'Length', data=df[(df.Id_talle == tiller) & (df.Id_rang == rank) &

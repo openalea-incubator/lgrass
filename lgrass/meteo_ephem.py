@@ -6,6 +6,7 @@ import numpy as np
 from geopy.geocoders import Nominatim
 from datetime import datetime, timedelta
 
+
 def import_meteo_data(meteo_path, sowing_date, site):
     meteo_data = pd.read_csv(meteo_path, sep=',')
     meteo_data = meteo_data[meteo_data.site == site]
