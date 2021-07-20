@@ -1,3 +1,5 @@
+[![Documentation Status](https://readthedocs.org/projects/lgrass/badge/?version=latest)](https://lgrass.readthedocs.io/en/latest/?badge=latest)
+
 # L-Grass
 L-Grass is a Functional Structural Plant Model (FSPM) of perennial rye grass morphogenesis and phenology.
 
