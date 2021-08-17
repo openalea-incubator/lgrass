@@ -1,3 +1,5 @@
+[![License](https://img.shields.io/badge/license-CeCILL--C-blue )](https://img.shields.io/badge/license-CeCILL--C-blue )
+
 [![Documentation Status](https://readthedocs.org/projects/lgrass/badge/?version=latest)](https://lgrass.readthedocs.io/en/latest/?badge=latest)
 
 # L-Grass
