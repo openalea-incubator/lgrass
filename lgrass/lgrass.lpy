@@ -17,9 +17,9 @@ import pandas as pd
 
 
 ##### Configuration du chemin #####
-INPUTS_DIRPATH = 'inputs'
-OUTPUTS_DIRPATH = 'outputs'
-GRAPHS_DIRPATH = 'graphs'
+INPUTS_DIRPATH = '/lustre/rouets/inputs'
+OUTPUTS_DIRPATH = '/lustre/rouets/outputs'
+GRAPHS_DIRPATH = '/lustre/rouets/graphs'
 
 ##### Parametres plante #####
 path_param=os.path.join(INPUTS_DIRPATH,'Parametre_plante_Lgrass.xls') # Fichier contenant les parametres
@@ -1410,7 +1410,7 @@ Feuille(X, X_apex, X_phytomere):
           X.TailleEmergence = Seuil[X.id_plante][X.id_talle]
           TrueAge = X.age - dt_eff #On pourrait affiner la determination de TrueAge qui en realite a eu lieu entre age-dt_eff et age-2dt_eff (soit on prend la moyenne soit au prorata des longueurs)
           
-          tmax_potcroiss = 166.588 #conversion des °C jour en  heures pour manip a 17°C 118*24/17
+          tmax_potcroiss = 166.588 #conversion des Â°C jour en  heures pour manip a 17Â°C 118*24/17
           lmax_potcroiss = 338.5554 # mm
           
           if option_profile == "triangular":
