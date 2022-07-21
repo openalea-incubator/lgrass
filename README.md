@@ -8,7 +8,7 @@ L-Grass is a Functional Structural Plant Model (FSPM) of perennial rye grass mor
 L-Grass simulates:
 * Above-ground 3D architecture and morphogenesis (leaf extension, growth and tillering) as a self-regulated system. See [Verdenal *et al.* (2008)](https://doi.org/10.1071/FP08050).
 * Morphogenesis of the root system in 3D. The model is inspired from ArchiSimple model and accounts for C partioning between shoot and roots. See [Migault thesis (2015)] (https://hal.inrae.fr/tel-02799991)
-* Floral transition of individual apex according to temperature and photoperiod, internode elongation and heading date. Ongoing thesis of S. Rouet (2017-2020).
+* Floral transition of individual apex and heading of the spike according to temperature, photoperiod and vegetative morphogenesis. See [Rouet *et al.* (2022)](https://doi.org/10.1093/insilicoplants/diac012).
 
 # Table of Contents
 - [Installation](#installation)
@@ -74,6 +74,15 @@ If you want to update *Lgrass*:
 
 * For a basic usage of *Lgrass*, go to `lgrass/lgrass` and open `lgrass.lpy` with the Lpy software which was installed in your conda environment. Then click on `Run`
 * For external call of *lgrass*, examples are provided in `lgrass/example`
+
+The version of lgrass integrating the flowering stages (Lgrass-F) is available in: 
+
+* `lgrass/example/calibration_GEVES_2021`
+
+## calibration_GEVES_2021
+This example deals with the implementation of the reproductive development in the model and its calibration by Rouet et coll. 
+This work led to the research article [Rouet *et al.* (2022)](https://doi.org/10.1093/insilicoplants/diac012).
+Results were obtained from the tag paper_ISPLANTS_2022. To run the model used for the paper, please download the code archives at [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.6873725.svg)](https://doi.org/10.5281/zenodo.6873725)
 
 # Credits
 ## Authors
