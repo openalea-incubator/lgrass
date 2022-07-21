@@ -17,9 +17,9 @@ import pandas as pd
 
 
 ##### Configuration du chemin #####
-INPUTS_DIRPATH = '/lustre/rouets/inputs'
-OUTPUTS_DIRPATH = '/lustre/rouets/outputs'
-GRAPHS_DIRPATH = '/lustre/rouets/graphs'
+INPUTS_DIRPATH = 'inputs'
+OUTPUTS_DIRPATH = 'outputs'
+GRAPHS_DIRPATH = 'graphs'
 
 ##### Parametres plante #####
 path_param=os.path.join(INPUTS_DIRPATH,'Parametre_plante_Lgrass.xls') # Fichier contenant les parametres
