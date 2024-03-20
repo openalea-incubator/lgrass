@@ -1,0 +1,11 @@
+(lp0
+(lp1
+(lp2
+F5.5
+aF5.5
+aF5.5
+aF5.5
+aa(lp3
+F5.5
+aF5.5
+aaa.

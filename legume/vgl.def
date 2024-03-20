@@ -1,0 +1,48 @@
+Bootstrap: docker
+From: ubuntu:18.04
+#ubuntu:18.04 debian:9.5-slim
+
+%files
+
+%environment
+    export LC_ALL=C
+    export LC_NUMERIC=en_GB.UTF-8
+    export PATH="/opt/miniconda/bin:$PATH"
+
+
+%runscript
+     # Execute container
+    python /l-egume/legume/run_legume_usm.py "$@"
+
+%post
+    #essential stuff but minimal
+    apt update
+
+    #for security fixe:
+    apt upgrade -y
+    apt install -y wget bzip2 freeglut3-dev libxext-dev libxrender-dev libglib2.0-0 git libqhull-dev libboost-all-dev
+    #libboost-dev libboost-all-dev libboost-python-dev
+
+    # miniconda2: get miniconda2 version 4.7.12.1
+    wget https://repo.anaconda.com/miniconda/Miniconda3-py37_4.8.2-Linux-x86_64.sh -O miniconda.sh
+     
+    #install conda
+    bash miniconda.sh -b -p /opt/miniconda
+    export PATH="/opt/miniconda/bin:$PATH"
+
+    #cleanup    
+    conda clean -y --all
+    rm -f /opt/miniconda.sh
+    apt autoremove --purge
+    apt clean
+
+    #install conda env.yml file
+    /opt/miniconda/bin/conda install python=3.7 pip scipy pandas openalea.lpy xlrd -c conda-forge -c fredboudon 
+    
+
+    # Clone and install lgrass
+    git clone -b Develop https://github.com/glouarn/l-egume.git
+    cd l-egume
+    python setup.py develop
+    cd -
+

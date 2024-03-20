@@ -1,0 +1,2305 @@
+import sys
+import os
+
+try:
+    import legume
+    path_ = os.path.dirname(os.path.abspath(legume.__file__))#local absolute path of L-egume
+    #path_ = r'C:\devel\l-egume\legume'#r'C:\devel\grassland'#r'H:\devel\grassland\grassland\luzerne' #r'C:\devel\grassland'#
+except:
+    path_ = r'C:\devel\l-egume\legume'#r'C:\devel\grassland'#r'H:\devel\grassland\grassland\luzerne' #r'C:\devel\grassland'#
+path_leg = os.path.join(path_, 'input')#r'C:\devel\l-egume\l-egume\input'#r'C:\devel\grassland'#r'H:\devel\grassland\grassland\L-gume' #r'C:\devel\grassland'
+path_out = os.path.join(path_, 'output')#r'C:\devel\grassland'#r'H:\devel\grassland\grassland\L-gume' #r'C:\devel\grassland'
+
+sys.path.insert(0, path_)
+sys.path.insert(0, path_leg)
+
+
+from numpy.random import binomial, seed
+import numpy as np
+#from scipy import * 
+from copy import deepcopy
+import string
+import time
+from openalea.plantgl.all import *
+import Obj3Dutils as o3d
+
+
+from soil3ds import soil_moduleN as solN
+from soil3ds.plt_functions import *
+from riri5 import RIRI5 as riri
+
+import initialisation as initial
+import RootDistrib as rtd
+import RootMorpho as rt
+import ShootMorpho as sh
+import daily_loop as loop
+import management_auto as mna
+import IOtable
+import IOxls
+#import random
+import pandas as pd
+import zipfile
+
+
+
+
+#options de simulation
+opt_residu = 1 #si 0, pas activation de mineralisation
+opt_sd = 0 #1 #genere distribution des valeurs de parametres, 2: fournit CV et calcul SD #1: lecture directe des val de sd independamment de la moy
+opt_covar = 1 # #definie matrice de covariance a lire dans path_variance_matrix (0 opt_sd generere tirages independants)
+opt_shuffle = 0 # 1: for random order of plant species in ParamP ; 0: reular order 
+opt_scenar = 0 #Active option for modifying np.mean paramter values (0: inactive/default; 1: active)
+opt_stressN = 1 #Active stress N; 1 = stress NNI actif (0= calcule, mais pas applique)
+opt_stressW = 1 #Active stressW; 1 = stress FTSW actif (0= calcule, mais pas applique)
+opt_ReadstressN = 0 # Force stress N to read input values - for debugging/calibration
+opt_ReadstressW = 0 # Force stress FTSW to read input values - for debugging/calibration
+opt_photomorph = 1 #1 #Activate photomorphogenetic effects on organ growth; 1 Actif (0= calcule, mais pas applique)
+opt_stressGel = 1 #Active gel stress option below Tgel
+opt_optT = 0 #option de calcul du cumul de temperature (0=betaD; 1=betaH; 2=lineaireD)
+opt_PP = 1 #0 #Active photoperiodic effects (1 active; 0 inactive)
+opt_Mng = 0 # type of management file to be read: 0: default observed file ; 1: automatic management file #must be consistent with the management file!
+opt_Nuptake = 1# #options for calculating plant N uptake - 0:'STICS' #1:'LocalTransporter' #2:'old'
+opt_ReadPP = 0 # Force photoperiod to read input values in management - for indoor experiment
+visu_root=1 #1# pour visualisation/interpretation root
+visu_shoot=1 #1# pour visualisation/interpretation shoot
+visu_leaf=1 #1# pour visualisation/interpretation feuilles slmt
+visu_sol=0 #1# pour visualisation/interpretation sol
+visu_solsurf=1 #0 pour visualisation du pattern
+opt_Trud = 1 #0= default square primitive for legume leaves; 1 =To used a detailed leaf primitives for legume leaves (Tudeau leaf) 
+frDisplay = 0 #1 #sauvegarde de la derniere vue
+movDisplay =0 # #sauvegarde toutes les vues pour faire un film
+opt_zip = 1 #if 1, zip and delete the output csv files 
+opt_verbose =1 #0, remove print in the console
+opt_external_coupling = 0 # 1 for environmental coupling out of lpy; 0 for internal coupling in l-py
+
+
+#initialisation des variables globale de simulation
+DOYdeb = 60#100#49#159#124#
+DOYend = 90#335#180#202#231#335#610#120#250#244#282#
+Rseed = 0#2#0 #random seed
+deltalevmoy = 30 #degre.jours
+deltalevsd = 15
+
+
+cote = 40#240.#7.#80.#100.#100#25.#25.#cm
+nbcote = 8#4#16#8#10#9#1#2#
+optdamier = 4#21#
+typearrangement='damier8'#'homogeneous'#'row4_Nsp'#'row4'#'row_Nsp'#'row4_sp2'#'random10'#'random9'#'random8_4'#'damier9'#'damier8_4'#'damier10'#'random8'#'damier8_sp2'#'damier16'#'random16'
+ls_idscenar = [1, 1]#[1, 1, 1] #
+ls_idscenar_sd = [8, 8]#[7, 7]#[6, 6]#[1, 1]#[1, 1, 1] #
+
+tresh_LA = 0.0015 # 0.0010=10cm2 #seuil de surface des feuilles pour separer les folioles dans la grille 3D
+obstarac_ = None #array([[-0.5]*5, [-0.5]*5, [-0.75]*5, [-1.]*5, [-1.]*5]).transpose() #matice 2D de valeurs de profondeur d'obstacle en m #None #
+Maxstep_rac = 10#2 # max interval to update root distribution
+Countstep_rac = 0 #counter depuis last update root distribution
+dllimmin = 1. #cm #minimun dlcum before updating root volume
+TreshChangeRoot = 0.5 #cm # minimum to update ls_roots
+noiseGeom = [0.001, 0.001, 0.001] #[15., 20., 20.] #[35., 30., 30.] #[phyllotaxy, IncPet, gammaFeuil] #en degre -> pour bruit sur geometrie
+
+
+## lecture fichier meteo
+#faire une fonction??
+meteo_path = os.path.join(path_leg,'meteo_exemple.xls')#'meteo_exemple_debugL_gl.xls')##r'H:\devel\grassland\grassland\L-gume\meteo_exemple2.xls'
+ongletM = 'Lusignan30'#'DigitLuz10'#'Lusignan30'#'Lusignan302ans'#'DivLeg15'#'morpholeg15'#'combileg15'#'combileg16'#'Avignon30'#'exemple'#'morpholeg15'#'testJLD'#'competiluz'#
+meteo = IOxls.read_met_file(meteo_path, ongletM)
+
+
+## lecture fichier initialisation
+inis_path = os.path.join(path_leg, 'Init_sol_exemple.xls')#'Initialisation_sol_exemple.xls')
+ongletIn = 'Lusignan30_5x5'#'Lusignan30'#'morpholeg_rhizo'#'combileg15'#'combileg16'#'Lusignan30Irr'#'Avignon30IrrN'#'Avignon30'#'DivLeg15'#
+inis = IOxls.read_plant_param(inis_path, ongletIn)
+
+
+## lecture fichier plante
+path_plante = os.path.join(path_leg,'Parametres_plante_exemple.xls')#'Parametres_plante_v5cLucas.xls')#'Parametres_plante_v18.xls')#'Parametres_plante_v9Lucas_debugL.xls')#r'H:\devel\grassland\grassland\L-gume\Parametres_plante_v5cLucas.xls' 
+#ongletP = 'Fix2'#'Fet'#'Orca'#'TB'##'giga'#'solnu'#'Fix1'#'Fix'#'timbale'#'formica'#'canto'##'alfalfa'#'geno_test'#'G3'#'C1'#'8_2'#'kayanne'#'leo'#'G1'#'timbale'##
+#ongletPvois = 'nonFixSimTest'#'Fet'#'Orca'#'TB'#'Fet'#'Orca2'#'OrcaVois'#'Fet'#'giga'#'solnu'#'nonFix1'#'nonFix0'#'alfalfa'#'geno_test'#'G3'#
+path_lsplt = os.path.join(path_leg,'exemple_ls_plt.xls')
+mixID = "mix_default" #'mix3' #'mix5'
+tabSpe = pd.read_excel(path_lsplt, sheet_name=mixID)
+ls_Spe = tabSpe["ongletP"].tolist()
+#ls_Spe = ['Fix2', 'nonFixSimTest', 'Fet','TB','Orca']#['Fix2', 'nonFixSimTest', 'Fet','TB']#['Fix2', 'nonFixSimTest', 'Fet']
+
+
+## lecture fichier management (2 types possibles selon opt_Mng: obs/auto)
+mn_path = os.path.join(path_leg,'management_exemple.xls')#'management_exemple3_debugL_gl.xls')#r'H:\devel\grassland\grassland\L-gume\management_exemple.xls'
+ongletMn = 'Lusignan30IrrN'#'Lusignan30Irr'#'Lusignan30'#'Lusignan30IrrN2'#'DigitLuz10'#'Lusignan30IrrN2'#'Lusignan30IrrN2ans'#'DivLeg15'#'Lusignan30IrrN'#'illimite-sanscoupe'#'combileg15-irrigajusteeLUZTVMIN'#'combileg16-irrigajusteeMIN'#'Lusignan30'#'Avignon30IrrN'#'Avignon30'#
+#mn_path = os.path.join(path_leg,'management_auto_exemple.xls')# exemple pour auto
+#ongletMn = 'exemple'
+if opt_Mng == 0:
+    mng = IOxls.read_met_file(mn_path, ongletMn)
+elif opt_Mng == 1: #Automatic management file
+    mng_auto = IOxls.read_plant_param(mn_path, ongletMn)
+    mng = mna.Build_mng_auto(meteo, mng_auto, path_plante, ls_Spe[0], DOYdeb, opt_optT)
+
+
+#lecture des parametres du sol
+path_sol = os.path.join(path_leg,'Parametres_sol_exemple.xls')#'Parametres_sol_exemple2_debugL_glbis.xls')#
+ongletS = 'lusignan99'#'morpholeg'#'combileg2015vshallow'#'combileg16vshallow'#'ASCHYD11'#'DivLeg15'#
+par_SN, par_sol = IOxls.read_sol_param(path_sol, ongletS)
+par_SN['concrr'] = 0.#force eau de pluie / irrig a zero N, sinon apport 300 kg en irrigue!
+
+#lecture scenario valeur moyenne (si changement de parametres)
+mn_sc = os.path.join(path_leg,'liste_scenarios.xls')#'scenarios_planMorris.xls')#'liste_scenarios_exemple.xls')#(path_leg,'liste_scenarios.xls')'Fet'#
+#ongletScenar1 = 'Fix2'#'Orca'#'TB'#'default'#'nonFixSimTest'#'default'#'formica'#
+#ongletScenar2 = 'nonFixSimTest'#'Fet'#'Orca'#'TB'#'Orca2'#'default'#'OrcaVois'#'default'#'nonFix1'#'default'#'formica'#
+
+# lecture scenario variabilite intra et variables associees
+path_variance_geno = os.path.join(path_leg, 'exemple_sd.xls')
+#def param a visualiser
+if opt_sd == 1 or opt_sd == 2:
+    #recup des noms de parametres
+    IDesp_visu = 1#0 #pour Sp1
+    IDparam_visu = 0 # ID du parametre dans la liste
+    IV_geno = pd.read_excel(path_variance_geno, sheet_name=ls_Spe[IDesp_visu]) 
+    ls_parnameIV = list(IV_geno.columns[1:])
+    parnameIV_col = ls_parnameIV[IDparam_visu]
+    print('parnameIV', parnameIV_col, ls_parnameIV)
+
+#ls_sdpar = list(pd.read_excel(path_variance_geno).iloc[(0)][ls_parname])
+#moy_modif=3.4875000000000003
+
+#lectrure matrice covariance variabilite intra
+path_variance_matrix = os.path.join(path_leg, 'exemple_corr_matrix.xls')
+
+
+# lecture fihier station
+path_station = os.path.join(path_leg, 'stations_exemple.xls')
+ongletSta = 'Lusignan'#'exemple'
+
+
+#lecture fichiers et variables de sortie
+path_outf = os.path.join(path_leg,'mod_susm.xls')#
+outf = IOxls.read_plant_param(path_outf, 'output_files')
+outfvar = IOxls.read_plant_param(path_outf, 'daily_outputs')
+#faudait lie ca plus simplement avec table pandas
+
+
+
+#chemin des fichiers de sortie (doivent etre declares avant de lancer le L-system, pour pouvoir l'appeller en dehors de L-py)
+outvarfile = 'toto_.csv'#'vglg-toto.csv'#r'H:\devel\grassland\grassland\L-gume\toto.csv'
+lsorgfile = 'lsAxes.csv'#r'H:\devel\grassland\grassland\L-gume\lsAxes.csv'
+outHRfile = 'outHR.csv'#r'H:\devel\grassland\grassland\L-gume\outHR.csv'
+outBilanNfile = 'BilanN.csv'#r'H:\devel\grassland\grassland\L-gume\BilanN.csv'
+resrootfile = 'newres.csv'#r'H:\devel\grassland\newres.csv'
+outsdfile = 'paramsd.csv'#file for distrubtion of parameters sd
+outMngfile ='MngAuto.csv'#file for recording automatic management actions
+outimagefile = 'scene.bmp'#r'H:\devel\grassland\grassland\L-gume\scene.bmp'
+
+
+#1 residu = listes de 1 element
+#DOYres = DOYdeb+20#300 #jour d'ajout des residus -> pas utilise
+#nb_res = 8# 4 types de residus par espece (4 compatiment du papier) * 2 especes #pas utilise jusque la? (force donc cycles boucle pas? ou  ajuster a 1 moment?)
+
+#vAmount= [0.1]*nb_res#[20.]# T Fresh Weight.ha-1 (equivalent QRES)
+#vCNRESt = [40.]*4+[40.]*4 #g.g-1 (equivalent CsurNres)
+#vCNRESt = [16.]*4+[40.]*4 #g.g-1 (equivalent CsurNres)
+#Vprop1 = [1./3., 1./3., 1./3.]+50*[0.] #distribution dans les horizons #-> change 27 en 50 pour etre sur d'avoir le nb d'horizon-> a adapter selon le vrai nbr d'horizons!!!
+#vProps= [Vprop1]*nb_res#[Vprop1]#[Vprop1, Vprop1, Vprop1]
+#vWC=[0.7]*nb_res# fraction d'eau des residu frais (equivalent de Crespc /(%)/100)
+#vCC=[0.42]*nb_res# fraction de C des residus sec (equivalent de Crespc /(%)/100)
+#vNmires = [0.00197]*nb_res# fraction de poids frais residu en azote mineral (equivalent de Nminres(%)/100)
+
+
+
+
+#1 seul axe en developpemnt? -> arret
+#PAR tresh a 1 ou au dessus fait tout s'arreter?? 0.999 marche..
+#meme apres rayonnement 5 direc, peetites feuilles et PARtresh a 0.99 -> rayonnement local a l'air bon????
+# par tresh dans l'autre sens 0.33 marche 0.01 OK
+
+
+class Plt_seed(object):
+    """ creates a random generator for a given plant"""
+    def __init__(self, seed):
+        #self.randgen = random.Random(seed) #avec random module
+        self.randgen = np.random.RandomState(seed)
+
+
+#def init_glob_variables_sim(meteo, mng, DOYdeb):
+#    #deplace dans fichier inititalisation
+
+
+#def init_ParamP(path_plante, ongletP, ongletPvois, nbcote, deltalevmoy, deltalevsd, seed_=0, type='homogeneous', opt=4, ongletScenar1='default', ongletScenar2='default',idscenar1=1, idscenar2=1, mn_sc=None):
+#    #passage dans initialisation
+
+
+#def init_scene(ParamP, inis, cote, nbcote, station, lsidP, type='damier8'):
+#    #deplace dans fichier inititalisation
+
+#def init_sol(inis, meteo_j, par_sol, par_SN, Lsol, discret_solXY, dz_sol, pattern8, opt_residu, obstarac =None):
+#    # deplace dans fichier externe initialisation
+
+
+#def init_plant_residues_fromParamP(S, opt_residu, ParamP):
+#    #deplace dans fichier inititalisation
+
+#def init_variables_plantes(ParamP, nbplantes, na):
+#    #deplace dans fichier inititalisation
+
+#def init_outputs(ParamP, nbplantes,ncouches_sol):
+#    #deplace dans fichier inititalisation
+
+#def mef_res_sd(ParamP, path_variance_geno, test_retard, carto,  opt_sd):
+#    #deplace dans fichier inititalisation
+
+
+
+
+def Start():
+    
+    #initialisation des variables globale de simulation
+    global DOY, TT, TTsol, meteo_j, mng_j, STEPS_, STEPSsol_, ls_epsi, TT_repousse, isTTcut,wasTTcut, isRegrowth, cutNB, Hcut, start_time, past_time, test_retard, mn_sc, station, path_station, ongletSta, epsilon
+    
+    ##seed nombre aleatoires
+    global Rseed, ls_seeds
+    np.random.seed(Rseed)
+    
+    #DOY, TT, TTsol, meteo_j, mng_j, STEPS_, STEPSsol_, ls_epsi, TT_repousse, isTTcut,wasTTcut, isRegrowth, cutNB, Hcut, start_time, past_time, station = init_glob_variables_sim(meteo, mng, DOYdeb)
+    DOY, TT, TTsol, meteo_j, mng_j, STEPS_, STEPSsol_, ls_epsi, TT_repousse, isTTcut,wasTTcut, isRegrowth, cutNB, Hcut, start_time, past_time, station = initial.init_glob_variables_simVGL(meteo, mng, DOYdeb, path_station, ongletSta)
+    
+    # initialisation des parametres plante
+    global ParamP, nbplantes
+    global ongletP, ongletPvois, optdamier, typearrangement,ongletScenar1,ongletScenar2, ls_pointes1
+    #ongletP = 'Fix1'#'Fix'#'timbale'#'formica'#'canto'#'giga'##'alfalfa'#'geno_test'#'G3'#'C1'#'8_2'#'kayanne'#'leo'#'G1'#'timbale'##
+    #ongletPvois = 'nonFix2'#'nonFix0'#'alfalfa'#'geno_test'#'G3'#
+    #optdamier = 4
+    #typearrangement='damier8' 
+    
+    print('lspe', ls_Spe)
+    ParamP, nbplantes, ls_seeds, lsidP, test_retard = initial.init_ParamP_VGL(path_plante, ls_Spe, nbcote, deltalevmoy, deltalevsd, Plt_seed, seed_=Rseed ,type=typearrangement, opt=optdamier, opt_scenar=opt_scenar, ls_idscenar=ls_idscenar, mn_sc=mn_sc, opt_sd=opt_sd, opt_covar=opt_covar, path_variance_geno=path_variance_geno, path_variance_matrix=path_variance_matrix, ls_idscenar_sd=ls_idscenar_sd, opt_shuffle=opt_shuffle)
+    
+    
+    #print('name2 ', IOxls.get_lsparami(ParamP, 'name'))
+    #si graminee, trajectoire normalisee feuille L=1 - 1 par parametre plante
+    ls_pointes1 = []
+    for nump in range(nbplantes):
+        pointes1 = []
+        if int(ParamP[nump]['type'])==3:
+            pointes, ls_ptsall , ls_cos, ls_sin = o3d.leg_grass_withoutgeom(1., 1., angfol=-5., nfol=ParamP[nump]['profilLeafI_nfol'][3], anginit=ParamP[nump]['gammaFeuil'])
+            pointes1 = [array(pointes)]
+        ls_pointes1.append(pointes1)
+    
+    #print('ici', IOxls.get_lsparami(ParamP, 'name'))
+    
+    #initialisation de la scene
+    global carto, distplantes, pattern8, Lsol, largsol, surfsolref, dz_sol, ncouches_sol, prof_sol_max, discret_solXY, lims_sol, ls_gammagroup, setp, n_gamagroup, na, dxyz, lims_aer, origin_grid, surf_refVOX, m_lais, m_lais_construct, m_laiPlt, triplets, ls_dif, res_trans, res_abs_i, res_rfr 
+    
+    carto, distplantes, pattern8, Lsol, largsol, surfsolref, dz_sol, ncouches_sol, prof_sol_max, discret_solXY, lims_sol, ls_gammagroup, setp, n_gamagroup, na, dxyz, lims_aer, origin_grid, surf_refVOX, m_lais, m_lais_construct, m_laiPlt, triplets, ls_dif, res_trans, res_abs_i, res_rfr = initial.init_scene_fromLpy(ParamP, inis, cote, nbcote, station, lsidP, type=typearrangement)
+    
+    print('carto', len(carto), carto)
+    
+    #initialisation du sol
+    global S, Tsol, Uval, stateEV, b_,  obstarac_, ls_mat_res, setr, vCC
+    S, Tsol = initial.init_sol_fromLpy(inis, meteo_j, par_sol, par_SN, discret_solXY, dz_sol, pattern8, opt_residu, obstarac_)
+
+    vCC = initial.init_plant_residues_fromParamP(S, opt_residu, ParamP, par_SN)
+    #mat_res = 0.*S.m_1 #en faire 
+    ls_groupe_resid = list(map(int, IOxls.get_lsparami(ParamP, 'groupe_resid')))
+    setr = list(set(ls_groupe_resid)) #set equivalent fonction r.unique!
+    ls_mat_res = []
+    for i in range(2):#len(setr)): #force a 2 sinon bug qd des esidu de l'esp 1 seulement
+        ls_mat_res = ls_mat_res + [0.*S.m_1, 0.*S.m_1, 0.*S.m_1, 0.*S.m_1]#ajout de 4 residus par groupe d'organ et groupe d'especes: feuille(0), tige(1), rac_fine(2), pivot(3)#  pour chaque groupe_resid 
+    
+    #print len(ls_mat_res) #= [0.*S.m_1, 0.*S.m_1, 0.*S.m_1, 0.*S.m_1]
+    #print(S.m_frac_evapZ)
+    
+    #initialisation des variables d'etat plante
+    global invar, invar_sc, lsAxes, lsApex, lsApexStop, lsApexAll, lsOrgans, savelsOrgans,lsFeuilBilanR , ls_systrac, ls_ftswStress, ls_NNIStress,ls_TStress, LAIprofil, SurfprofilPlant, deltaI_I0, nbI_I0, I_I0Classes, I_I0profilLfPlant, I_I0profilPetPlant, I_I0profilInPlant, NaClasses, NlClasses, NlinClasses, res_root, ls_roots_prev
+    
+    invar, invar_sc, lsAxes, lsApex, lsApexStop, lsApexAll, lsOrgans, savelsOrgans,lsFeuilBilanR , ls_systrac, ls_ftswStress, ls_NNIStress, ls_TStress, LAIprofil, SurfprofilPlant, deltaI_I0, nbI_I0, I_I0Classes, I_I0profilLfPlant, I_I0profilPetPlant, I_I0profilInPlant, NaClasses, NlClasses, NlinClasses, res_root, ls_roots_prev, epsilon = initial.init_variables_plantes(ParamP, nbplantes, na)
+    
+    
+    #initialisation des variables d'echange avec exterieur pour couplages sol/rayonnement
+    global tag_inputs_soil_step, res_soil_step, tag_inputs_residue_updt, res_residue_step, local_res_trans, local_res_abs_i, tag_light_inputs2, local_res_rfr, tag_light_inputs, tag_loop_inputs
+    
+    
+    #init grille rayonnement
+    m_lais = sh.calc_surfcoty(invar['MS_coty'], invar['TT'], IOxls.get_lsparami(ParamP, 'DurGraine'), carto, ParamP, n_gamagroup, origin_grid, na, dxyz) #init avec surface des cotyledons
+    
+    tag_light_inputs = [m_lais/surf_refVOX, triplets , ls_dif , meteo_j['I0']*surf_refVOX] #input tag
+    local_res_trans, local_res_abs_i = riri.calc_extinc_allray_multi_reduced(*tag_light_inputs, optsky=station['optsky'], opt=station['sky'])
+    res_trans, res_abs_i = local_res_trans, local_res_abs_i #mise a jour variables globales
+    
+    
+    #init grille memoire racine
+    ls_roots_norm = rtd.build_ls_roots_mult(array(invar['RLTotNet']) * 1. + 10e-15, ls_systrac, lims_sol, optNorm=1)
+    ls_roots_prev = rtd.calc_ls_roots_fromNorm(ls_roots_norm, RLtot= array(invar['RLTotNet']) * 1.) # !*100 pour passer en cm et absorbtion absoption d'N
+    
+    
+    
+    #initialisation des sorties
+    global outvar, id_out, out_HR, res_sd
+    outvar, id_out, out_HR = initial.init_outputs(ParamP, nbplantes, ncouches_sol, surfsolref)
+    #mise en forme fichier param sd
+    res_sd = initial.mef_res_sd(ParamP, ls_Spe, path_variance_geno, test_retard, carto,  opt_sd)
+    
+    ##seed nombre aleatoires
+    #global Rseed
+    #random.seed(Rseed)
+    #seed(Rseed)
+    #ajout des profils de taille potentiel par rang dans ParamP (calcule 1 seul fois) (cm) / parametres de morpho racine par ordre
+    
+    # pour gerer sortie visuelle en batch - Lucas
+    #frameDisplay(True)
+
+
+
+def StartEach():
+    global TT,TTsol, STEPS_,DOY, STEPSsol_, isTTcut,wasTTcut, TT_repousse,  SurfprofilPlant, nbplantes, lsAxes, lsApex,lsApexAll, lsApexStop,lsOrgans, m_lais, m_laiPlt, res_trans, res_abs_i, res_rfr, m_lais_construct, I_I0profilLfPlant, I_I0profilPetPlant, I_I0profilInPlant, invar, ls_systrac, Hcut, cutNB, epsilon, lsFeuilBilanR #utilise dz, I0, k (global pas mis a jour)#Hmaxcouv, LAIvois, PARt,
+    
+    global tag_light_inputs, local_res_trans, local_res_abs_i, tag_light_inputs2, local_res_rfr, station    
+    
+    
+    #calcul TT
+    vT, vTsol = sh.Calc_Daily_vT(meteo_j, opt_optT) #daily temperature vector
+    
+    STEPS_ = sh.dTT(vT, [ParamP[0]['Tdev'], ParamP[0]['Tmin'], ParamP[0]['Tmax'], ParamP[0]['q']], optT=opt_optT) #prend valeur de nump=0 -> reference pour la simulation!
+    TT = TT+STEPS_
+    STEPSsol_ = sh.dTT(vTsol, [ParamP[0]['Tdev'], ParamP[0]['Tmin'], ParamP[0]['Tmax'], ParamP[0]['q']], optT=0)
+    TTsol = TTsol + STEPSsol_
+    
+    #MAJ temps phyllochronique et udev
+    invar['TTphyllo'] = array(invar['TTphyllo']) + array(invar['dTTphyllo'])
+    invar['graineC'], invar['graineN'] = sh.reserves_graine(invar, ParamP) #mise a jour flux MS et N venant de la graine
+    for nump in range(nbplantes): 
+        invar['dTT'][nump] = sh.dTT(vT, [ParamP[nump]['Tdev'], ParamP[nump]['Tmin'], ParamP[nump]['Tmax'], ParamP[nump]['q']], optT=opt_optT)
+        invar['dTTsol'][nump] = sh.dTT(vTsol, [ParamP[nump]['Tdev'], ParamP[nump]['Tmin'], ParamP[nump]['Tmax'], ParamP[nump]['q']], optT=0)#forcement journalier
+        
+        if opt_PP == 1:
+            stressPP = sh.linear_stress2(meteo_j['durjour'],[ParamP[nump]['PPtreshb'], ParamP[nump]['PPtreshh']], opt=0)
+        else:
+            stressPP = 1.
+        #! gerer cas opt_ReadPP!
+        
+        stressW = ls_ftswStress['WaterTreshDevI'][nump]
+        stressN = ls_NNIStress['NTreshDev'][nump]
+        if opt_stressW == 0:
+            stressW = 1.
+        if opt_stressN == 0:
+            stressN = 1.
+        if opt_ReadstressN == 1.:
+            stressN = mng_j['ForceNNI']#0.2
+        if opt_ReadstressW == 1.:
+            stressW = mng_j['ForceFTSW']#0.2
+        
+        invar['Udev'][nump] = invar['dTT'][nump] * stressPP #1. #effective thermal time taking PP ino account
+        invar['Udevstress'][nump] = invar['Udev'][nump] * stressW * stressN #1. #udev shoots with water and N stresses
+        invar['Udevsol'][nump] = invar['dTTsol'][nump] * stressPP
+        
+        ##update gel status par plante
+        if (meteo_j['TmoyDay'] > ParamP[nump]['Tgel'] and opt_stressGel == 1) or  opt_stressGel == 0 or invar['graineN'][nump]>0.:
+            invar['isGelDam'][nump] = 0
+            invar['dMSmortGel_aer'][nump] = 0.
+            invar['dNmortGel_aer'][nump] = 0.
+            invar['countGelD'][nump] += 1 #count the number of days since last frost
+        else:
+            invar['isGelDam'][nump] = 1
+            invar['countGelD'][nump] = 0
+            #MSA = outvar['MS_aerien'][-1][nump+2]-epsilon #MSA cumulee de la coupe jusqu'au jour d'avant
+            #invar['dMSmortGel_aer'][nump] = MSA
+            #invar['dNmortGel_aer'][nump] = MSA*invar['Npc_aer'][nump]/100.
+            print("GEL !!!!!!!!!!")
+            
+            #gerer le cas des gel pendant phase graine (-> mort?)
+        
+        if invar['germination'][nump]>0:
+            invar['TT'][nump] = invar['TT'][nump] + invar['dTT'][nump]#juste effet Tair
+            invar['TTsol'][nump] = invar['TTsol'][nump] + invar['Udevsol'][nump]#+ invar['dTTsol'][nump]
+            invar['TTudev'][nump] = invar['TTudev'][nump] + invar['Udev'][nump]
+    
+    
+    
+    #remise a zero m_lais_construct et LAIprofilplant pour nouvelle iteration  
+    m_lais_construct = np.zeros([n_gamagroup, na[2], na[1], na[0]])
+    m_laiPlt = np.zeros([len(ParamP), na[2], na[1], na[0]]) #Distrib lai des plantes indivs: nump, Z,Y,,X
+    
+    LAIp  = {}
+    for i in range(0, len(list(SurfprofilPlant[0].keys()))): LAIp[i]=0.
+    SurfprofilPlant = [] #liste de LAIprofil par plante
+    for i in range(nbplantes): SurfprofilPlant.append(deepcopy(LAIp))
+    I_I0profilLfPlant = []
+    for i in range(nbplantes): I_I0profilLfPlant.append(np.zeros(nbI_I0))
+    I_I0profilPetPlant = deepcopy(I_I0profilLfPlant)
+    I_I0profilInPlant = deepcopy(I_I0profilLfPlant)
+    
+    #if TT%TTcutFreq <STEPS:
+    if mng_j['Coupe']==1:        
+        
+        # MAJ compartiments recoltes/non recoltes
+        fraction_nonRec = array(IOxls.get_lsparami(ParamP, 'fraction_NonRec'))#0.1 # a entrer un parametre de fraction non rec / ou une methode de calcul(f de hcut/hauteur?)
+        MS_recoltable = array(invar['MS_aerien']) - array(invar['MS_senaerien']) ##! tenir compte de la senescence!! 
+        MS_recoltable[MS_recoltable<epsilon] = epsilon #pour eviter valeur neg
+        invar['MS_aerienNonRec'] = array(invar['MS_aerienNonRec']) + fraction_nonRec*MS_recoltable #cumul de MS non recolte
+        invar['MS_aerienRec'] = (1. - fraction_nonRec)*MS_recoltable #cumul de MS recolte
+        invar['NaerienNonRec'] = array(invar['NaerienNonRec']) + fraction_nonRec*MS_recoltable*array(invar['Npc_aer'])/100. #cumul de QN non recolte
+        invar['NaerienRec'] = (1. - fraction_nonRec)*MS_recoltable*array(invar['Npc_aer'])/100.
+        
+        # remises a zero
+        Hcut = mng_j['Hcut']
+        isTTcut = True
+        wasTTcut = True
+        isRegrowth = True
+        cutNB += 1
+        TT_repousse = TT
+        invar['Maerien'] = [array([epsilon]*nbplantes)] #mise a epsilon - discutable: biomasse residuelle peut ne pas etre negligeable! trefle..
+        invar['Mfeuil'] = [array([epsilon]*nbplantes)] #tout l'aerien
+        invar['Mtige'] = [array([epsilon/10.]*nbplantes)] 
+        invar['Msenaerien'] = [array([0.]*nbplantes)]
+        invar['Naerien'] = invar['Maerien'][0]*invar['Npc_aer']/100. #remet avec teneur en N conservee par rapport a avant la coupe
+        if opt_verbose==1:
+            print(('cut ', Hcut))
+        
+        #invar['Naerien'] = []
+        #for nump in range(nbplantes): 
+        #    #invar['MS_aerien'][nump] = 1e-15 
+        #    invar['Naerien'][nump] = 1e-15*invar['Npc_bis'][nump]/100. #remet avec teneur en N conservee par rapport a avant la coupe
+    else:
+        isTTcut = False
+        invar['MS_aerienRec'] = array(invar['MS_aerienRec'])*0.
+    
+    
+    #effet gel -> va pas ! ttes les plantes meurent pas (gerer plante a plante dans daily_loop) -> fonction, mais faut position
+    if sum(invar['isGelDam']) != 0 and opt_stressGel==1:
+        #remet que derniere ligne des valeurs cumulee
+        invar['Maerien'] = [invar['MS_aerien']]
+        invar['Mfeuil'] = [invar['MS_feuil']]
+        invar['Mtige'] = [invar['MS_tige']]
+        invar['Msenaerien'] = [invar['MS_senaerien']]
+        invar['dMSmortGel_aer'] = [0.]*nbplantes
+        invar['dNmortGel_aer'] = [0.]*nbplantes
+        for nump in range(nbplantes): 
+            ##si gel status par plante et plus dans la phase de germination 
+            if invar['isGelDam'][nump] == 1 :
+                frac_mortGel = 0.95#1.#
+                #mise a jour de ce qui est mort vers sorties sol
+                invar['dMSmortGel_aer'][nump] = frac_mortGel * invar['Maerien'][0][nump]
+                invar['dNmortGel_aer'][nump] = frac_mortGel * invar['Maerien'][0][nump]*invar['Npc_aer'][nump]/100.
+                #mise a zero de ce qui est mort
+                invar['Maerien'][0][nump] = (1.-frac_mortGel) * invar['Maerien'][0][nump] + epsilon #mise a epsilon - discutable: biomasse residuelle peut ne pas etre negligeable! trefle..
+                invar['Mfeuil'][0][nump] = (1.-frac_mortGel) * invar['Maerien'][0][nump] + epsilon #tout l'aerien
+                invar['Naerien'][nump] = (1.-frac_mortGel) * invar['Maerien'][0][nump]*invar['Npc_aer'][nump]/100.
+                invar['Msenaerien'][0][nump] = 0.
+                
+                #ajout de residu gel - dans voxel du collet
+                #voxsol = riri.WhichVoxel(array(carto[nump]), [0.,0.,0.], [len(lims_sol[0])-1, len(lims_sol[1])-1, len(lims_sol[2])-1], [S.dxyz[0][0]*100., S.dxyz[1][0]*100., S.dxyz[2][0]*100.])  
+                #groupe_resid = int(ParamP[nump]['groupe_resid'])
+                #ls_mat_res[groupe_resid*4 + 0][voxsol[2]][voxsol[1]][voxsol[0]] += invar['dMSmortGel_aer'][nump] # ajout au 1er des 4 types de residus = feuille
+                #tout mis dans la fonction update_residue_mat
+    
+    
+    # effet mort plante / faut plante a plante
+    #distinhuer MAJ des compartiment et distribution spatiale des residus
+    invar['dMSmortPlant_aer'] = array([0.]*nbplantes)
+    invar['dMSmortPlant_pivot'] = array([0.]*nbplantes)
+    invar['dMSmortPlant_racfine'] = array([0.]*nbplantes)
+    invar['dNmortPlant_aer'] = array([0.]*nbplantes)
+    invar['dNmortPlant_pivot'] = array([0.]*nbplantes)
+    invar['dNmortPlant_racfine'] = array([0.]*nbplantes)
+    for nump in range(nbplantes): 
+        if invar['aliveB'][nump] == 2 : #critere 'aliveB' pourrait etre change
+            invar['dMSmortPlant_aer'][nump] = array(invar['MS_aerien'][nump]) + array(invar['MS_aerienNonRec'][nump])
+            invar['dMSmortPlant_pivot'][nump] = array(invar['MS_pivot'][nump])
+            invar['dMSmortPlant_racfine'][nump] = array(invar['MS_rac_fine'][nump])
+            invar['dNmortPlant_aer'][nump] = array(invar['Naerien'][nump]) + array(invar['NaerienNonRec'][nump])
+            invar['dNmortPlant_pivot'][nump] = array(invar['Npivot'][nump])
+            invar['dNmortPlant_racfine'][nump] = array(invar['Nrac_fine'][nump])
+            
+            #mettre a zero compart plante / ou epsilon??
+            #epsilon = 10e-10#
+            invar['MS_aerienNonRec'][nump] = epsilon
+            invar['NaerienNonRec'][nump] = epsilon * invar['Npc_aerNonRec'][nump]/100. 
+            #invar['MS_pivot'][nump] = epsilon
+            #invar['Npivot'][nump] = epsilon * invar['Npc_piv'][nump]/100.
+            # valeur aberrante de Npc_piv - to do: faudrait gerer uptake et activite plante mortes a 0 dans daily loop... en attendant MS plante morte en double 
+            
+            #pb MS_racfine et MS_aerien: calcule a partir de matrice cumule = brut pas net... pas mis a zero
+            #invar['MS_rac_fine'][nump] = epsilon
+            #invar['Nracfine'][nump] = epsilon * invar['Npc_rac_fine']/100.
+            #-> to do? car veut garder MStot OK ou faire en tout dernier avant ecriture fichier?
+            
+    
+    if isTTcut == False and wasTTcut == True:
+        wasTTcut = False #remet a faux un tour apres isTTcut
+    
+    
+    #sortie    
+    lsAxes = []
+    lsApex = []
+    lsApexStop = []
+    lsApexAll = []
+    lsOrgans =[['TT','organ','nump', 'nsh', 'rank', 'rankp', 'strate', 'surf', 'PARaF','statut','age','ordre','l','Long','DOY','cutNB', 'Larg']]
+    lsFeuilBilanR = [['nump', 'nsh', 'rank', 'rankp','status', 'surf', 'id_grid', 'X','Y','Z','Vox2','Vox1','Vox0','sVox','paraF']]#en pandas? -> coverti a la fin
+    ls_systrac = {}
+    
+    invar['lsAPrev'] = invar['lsA']
+    invar['SurfPlante'], invar['PARaPlante'], invar['PARiPlante'], invar['NBD1'],invar['NBB'],invar['lsA'],invar['NBBexp'],invar['dMSenFeuil'] ,invar['dMSenTige'],invar['NBphyto'],invar['NBapexAct'],invar['dTTphyllo'],invar['ChangeRoot'],invar['ChangeDepth'] = [], [], [],[],[],[],[],[],[],[],[],[],[],[]
+    for i in range(nbplantes): invar['SurfPlante'].append([]); invar['PARaPlante'].append([]); invar['PARiPlante'].append([]);invar['NBD1'].append(0) ; invar['NBB'].append(0);invar['NBBexp'].append(0);invar['lsA'].append([]);ls_systrac[i]=[]; invar['phmgPet'].append([1.]);invar['dMSenFeuil'].append(0.);invar['dMSenTige'].append(0.);invar['NBphyto'].append(0.);invar['NBapexAct'].append(0);invar['dTTphyllo'].append(0.);invar['ChangeRoot'].append(0);invar['ChangeDepth'].append(0)
+    
+    #ls_systrac[i]=[[carto[nump][0],carto[nump][1],0.,0.01,0.01]] #pour initialiser avec une racine et pas faire planter sol - pose pb seulement avant 1er step
+    
+    
+    #init des surf cotyledon
+    sh.add_surfcoty(invar, m_lais_construct, m_laiPlt, lsFeuilBilanR, carto, ParamP, origin_grid, na, dxyz, SLAcoty=100.)
+    
+    
+    #sorties photomorphogenese
+    for i in range(nbplantes): invar['phmgEntr'].append([1.]);invar['phmgPet_m'].append([1.]);invar['phmgEntr_m'].append([1.])
+    
+    invar_sc['ax']['StressHRac']={}
+    invar_sc['ax']['PonderStressHRac']={}
+
+
+
+def EndEach(lstring,lscene):
+    
+    
+    global S, Uval, stateEV, DOY, meteo_j, mng_j, PP, res_root, nbplantes, surfsolref, ls_ftswStress, past_time, lsOrgans, ls_NNIStress, ls_TStress,ls_mat_res
+    global lsApex, lsApexAll, ls_systrac, lims_sol, b_, opt_residu, vCC, carto, start_time, cutNB, I_I0profilInPlant, deltaI_I0, nbI_I0, I_I0profilLfPlant, I_I0profilPetPlant, I_I0profilInPlant, NlClasses, NaClasses, NlinClasses
+    global ParamP, par_SN, invar, invar_sc, outvar, res_trans, ls_roots_prev, Maxstep_rac, Countstep_rac
+    global tag_inputs_soil_step, res_soil_step, tag_inputs_residue_updt, res_residue_step, tag_loop_inputs
+    global local_res_trans, local_res_abs_i, res_trans, res_abs_i, res_rfr , local_res_rfr 
+    
+    
+    #################
+    #  daily loop 
+    #################
+    #tag variables to facilitate outside coupling and data exchange with third party application
+    # * unpacks the list of arguments    
+    
+    #calcul grille surface couvert (m_lais) 
+    m_lais = deepcopy(m_lais_construct) 
+    
+    #calcul grille ls_roots
+    
+    #ls_roots_norm = rtd.build_ls_roots_mult(array(invar['RLTotNet']) * 100. + 10e-15, ls_systrac, lims_sol, optNorm=1)
+    #ls_roots = rtd.calc_ls_roots_fromNorm(ls_roots_norm, RLtot= array(invar['RLTotNet']) * 100.) # !*100 pour passer en cm et absorbtion absoption d'N
+    #ls_roots = rtd.build_ls_roots_mult(array(invar['RLTotNet']) * 100. + 10e-15, ls_systrac, lims_sol)  # !*100 pour passer en cm et absorbtion absoption d'N
+    
+    #update seulement si atteint Maxstep_rac OU allongement d'un segment > TreshChangeRoot OU 15% au moins des plantes changent de profondeur
+    Countstep_rac += 1
+    if Countstep_rac % Maxstep_rac == 0 or max(invar['ChangeRoot']) > TreshChangeRoot or sum(invar['ChangeDepth']) > 0.15*nbplantes or sum(invar['RLTotNet'])<100.:
+        # recalcule distrib normalisee roots
+        ls_roots_norm = rtd.build_ls_roots_mult(array(invar['RLTotNet']) * 1. + 10e-15, ls_systrac, lims_sol, optNorm=1) # !*100 pour passer en cm et absorbtion absoption d'N
+        ls_roots_prev = ls_roots_norm
+        Countstep_rac = 0
+        #print('update root!', Countstep_rac, max(invar['ChangeRoot']), max(invar['ChangeDepth']), sum(invar['ChangeDepth']))
+    else:
+        #update ls_roots sans changer disctrib relative
+        ls_roots_norm = ls_roots_prev
+    
+    ls_roots = rtd.calc_ls_roots_fromNorm(ls_roots_norm, RLtot= array(invar['RLTotNet']) * 1.) # !*100 pour passer en cm et absorbtion absoption d'N
+    # !! ls_roots doit etre en m maintenant! facteur 100. a retirer / laisse en attendant correc calcul longueur debut
+    
+    invar['ConcNmoy'] = S.ConcN_roots(ls_roots) #ajout calcul concN dans zone des racines �mole N.L-1
+    
+    #print('ChangeRoot', max(invar['ChangeRoot']),  max(invar['ChangeRoot'])>0.02)
+    # voir si calcul update ls_root a chaque step? -> critere avec ChangeRoot?
+    
+    
+    #if DOY == 179:
+    #    print('lsroots',ls_roots[0])
+    #    normroots = rtd.propRootDistrib(ls_roots)
+    #    print('norm_lsroots', normroots[0])
+    #    
+    #    normroots2 = rtd.build_ls_roots_mult(array(invar['RLTotNet']) * 100. + 10e-15, ls_systrac, lims_sol, optNorm=1)
+    #    print('norm_lsroots2', normroots2[0])
+    #    
+    #    new_ls_roots = rtd.calc_ls_roots_fromNorm(normroots, RLtot= array(invar['RLTotNet']) * 100.)
+    #    
+    #    #new_ls_roots = deepcopy(normroots)
+    #    #for nump in range(len(new_ls_roots)):
+    #    #    new_ls_roots[nump] = new_ls_roots[nump]*invar['RLTotNet'][nump]*100
+    #    
+    #    print('new_lsroots', new_ls_roots[0])
+    #    
+    #    
+    #    for nump in range(len(new_ls_roots)):
+    #        #print(nump, invar['RLTotNet'][nump]*100, sum(new_ls_roots[nump]), sum(ls_roots[nump]))
+    #        print(nump, invar['RLTotNet'][nump]*100, sum(new_ls_roots[nump]), sum(ls_roots[nump]), sum(normroots[nump]), sum(normroots2))
+    
+    
+    #Mise en forme dic
+    dicOrgans = IOtable.conv_dataframe(IOtable.t_list(lsOrgans))
+    dicFeuilBilanR = IOtable.conv_dataframe(IOtable.t_list(lsFeuilBilanR))
+    
+    
+    # calcule DemCp  invar a partir lsOrgans (en faire 1 fonction? bouger ailleurs? -> passer isTTcut, wasTTcut)
+    if isTTcut == False and wasTTcut==False:
+        invar['DemCp'], invar['DemCp_lf'] , invar['DemCp_in'], invar['DemCp_pt'] = sh.calcDemandeC(ParamP, dicOrgans, 'plt',invar['Udev'], ls_ftswStress, ls_NNIStress)
+    else:
+        invar['DemCp'], invar['DemCp_lf'] , invar['DemCp_in'], invar['DemCp_pt'] = {},{},{},{}
+    
+    
+    
+    
+    tag_loop_inputs = [invar, outvar, invar_sc, ParamP, station, carto,  meteo_j, mng_j, DOY, cutNB, start_time, nbplantes, surfsolref, m_lais, dicFeuilBilanR, surf_refVOX,  triplets , ls_dif, S, par_SN, lims_sol, ls_roots, ls_mat_res, vCC, ls_ftswStress, ls_NNIStress, ls_TStress, lsApex, lsApexAll, dicOrgans, deltaI_I0, nbI_I0, I_I0profilLfPlant, I_I0profilPetPlant, I_I0profilInPlant, NlClasses, NaClasses, NlinClasses, opt_stressW, opt_stressN, opt_stressGel, opt_residu, dxyz]
+    
+    
+    # update internal to the loop: ls_epsi, ls_demandeN_bis, temps, ls_ftsw, ls_transp, ls_Act_Nuptake_plt, 
+    
+    if opt_external_coupling==0:
+        
+        ############
+        # step light transfer coupling
+        ############
+        
+        #PAR / Blue voxel
+        tag_light_inputs = [m_lais/surf_refVOX, triplets , ls_dif , meteo_j['I0']*surf_refVOX] #input tag
+        
+        #mise a jour de res_trans, res_abs_i, res_rfr, ls_epsi
+        local_res_trans, local_res_abs_i = riri.calc_extinc_allray_multi_reduced(*tag_light_inputs, optsky=station['optsky'], opt=station['sky'])
+        
+        res_trans, res_abs_i = local_res_trans, local_res_abs_i #mise a jour variables globales
+        
+        
+        #R_FR voxel (calcul de zeta)
+        tag_light_inputs2 = [res_trans/(meteo_j['I0']*surf_refVOX)] #input tag
+        local_res_rfr = riri.rfr_calc_relatif(*tag_light_inputs2)#(res_trans/(meteo_j['I0']*surf_refVOX))
+        
+        res_rfr = local_res_rfr #mise a jour variables globales
+        
+        
+        
+        # calul des interception feuille et ls_epsi plante
+        dicFeuilBilanR = sh.calc_paraF(dicFeuilBilanR, m_lais, res_abs_i) #MAJ paraF
+        ls_epsi, invar = loop.step_epsi(invar, res_trans, dicFeuilBilanR, meteo_j, surfsolref)
+        
+        
+        ##########
+        # Step Potential plant growth
+        ##########
+        
+        invar, outvar, ls_demandeN_bis, temps = loop.daily_growth_loop(ParamP, invar, outvar, ls_epsi, meteo_j, mng_j, nbplantes, surfsolref, ls_ftswStress, ls_NNIStress, ls_TStress, lsApex, lsApexAll, opt_stressW, opt_stressN, opt_stressGel)
+        
+        
+        ##########
+        #step soil
+        ##########
+        if opt_Nuptake == 0 or opt_Nuptake == 2:#'STICS' or 'old':
+            ls_N = ls_demandeN_bis
+        elif opt_Nuptake == 1:#'LocalTransporter':
+            ls_N = invar['NNI'] #ls_NNIStress['NTreshExpSurf']
+        
+        tag_inputs_soil_step = [S, par_SN, meteo_j,  mng_j, ParamP, ls_epsi, ls_roots, ls_N, opt_residu, opt_Nuptake] #input tag
+        
+        res_soil_step = solN.step_bilanWN_solVGL(*tag_inputs_soil_step)
+        S, stateEV, ls_ftsw, ls_transp, ls_Act_Nuptake_plt, temps_sol = res_soil_step #unpacks results from a list and updates global variables
+        
+        #print('concN',S.ConcN_roots(ls_roots))
+        #print('lrac',list(map(np.sum, ls_roots)))
+        #print('RLTotNet',invar['RLTotNet'])
+        #print('root_density', list(map(np.sum, root_density(ls_roots, S, unit=100))))
+        #print('SRL',invar['SRL'])
+        #print('MSracfine',invar['MS_rac_fineNet'])
+        #print('MSpiv',invar['MS_pivot'])
+        
+        ##########
+        #setp update plant stress variables
+        ##########
+        
+        tag_inputs_stress = [ParamP, invar, invar_sc, temps, DOY, nbplantes, surfsolref, ls_epsi, ls_ftsw, ls_transp, ls_Act_Nuptake_plt, ls_demandeN_bis, ls_ftswStress, ls_TStress, dicOrgans, dicFeuilBilanR, lsApex, start_time, cutNB, deltaI_I0, nbI_I0, I_I0profilLfPlant, I_I0profilPetPlant, I_I0profilInPlant, NlClasses, NaClasses, NlinClasses, outvar]
+        
+        invar, invar_sc, outvar, I_I0profilInPlant, ls_ftswStress, ls_NNIStress, ls_TStress = loop.Update_stress_loop(*tag_inputs_stress)  
+        
+        ##########
+        #step update soil residues senescence
+        ##########
+        
+        tag_inputs_residue_updt = [ls_mat_res, vCC, S, ls_roots, par_SN['PROFHUMs'], ParamP, invar, opt_residu, opt_stressGel] #input tag
+        
+        res_residue_step = loop.update_residue_mat(*tag_inputs_residue_updt)
+        ls_mat_res, S = res_residue_step #unpacks results from a list and updates global variables
+        
+        
+    
+    
+    #res_ = 0.
+    #resQD = 0.
+    #resDem = 0.
+    #listQD = []
+    #for k in list(invar_sc['ax']['OfrCRac'].keys()):
+    #    res_+= invar_sc['ax']['OfrCRac'][k]
+    #    resQD += invar_sc['ax']['QDCRac'][k]
+    #    resDem += invar_sc['ax']['DemCRac'][k]
+    #    listQD.append(invar_sc['ax']['QDCRac'][k])
+    
+    #print('Offr var', res_, resQD, resDem, invar['R_DemandC_Root'])#{invar_sc['ax']['OfrCRac'])
+    #print('OffrRac', invar_sc['ax']['OfrCRac'])
+    #print('DemRac', invar_sc['ax']['DemCRac'])
+    #print ('QDrac', invar_sc['ax']['QDCRac'])
+    #print ('QDrac', listQD)
+    #print ('QDracMoy', invar_sc['ax']['QDCmoyRac'])
+    #print('fPAR',invar_sc['ax']['fPARaPiv'])
+    #print('PARaF',invar_sc['ax']['PARaF'])
+    #print('axSurf', invar_sc['ax']['Surf'])
+    #print('Agepiv',invar_sc['ax']['AgePiv'])
+    #print('dlRac', invar_sc['ax']['dlRac'])
+    #print('Nrac', invar_sc['ax']['NRac'])
+    #print('RLtot', invar_sc['ax']['cumlRac'], invar['RLTotNet'])
+    #print('NBI', invar['NBI'])
+    #print('dlSenroot', invar['dRLenSentot'])
+    #print('lsApexMort',invar['lsApexMort'])
+    
+    
+    
+    #################
+    # mises a jour variables (meteo...) pour step suivant
+    #################
+    # a ne pas bouger dans starteach -> change les bilans C/N et demande N!!!
+    
+    DOY+=1
+    
+    meteo_j = IOxls.extract_dataframe(meteo, ['TmoyDay','RG','Et0','Precip','Tmin','Tmax','Tsol'], 'DOY', val=DOY)
+    meteo_j['I0'] = [0.48*meteo_j['RG'][0]*10000/(3600*24)]#flux PAR journalier moyen en W.m-2 / RG en j.cm-2
+    mng_j = IOxls.extract_dataframe(mng, ['Coupe','Irrig', 'FertNO3','FertNH4','Hcut'], 'DOY', val=DOY)
+    if opt_verbose==1:
+        print (DOY)
+    
+    for k in list(meteo_j.keys()): meteo_j[k]=meteo_j[k][0]
+    for k in list(mng_j.keys()): mng_j[k]=mng_j[k][0]
+    meteo_j['durjour'] = sh.DayLength (station['latitude'],sh.DecliSun (DOY % 365))
+    mng_j['ForceNNI'] = 1.#0.2 #to force NNI value (could read in management file)
+    
+    #print invar['rgeq']
+    
+    ###########
+    # MAJ journaliere lsOrgans  outHR
+    ###########
+    
+    
+    #archivage de lsOrgans
+    savelsOrgans.append(lsOrgans)
+    
+    
+    #mise a jour HR sol (fichier profil)
+    if outf['outHRfile'] != 0.:
+        matr = S.HRp()#
+        out_HR.append(['HRp', DOY]+np.mean(matr, axis=1)[id_out,0].tolist())
+    
+    if outf['outFTSWfile'] != 0.:
+        matr = S.ftsw_t #S.HRp()#
+        out_HR.append(['FTSW',DOY]+np.mean(matr, axis=1)[id_out,0].tolist())
+    
+    if outf['outNO3file'] != 0.:
+        matr = S.m_NO3 #S.HRp()#
+        out_HR.append(['m_NO3',DOY]+sum(matr, axis=1)[id_out,0].tolist())#somme!
+    
+    if outf['outNH4file'] != 0.:
+        matr = S.m_NH4 #S.HRp()#
+        out_HR.append(['m_NN4',DOY]+sum(matr, axis=1)[id_out,0].tolist())#somme!
+    
+    if outf['outHRvfile'] != 0.:
+        matr = S.HRv_capteur()#
+        out_HR.append(['HRv', DOY]+np.mean(matr, axis=1)[id_out,0].tolist())
+    
+    #print invar['germination'], invar['TT']
+    #print invar_sc['sh']['Surf'], lsSurfSh
+    #print invar['NBBexp'][nump], outvar['NBBexp'][-1][0][nump+2]
+    #print invar['lsA']
+    #print sum(I_I0profilLfPlant[0]*NaClasses), sum(I_I0profilLfPlant[0]), sum(I_I0profilLfPlant[0]*NaClasses)/sum(I_I0profilLfPlant[0])
+    #print sum(I_I0profilPetPlant[0])
+    
+    #prints et log
+    #print epsi, sum3(S.asw_t)  #epsi, map_PI, D,  sum3(ls_roots_eff[0]), sum3(m_frac_evap),sum3(m_frac_transpi),sum3(m_frac_evap)+sum3(m_frac_transpi), sum3(S.asw_t)#, S1#, #, ls_transp, ftsw_tevapo_tot#ftsw_t#
+    #print invar_sc['ax']['MaxPARaF']
+    #print 'mat_res', map(sum, ls_mat_res)
+    #remise a zero de ls_mat_res
+    #ls_mat_res = [0.*S.m_1, 0.*S.m_1, 0.*S.m_1, 0.*S.m_1]#par groupe d'organe et groupe d'especes: feuille(0), tige(1), rac_fine(2), pivot(3)# + faire pour chaque groupe_resid (1 seul ici)
+    ls_mat_res = []
+    for i in range(2):#len(setr)): #force a 2 sinon bug qd des residus de l'esp 1 seulement
+        ls_mat_res = ls_mat_res + [0.*S.m_1, 0.*S.m_1, 0.*S.m_1, 0.*S.m_1]#ajout de 4 residus par groupe d'organ et groupe d'especes: feuille(0), tige(1), rac_fine(2), pivot(3)#  pour chaque groupe_resid 
+    
+    #print(amin(S.m_NO3),amin(S.m_NH4))
+    
+    #def PostDraw():#lstring,lscene):
+    #################
+    # pour gerer les vues pour 1 film - lucas (movDisplay == 1)
+    #################
+    #global DOY, path_out
+    
+    outimagepathtemp = os.path.join(path_out, 'scene_'+str(DOY)+'.bmp')#r'H:\devel\grassland\grassland\L-gume\scene.bmp'
+    if movDisplay == 1:
+        ## fait pour simul depuis L-py reglee manuellement
+        #frameDisplay(True)
+        #Viewer.display(lscene)
+        #Viewer.grids.setXYPlane(0)
+        #Viewer.camera.setPosition((0,-150,20))
+        #Viewer.camera.lookAt((0,-150,20),(20,20,-20))#((15,100,100),(0,0,0))
+        Viewer.frameGL.setSize(600,500)
+        Viewer.frameGL.saveImage(outimagepathtemp)
+        #Viewer.stop()
+
+
+
+
+def End(lstring,lscene):
+    global res_root, outvarpath,outimagepath, savelsOrgans, lsOrgans, res_sd
+    
+    #fermeture des bilans sol -> dicout
+    dicout = loop.sol_dicout_endsim(S, outvar, DOYdeb, DOYend, opt_residu)
+    
+    #rasemble noms et objets pour ecritures sorties
+    ls_outf_names = [outvarfile, outBilanNfile, outHRfile, resrootfile, lsorgfile, outMngfile, outsdfile] #noms des fichiers de sorties
+    ls_objw = [outvar, dicout, out_HR, res_root, savelsOrgans, mng, res_sd] #objets de donnees
+    
+    # liste de cle a verifier pour ecriture des sorties journaliere
+    ls_keyvar_pot = ['colnames','pattern','TT','time','cutNB','SurfPlante', 'PARaPlante', 'PARiPlante', 'epsi', 'dMSaer', 'Hplante', 'Dplante','RLTot','RDepth','MS_aerien','MS_feuil','MS_tot','countSh','countShExp','demandC','Leaf_Stem','NBsh','NBI','NBD1','NBB','FTSW','Etransp','DemandN_Feuil','DemandN_Pet', 'DemandN_Stem','DemandN_Tot', 'DemandN_Tot_Aer', 'Npc', 'Npc_aer', 'NNI','Ndfa', 'Qfix','Naerien','Nuptake_sol','R_DemandC_Root', 'SRL','dMSenFeuil','dMSenTige', 'MS_pivot', 'MS_rac_fine','R_DemandC_Shoot','RUEpot','RUE','Npc_piv','Npc_rac_fine','dRLenSentot','dMSenRoot','RLTotNet','MS_rac_fineNet','perteN_rac_fine','NBphyto','NBapexAct','transpi','cumtranspi','aliveB','dMSmortGel','dNmortGel','TTphyllo','DemCp','dTT','Udev','Udevstress','TTudev','MS_aerienNonRec', 'MS_aerienRec', 'NaerienNonRec','NaerienRec','Ncoty','MS_tige','graineC','graineN','CreservPiv','NreservPiv','dMSenPiv','dMSenNonRec', 'perteN_NonRec', 'perteN_Piv', 'perteN_aerien', 'Npc_aerNonRec','MS_senaerien','dMSmortPlant_aer','dMSmortPlant_pivot','dMSmortPlant_racfine','dNmortPlant_aer','dNmortPlant_pivot','dNmortPlant_racfine','alivePiv','alive','ChangeRoot','RLentotfromRootMass','RLentotfromDev','ConcNmoy']
+    
+    # ecriture + liste des fichiers ecrits en sortie et affichee en fin de simul
+    ls_fileOUT = loop.write_vgl_outf(outf, path_out, ls_outf_names, ls_objw, ls_keyvar_pot, outfvar)
+    
+    
+    #zippe les sorties si option opt_zip
+    if opt_zip==1:
+        if opt_verbose == 1:
+            print(ls_fileOUT)
+        
+        nomzip = outvarfile[0:-4]
+        IOtable.Outzip(path_out, nomzip+'.zip', ls_fileOUT)
+        IOtable.Outdel(ls_fileOUT)
+    
+    
+    #pour gerer la vue de la sortie finale - lucas
+    outimagepath = os.path.join(path_out, outimagefile)#r'H:\devel\grassland\grassland\L-gume\scene.bmp'
+    if frDisplay == 1:
+        frameDisplay(True)
+        Viewer.display(lscene)
+        Viewer.grids.setXYPlane(0)
+        Viewer.camera.setPosition((0,-150,20))
+        Viewer.camera.lookAt((20,20,50),(20,20,50))#((0,-150,20),(20,20,-20))#((15,100,100),(0,0,0)) #((xPos,yPos,zPos),(xDir,yDir,zDir)), si Pos=Dir -> vu du dessus, modifier z pour zoomer/dezoomer
+        Viewer.frameGL.setSize(850,850)
+        Viewer.frameGL.saveImage(outimagepath)
+        Viewer.stop()
+    
+    #frameDisplay(True)
+    #Viewer.display(lscene)
+    #Viewer.frameGL.saveImage(outimagepath)
+    
+    pass
+
+
+module Sd(nump) # Seed
+module A(nump, nsh, statut, age, duromb, rank, rgeq, phyllotax) #primary shoot Apex (rgeq: ajoute pour grass tenir compte effet tallage/coupe)
+module A2(nump, nsh, statut, age, duromb, rank, rankp, phyllotax) #secondary shoot Apex (rankp= rang sur porteur)
+module D(nump, nsh, statut, age, posi, parent) #Dormant bud of the crown
+module D2(nump, nsh, age, rankp, phyllotax,shoottype) #dormant bud at the leaf axil
+module B(nump, nsh, age, posi, nrhiz, azi, par, statut) #active Bud of the crown nsh=numero de tige; rhiz  nb noeud de rhizome
+module SHP(nump, nsh, azi, elv0, posi, nbp,par) #SHoot Parameters: nbp et par pour moduler incli_ini en fonction de longueur et lumiere
+module In(nump, nsh, age, rank, rankp, l, statut, ordre) #Internode (l longueur normalisee)
+module Lf(nump, nsh, age, azi, rank, rankp, l, tt_omb,Lcut, statut, ordre, noise) #Leaf (l longueur normalisee)
+module Pet(nump, nsh, age, azi, l, statut) #Petiole
+module Stp(nump, azi, l, statut)#Stipule
+module RA(nump, nsh, age, rankp, agecum, moduloH) #primary Root Apex
+module RB(nump, nsh, age, rankp, statut) #adventive root bud
+module RS(nump, nsh, rankp, moduloH) #Root Segment
+module RLB(nump, nsh, age, rankp, Horiz) #Root Lateral Bud
+module RLAP(nump, nsh,age,rankp,l, Horiz, largVol, longVol,cumdl) #Root Lateral Apex Prospection (max diameter reached by secondary roots)
+module Coll(posi) #Collar 
+
+module sol(S, nbcol) #objet sol entier (nbcol en y)
+module solxy(S, idcol) #colone de sol pour visu 2D
+module attente(n) #pour attendre initialisation des variables avant de representer le sol
+module pattern(pos) #pour sol surface
+
+
+Axiom: [attente(1)][Sd(0)][Sd(1)][Sd(2)][Sd(3)][Sd(4)][Sd(5)][Sd(6)][Sd(7)][Sd(8)][Sd(9)][Sd(10)][Sd(11)][Sd(12)][Sd(13)][Sd(14)][Sd(15)][Sd(16)][Sd(17)][Sd(18)][Sd(19)][Sd(20)][Sd(21)][Sd(22)][Sd(23)][Sd(24)][Sd(25)][Sd(26)][Sd(27)][Sd(28)][Sd(29)][Sd(30)][Sd(31)][Sd(32)][Sd(33)][Sd(34)][Sd(35)][Sd(36)][Sd(37)][Sd(38)][Sd(39)][Sd(40)][Sd(41)][Sd(42)][Sd(43)][Sd(44)][Sd(45)][Sd(46)][Sd(47)][Sd(48)][Sd(49)][Sd(50)][Sd(51)][Sd(52)][Sd(53)][Sd(54)][Sd(55)][Sd(56)][Sd(57)][Sd(58)][Sd(59)][Sd(60)][Sd(61)][Sd(62)][Sd(63)]#[Sd(64)][Sd(65)][Sd(66)][Sd(67)][Sd(68)][Sd(69)][Sd(70)][Sd(71)][Sd(72)][Sd(73)][Sd(74)][Sd(75)][Sd(76)][Sd(77)][Sd(78)][Sd(79)][Sd(80)][Sd(81)][Sd(82)][Sd(83)][Sd(84)][Sd(85)][Sd(86)][Sd(87)][Sd(88)][Sd(89)][Sd(90)][Sd(91)][Sd(92)][Sd(93)][Sd(94)][Sd(95)][Sd(96)][Sd(97)][Sd(98)][Sd(99)]#[Sd(100)][Sd(101)][Sd(102)][Sd(103)][Sd(104)][Sd(105)][Sd(106)][Sd(107)][Sd(108)][Sd(109)][Sd(110)][Sd(111)][Sd(112)][Sd(113)][Sd(114)][Sd(115)][Sd(116)][Sd(117)][Sd(118)][Sd(119)][Sd(120)][Sd(121)][Sd(122)][Sd(123)][Sd(124)][Sd(125)][Sd(126)][Sd(127)][Sd(128)][Sd(129)][Sd(130)][Sd(131)][Sd(132)][Sd(133)][Sd(134)][Sd(135)][Sd(136)][Sd(137)][Sd(138)][Sd(139)][Sd(140)][Sd(141)][Sd(142)][Sd(143)][Sd(144)][Sd(145)][Sd(146)][Sd(147)][Sd(148)][Sd(149)][Sd(150)][Sd(151)][Sd(152)][Sd(153)][Sd(154)][Sd(155)][Sd(156)][Sd(157)][Sd(158)][Sd(159)][Sd(160)][Sd(161)][Sd(162)][Sd(163)][Sd(164)][Sd(165)][Sd(166)][Sd(167)][Sd(168)][Sd(169)][Sd(170)][Sd(171)][Sd(172)][Sd(173)][Sd(174)][Sd(175)][Sd(176)][Sd(177)][Sd(178)][Sd(179)][Sd(180)][Sd(181)][Sd(182)][Sd(183)][Sd(184)][Sd(185)][Sd(186)][Sd(187)][Sd(188)][Sd(189)][Sd(190)][Sd(191)][Sd(192)][Sd(193)][Sd(194)][Sd(195)][Sd(196)][Sd(197)][Sd(198)][Sd(199)][Sd(200)][Sd(201)][Sd(202)][Sd(203)][Sd(204)][Sd(205)][Sd(206)][Sd(207)][Sd(208)][Sd(209)][Sd(210)][Sd(211)][Sd(212)][Sd(213)][Sd(214)][Sd(215)][Sd(216)][Sd(217)][Sd(218)][Sd(219)][Sd(220)][Sd(221)][Sd(222)][Sd(223)][Sd(224)][Sd(225)][Sd(226)][Sd(227)][Sd(228)][Sd(229)][Sd(230)][Sd(231)][Sd(232)][Sd(233)][Sd(234)][Sd(235)][Sd(236)][Sd(237)][Sd(238)][Sd(239)][Sd(240)][Sd(241)][Sd(242)][Sd(243)][Sd(244)][Sd(245)][Sd(246)][Sd(247)][Sd(248)][Sd(249)][Sd(250)][Sd(251)][Sd(252)][Sd(253)][Sd(254)][Sd(255)]
+
+#Axiom: [pattern(0)sol(S)]plantation(nbplantes-1)
+
+
+derivation length: DOYend-DOYdeb#200#98#224#73#93#66#93#66#149#119#179#300#365#(jours)
+production:
+
+#plantation(nbplt):
+#    if nbplt>=0:
+#    #for i in range(0, nbplt):
+#        nproduce [Sd(nbplt)]plantation(nbplt-1)
+#    else:
+#        produce *
+
+
+Sd(nump) :
+    produce: Coll(carto[nump])RA(nump,0,-1,0,0,0)][SetHead()/(ls_seeds[nump].randgen.uniform(0.,360.))&(90)B(nump,0,ParamP[nump]['phyllochron'],carto[nump],0,ls_seeds[nump].randgen.uniform(0.,360.),0,'exp')] #ouverture de [ racine dans le Coll
+
+B(nump, nsh, age, posi, nrhiz, azi, par, statut):
+    global ls_ftswStress
+    STEPS = invar['Udev'][nump]#invar['dTT'][nump]
+    
+    invar['NBB'][nump]+=1
+    invar['lsA'][nump].append(nsh)
+    if statut=='exp':
+        invar['NBBexp'][nump]+=1
+    
+    vox = riri.WhichVoxel(carto[nump], origin_grid, na, dxyz)
+    newpar = res_trans[-1][vox[1]][vox[0]]/surf_refVOX # A ameliorer :pris sur carto et position reelle des bourgeosn-> pb pour stolons?
+    nbExp_Prev = outvar['NBBexp'][-1][0][nump+2]+1
+    
+    
+    # phyllo pot change selon rgeq pour les graminees
+    if int(ParamP[nump]['type'])==3 : #graminee
+        phylloPot = sh.PhylloPot_Grass(1, phylloI=ParamP[nump]['phyllochron'], k=0.3)#ParamP[nump]['phyllochron']#
+    else: 
+        phylloPot = ParamP[nump]['phyllochron']
+    
+    
+    #control de la vitesse de tallage
+    if nsh==0:#tige seminale -> pas d'attente
+        deldeb = 0
+        retard = test_retard[nump]
+    else:
+        retard = 0
+        if nsh==1 and ParamP[nump]['nshoots']>1.:#pousse initiale -> debut tallage
+            deldeb= ParamP[nump]['debTallage'] * phylloPot
+        #else:
+        #    deldeb =  ParamP[nump]['phyllochron'] / ParamP[nump]['RvitTallage']
+        elif statut=='exp':#bourgeon actifs produits sans dormance (tallage)
+            deldeb =  phylloPot * ParamP[nump]['RvitTallage']
+        else: #bourgeons 'regular'
+            deldeb = 0.
+    
+    #print 'B', nsh, age, deldeb
+    
+    
+    stressW = ls_ftswStress['WaterTreshDevI'][nump]
+    stressN = ls_NNIStress['NTreshDevII'][nump]
+    if opt_stressW == 0:
+        stressW = 1.
+    if opt_stressN == 0:
+        stressN = 1.
+    if opt_ReadstressN == 1.:
+        stressN = mng_j['ForceNNI']#0.2
+    if opt_ReadstressW == 1.:
+        stressW = mng_j['ForceFTSW']#0.2
+    
+    remiseNIcoupe = 3#2# max de stade bourgeon
+    remiseNIgel = 5# max apres un gel
+    
+    #test pour limiter dev en stress
+    limStressTalN = ParamP[nump]['limStressTalN']#0.5 #1.# stress qui bloque tallage en condition limitante N ou eau -> parametre
+    limStressTalW = ParamP[nump]['limStressTalW']#0.5 #1.# stress qui bloque tallage en condition limitante N ou eau -> parametre
+    
+    if age >= deldeb/(0.00001+stressW*stressN) and newpar>=meteo_j['I0']*ParamP[nump]['par_tresh_til'] and nrhiz==0: #effet par_tresh  ->OK
+        ##azi = random.uniform(0,360)
+        elv0 = ls_seeds[nump].randgen.uniform(ParamP[nump]['elv0b'],ParamP[nump]['elv0h'])#(0,90)
+        ageref = min(phylloPot, phylloPot*ParamP[nump]['RvitTallage'])
+        newageB = age%ageref - retard#- test_retard[nump]#age%ParamP[nump]['phyllochron'] - test_retard[nump] 
+        newageA = age%ageref +STEPS - retard#- test_retard[nump]#age%ParamP[nump]['phyllochron']+STEPS - test_retard[nump] 
+        
+        #stade bourgeon
+        if invar['countGelD'][nump]>4:
+            deltaBud = min(remiseNIcoupe, int(age/phylloPot))#plafonne a 2 phylloc pour B ages
+        else: #apres gel
+            deltaBud = remiseNIgel
+        
+        #position ini
+        if int(ParamP[nump]['type'])==1 or int(ParamP[nump]['type'])==2 : #legume or non fixing-legume
+            #boureons sur le collet -> epend de rpiv
+            rpiv = invar['DiampivMax'][nump]/2.+ (invar['countShExp'][nump]/ParamP[nump]['nshoots'])*ParamP[nump]['offset_diamP']#0.5 #offset_diam atteint pour nbshoot max
+            #print('rpiv', nump, rpiv, ParamP[nump]['nshoots'], invar['DiampivMax'][nump], invar['countShExp'][nump], invar['MS_pivot'][nump])
+            posini = array(carto[nump]) + array([ls_seeds[nump].randgen.uniform(-rpiv,rpiv),ls_seeds[nump].randgen.uniform(-rpiv,rpiv),0.])
+        elif int(ParamP[nump]['type'])==3: #graminee
+            rplt = (invar['countShExp'][nump]*0.0002/4)**0.5 + ParamP[nump]['offset_diamP']#5. #diamete base qui depend du nb de talle (densite de 6000 talle/m2
+            posini = array(carto[nump]) + array([ls_seeds[nump].randgen.uniform(-rplt,rplt),ls_seeds[nump].randgen.uniform(-rplt,rplt),0.])
+        
+        new_nrhiz = ls_seeds[nump].randgen.binomial(ParamP[nump]['DistLRhizn'], ParamP[nump]['DistLRhizp'])#2#5#0
+        
+        
+        #if statut=='exp' and invar['countShExp'][nump]< ParamP[nump]['nshoots']-1 :#nsh< ParamP[nump]['nshoots'] and  : #modifie en nshoots-1, sinon la premiere tige n'est pas comptee!
+        if statut=='exp' and invar['countShExp'][nump]< ParamP[nump]['nshoots']-1 and stressW >= limStressTalW and stressN >= limStressTalN:#nsh< ParamP[nump]['nshoots'] and  : #modifie en nshoots-1, sinon la premiere tige n'est pas comptee!
+            #print nump, 'B', newageA, test_retard[nump]
+            newazi = ls_seeds[nump].randgen.uniform(0.,360.)
+            invar['countSh'][nump] += 1
+            newnsh = invar['countSh'][nump] #nsh+1
+            invar['countShExp'][nump] += 1            
+            invar['countSh'][nump] += 1
+            newnsh2 = invar['countSh'][nump] #nsh+1
+            
+            if nsh==0 and invar['germination'][nump] == 0: #tige seminale, production du premier apex
+                invar['germination'][nump] = 1
+                sh.germinate(invar, ParamP[nump], nump)
+            
+            #print('B',nsh, newpar/meteo_j['I0'])
+            
+            rgeq = invar['rgeq'][nump]#0
+            #print nsh, 'rgeq', rgeq, invar['rgeq'][nump]
+            produce [@M(posi[0],posi[1],posi[2])SetHead()/(azi)&(90)B(nump,newnsh,newageB,posini,new_nrhiz,newazi,0,'exp')][D(nump,newnsh2,0,newageB,posini,nsh)]SHP(nump,nsh, azi,elv0,posi,0,newpar)GetPos(0,0,0,nump)A(nump,nsh,1,newageA,0,0,rgeq,azi)
+        
+        elif statut=='exp' and invar['countShExp'][nump]< ParamP[nump]['nshoots']-1 and (stressW < limStressTalW or stressN < limStressTalN):
+            # nouvelle tige qui demarre pas a cause de stress -> mort bourgeon
+            #print('limstressTal', nump, nsh, stressW, stressN)
+            produce *
+            
+        else: #tige en place qui repart
+            invar['countSh'][nump] += 1
+            newnsh = invar['countSh'][nump] #nsh
+            
+            if nsh==0 and invar['germination'][nump] == 0: #tige seminale, production du premier apex
+                invar['germination'][nump] = 1
+                sh.germinate(invar, ParamP[nump], nump)
+            
+            #print('B',nsh, newpar/meteo_j['I0'])
+            
+            rgeq = invar['rgeq'][nump]#0
+            produce [D(nump,newnsh,0,newageB,posini,nsh)]SHP(nump,nsh, azi,elv0,posi,0,newpar)GetPos(0,0,0,nump)A(nump,nsh,1,newageA,0,deltaBud, rgeq,azi)
+    elif age >= phylloPot/(0.00001+ls_ftswStress['WaterTreshDevI'][nump]*ls_NNIStress['NTreshDevII'][nump]) and nrhiz>=1:
+        newageB = age%phylloPot
+        produce F(ParamP[nump]['LenRhiz'])B(nump,nsh,newageB, posi,  nrhiz-1, azi, newpar, statut)
+    else:
+        newageB = age+STEPS
+        produce B(nump,nsh,newageB, posi, nrhiz, azi, newpar, statut)
+
+
+
+GetPos(X0,Y0,Z0,nump2)A(nump,nsh,statut, age, duromb, rank, rgeq, phyllotax):
+    global ls_ftswStress, lsAxes, lsApex, lsApexStop, lsApexAll#, Hplante, Dplante
+    STEPS = invar['Udev'][nump]#invar['dTT'][nump]
+    
+    idsh = str(nump)+'_'+str(nsh)
+    idax = str(nump)+'_'+str(nsh)+'_'+str(0)
+    
+    invar['lsA'][nump].append(nsh)
+    
+    if Z0>invar['Hplante'][nump]:
+        invar['Hplante'][nump] = Z0
+    if Z0>Hcut and isTTcut==True:
+        invar['Hplante'][nump]=Hcut
+        invar['Dplante'][nump]=0.
+        invar['lsA'][nump].remove(nsh)
+    if isTTcut==True and int(ParamP[nump]['type'])==3: #cas des graminees
+        invar['Hplante'][nump]=Hcut
+    if invar['isGelDam'][nump] == 1:#coupe gel
+        invar['Hplante'][nump]=0.001
+        invar['Dplante'][nump]=0.
+        invar['lsA'][nump].remove(nsh)
+        #invar['lsApexMort'][nump].append(nsh) #si mis, retire aussi les D()
+        IOxls.append_dic(invar_sc['sh']['MaxNI'], idsh, rank+10)#+10 pour pas repartir avec gros retard!
+        produce *
+    
+    dX, dY = X0-carto[nump][0],Y0-carto[nump][1]
+    dist2 =  dX*dX+dY*dY
+    if dist2 > invar['Dplante'][nump]**2:
+        invar['Dplante'][nump] = sqrt(dist2)
+    
+    vox = riri.WhichVoxel(array([X0,Y0,Z0]), origin_grid, na, dxyz)
+    PARup = meteo_j['I0'] if vox[2] == 1 else res_trans[vox[2]-1][vox[1]][vox[0]] / surf_refVOX
+    PARdown = res_trans[vox[2]][vox[1]][vox[0]] / surf_refVOX
+    PARapex = PARup - (PARup-PARdown)*(Z0%dxyz[2]) / dxyz[2] #interpolation lineaire a l'iterieur du voxel
+    I_I0 = PARapex/meteo_j['I0']
+    
+    ##invar_sc['ax']['MaxPARaF']
+    
+    try:
+        PARlf = invar_sc['ax']['MaxPARaF'][idax]
+    except:
+        PARlf = 0.
+    
+    #print 'A', nsh, rank, rgeq, PARapex, PARlf, statut
+    PARsense = max(PARapex, PARlf) #niveau percu = mas d'apex ou feuille
+    
+    
+    stressW = ls_ftswStress['WaterTreshDevI'][nump]
+    stressN = ls_NNIStress['NTreshDev'][nump]
+    if opt_stressW == 0:
+        stressW = 1.
+    if opt_stressN == 0:
+        stressN = 1.
+    if opt_ReadstressN == 1.:
+        stressN = mng_j['ForceNNI']#0.2
+    if opt_ReadstressW == 1.:
+        stressW = mng_j['ForceFTSW']#0.2
+    
+    # phyllo pot change selon rgeq pour les graminees
+    if int(ParamP[nump]['type'])==3 : #graminee
+        rk = rank+rgeq
+        phylloPot = sh.PhylloPot_Grass(rk, phylloI=ParamP[nump]['phyllochron'], k=0.3)#ParamP[nump]['phyllochron']#
+    else: 
+        phylloPot = ParamP[nump]['phyllochron']
+    
+    #print(nsh, rank, rgeq, phylloPot)
+    
+    #mise a jour du temps phyllochronique
+    dTTphyllo = invar['Udev'][nump]*stressW*stressN/phylloPot #invar['dTT'][nump]*stressW*stressN/phylloPot #deta temps phyllochronique
+    if dTTphyllo > invar['dTTphyllo'][nump] and PARsense>=meteo_j['I0']*ParamP[nump]['par_tresh']:
+        invar['dTTphyllo'][nump] = dTTphyllo
+    
+    #print nump, age #malgre retard, tous les A ont le meme age
+    if age >= phylloPot/(0.00001+stressW*stressN): # introduit arret developpement des apex en fonction gradient vertical PAR
+        if PARsense>=meteo_j['I0']*ParamP[nump]['par_tresh']:
+            #inititalisation plante (TT de la firstleaf et stage germination)
+            if nsh==0:
+                invar['firstleaf'][nump]=min(TT,invar['firstleaf'][nump])
+                if rank>=1: #tige seminale, production de la premiere feuille
+                    invar['germination'][nump] = 2
+            
+            newage = age%phylloPot+STEPS
+            #calcul du rankp des organes (feuille/petiole/gaine)
+            if int(ParamP[nump]['type'])==3:
+                newagef = STEPS
+            else :
+                newagef = newage
+            
+            liniF = sh.expansion(newagef, ParamP[nump]['aF'], ParamP[nump]['delaiF'])*stressW*stressN
+            liniP =  sh.expansion(newage, ParamP[nump]['aP'], ParamP[nump]['delaiP'])#*stressW*stressN# for grasses
+            liniS = sh.expansion(newage, ParamP[nump]['aS'], ParamP[nump]['delaiS'])*stressW*stressN
+            liniE = sh.expansion(newage, ParamP[nump]['aE'], ParamP[nump]['delaiE'])*stressW*stressN#ajout lucas: necessaire chez le TB! sinon, les entrenoeuds demarrent au milieu de leur croissance... Pour eviter ce genre de problemes et/ou des decalages bizarres, s'assurer a l'avenir que les delaiE, delaiF et delaiP soient normalises pour que le TT au point d'inflexion de la fct logistique soit a la moitie d'un phyllochrone.
+            
+            lsAxes.append([nump,nsh,rank])
+            lsApex.append([nump,nsh, rank, 1, I_I0,duromb,''])
+            lsApexAll.append([nump,nsh, rank, 1, I_I0,duromb,''])
+            invar['NBapexAct'][nump]+=1
+            
+            #Lucas:
+            #shoottype = 'primary' if nsh==0 and invar['countShExp'][nump]< ParamP[nump]['nshoots']-1 else 'branch' ###permet de desactiver le D2 si il fait "double emploi" avec un axe primaire... Sans compter la tige seminale!!! (d'ou le nshoots-2)
+            ###limite a la tige seminale : if nsh==0
+            # corrGL: baser sur distance au collet
+            dist_collet = o3d.distance(p1=array(carto[nump]), p2=array([X0,Y0,Z0]))
+            shoottype = 'primary' if nsh==0 and dist_collet< 3. else 'branch'
+            
+            #mise a jour du NI max            
+            IOxls.append_dic(invar_sc['sh']['MaxNI'], idsh, rank+1)
+            
+            #mise a jour rgeq max plante
+            if int(ParamP[nump]['type'])==3 and (rank-3)>invar['rgeq'][nump]:#graminee -> mise a jour rqeq
+                invar['rgeq'][nump] = rank-3 #decalage de 3 feuilles par rapport au max pourrait etre un paametre?
+            
+            #calcul du rankp des organes (feuille/petiole/gaine)
+            if int(ParamP[nump]['type'])==3:
+                rankp = rgeq #int(invar['rgeq'][nump])
+            else:
+                rankp = 0
+            
+            #noiseGeom
+            dev_phyllot = ls_seeds[nump].randgen.uniform(-noiseGeom[0],noiseGeom[0]) #deviation phyllotaxy 
+            dev_pet = ls_seeds[nump].randgen.uniform(-noiseGeom[1],noiseGeom[1]) #deviation incPet
+            dev_inc = ls_seeds[nump].randgen.uniform(-noiseGeom[2],noiseGeom[2]) #deviation incPet
+            devlf = [dev_pet, dev_inc]
+            
+            #print('prodLf', nump,nsh,rank,newagef,STEPS)
+            produce GetPos(X0,Y0,Z0,nump)In(nump,nsh,newage,rank,0,liniE,'exp',1)[GetPos(X0,Y0,Z0,nump)RB(nump, nsh,0,rank,0)][D2(nump,nsh,newage,rank,phyllotax,shoottype)][Stp(nump, phyllotax, liniS, 'exp')Pet(nump,nsh,newage, phyllotax,liniP,'exp')GetPos(X0,Y0,Z0,nump)GetUp(0,0,0)Lf(nump,nsh,newagef, phyllotax,rank,rankp,liniF,0.,0.,'exp',1,devlf)]GetPos(X0,Y0,Z0,nump)A(nump,nsh,1,newage, 0, rank+1, rgeq,phyllotax+ParamP[nump]['phyllotaxy']+dev_phyllot)
+        else:#ombre
+            #mort legume: si tige est ombre, n'est plus bourgeon et n'a plus de feuille (test 1), sinon en arret
+            if rank>3 :# and int(ParamP[nump]['type'])!=3:
+                try:
+                    if invar_sc['sh']['SurfVerte'][idsh]==0.:#si ombre et tige sans surface
+                        test=1
+                    else:
+                        test=0
+                except:
+                    test=0
+                
+                if test==1:#invar_sc['sh']['SurfVerte'][idsh]==0.:#si ombre et tige sans surface #invar_sc['sh']['Surf']
+                    invar['lsApexMort'][nump].append(nsh)
+                    try:
+                        invar['lsA'][nump].remove(nsh)
+                    except:
+                        print (str(nsh), 'pas trouve dans lsA')
+                    produce *
+                else:#sinon pause/arret
+                    lsApexStop.append([nump,nsh,rank, 1, I_I0, duromb+STEPS,''])
+                    lsApexAll.append([nump,nsh,rank, 1, I_I0, duromb+STEPS,''])
+                    produce GetPos(X0,Y0,Z0,nump)A(nump,nsh,0,age, duromb+STEPS, rank, rgeq,phyllotax)
+            elif rank<=3 and int(ParamP[nump]['type'])==3 :#regression talles grass: si tige est ombre, regression de jeunes talles arretee (meme si elle a des feuilles)
+                invar['lsApexMort'][nump].append(nsh)
+                #print("passe mort",nump,nsh,rank,rgeq)
+                try:
+                    invar['lsA'][nump].remove(nsh)
+                except:
+                    print (str(nsh), 'pas trouve dans lsA')
+                produce *
+            else:#sinon pause/arret 
+                lsApexStop.append([nump,nsh,rank, 1, I_I0, duromb+STEPS,''])
+                lsApexAll.append([nump,nsh,rank, 1, I_I0, duromb+STEPS,''])
+                produce GetPos(X0,Y0,Z0,nump)A(nump,nsh,0,age, duromb+STEPS, rank, rgeq,phyllotax) #arret de developpement
+            #lsApexStop.append([nump,nsh,rank, 1, I_I0, duromb+STEPS,''])
+            #produce GetPos(X0,Y0,Z0)A(nump,nsh,0,age, duromb+STEPS, rank, phyllotax) #arret de developpement
+    else: #pas atteint age de produire un phytomere
+        lsAxes.append([nump,nsh,rank]) 
+        lsApex.append([nump,nsh,rank,1, I_I0,duromb,''])
+        lsApexAll.append([nump,nsh,rank,1, I_I0,duromb,''])
+        invar['NBapexAct'][nump]+=1
+        produce GetPos(X0,Y0,Z0,nump)A(nump,nsh,statut,age+STEPS, duromb, rank, rgeq,phyllotax)
+
+
+GetPos(X0,Y0,Z0,nump2)A2(nump, nsh, statut, age, duromb, rank, rankp, phyllotax):
+    global ls_ftswStress, lsApex, lsApexStop, lsApexAll
+    STEPS = invar['Udev'][nump]#invar['dTT'][nump]
+    
+    vox = riri.WhichVoxel(array([X0,Y0,Z0]), origin_grid, na, dxyz)
+    PARup = meteo_j['I0'] if vox[2] == 1 else res_trans[vox[2]-1][vox[1]][vox[0]] / surf_refVOX
+    PARdown = res_trans[vox[2]][vox[1]][vox[0]] / surf_refVOX
+    PARapex = PARup - (PARup-PARdown)*(Z0%dxyz[2]) / dxyz[2] #interpolation lineaire a l'iterieur du voxel
+    I_I0 = PARapex/meteo_j['I0']
+    
+    
+    stressW = ls_ftswStress['WaterTreshDevII'][nump]
+    stressN = ls_NNIStress['NTreshDevII'][nump]
+    if opt_stressW == 0:
+        stressW = 1.
+    if opt_stressN == 0:
+        stressN = 1.
+    if opt_ReadstressN == 1.:
+        stressN = mng_j['ForceNNI']#0.2
+    if opt_ReadstressW == 1.:
+        stressW = mng_j['ForceFTSW']#0.2    
+    
+    if nsh in invar['lsApexMort'][nump] or int(ParamP[nump]['ActiveBranch'])!=True: #Meurt si tige porteuse meurt ou AvtiveBranch pas active
+        #print 'vrai', nsh
+        produce *
+    elif age >= ParamP[nump]['phyllochronII']/(0.00001+stressW*stressN): # introduit arret developpement des apex en fonction gradient vertical PAR
+        if PARapex>=meteo_j['I0']*ParamP[nump]['par_tresh']:
+            newage = age%ParamP[nump]['phyllochronII']+STEPS
+            liniF = sh.expansion(newage, ParamP[nump]['aF'], ParamP[nump]['delaiF'])*stressW*stressN
+            liniS = sh.expansion(newage, ParamP[nump]['aS'], ParamP[nump]['delaiS'])*stressW*stressN
+            liniP = sh.expansion(newage, ParamP[nump]['aP'], ParamP[nump]['delaiP'])*stressW*stressN
+            liniE = sh.expansion(newage, ParamP[nump]['aE'], ParamP[nump]['delaiE'])*stressW*stressN#ajout lucas: necessaire chez le TB! sinon, les entrenoeuds demarrent au milieu de leur croissance... 
+            lsApex.append([nump,nsh,rank,2, I_I0,duromb, rankp])
+            lsApexAll.append([nump,nsh,rank,2, I_I0,duromb, rankp])
+            invar['NBapexAct'][nump]+=1
+            
+            #noiseGeom
+            dev_phyllot = ls_seeds[nump].randgen.uniform(-noiseGeom[0],noiseGeom[0]) #deviation phyllotaxy
+            dev_pet = ls_seeds[nump].randgen.uniform(-noiseGeom[1],noiseGeom[1]) #deviation incPet
+            dev_inc = ls_seeds[nump].randgen.uniform(-noiseGeom[2],noiseGeom[2]) #deviation incPet
+            devlf = [dev_pet, dev_inc]
+            
+            produce GetPos(X0,Y0,Z0,nump)In(nump,nsh,newage,rank,rankp,liniE,'exp',2)GetPos(X0,Y0,Z0,nump)[Stp(nump, phyllotax, liniS, 'exp')Pet(nump,nsh,newage, phyllotax,liniP,'exp')GetPos(X0,Y0,Z0,nump)GetUp(0,0,0)Lf(nump,nsh,newage, phyllotax,rank,rankp,liniF,0.,0.,'exp',2,devlf)]GetPos(X0,Y0,Z0,nump)A2(nump, nsh, 1,newage, 0, rank+1, rankp, phyllotax+ParamP[nump]['phyllotaxy']+dev_phyllot)
+        else:
+            if duromb<ParamP[nump]['MaxSurvOmbr']:
+                lsApexStop.append([nump,nsh,rank,2, I_I0, duromb+STEPS,rankp])
+                lsApexAll.append([nump,nsh,rank,2, I_I0, duromb+STEPS,rankp])
+                produce GetPos(X0,Y0,Z0,nump)A2(nump, nsh, 0,age, duromb+STEPS, rank, rankp, phyllotax) #arret de developpement du a ombre
+            else:
+                produce *
+    elif PARapex<meteo_j['I0']*ParamP[nump]['par_tresh']:#ombre et hors production de nouveau phytomere
+        if duromb<ParamP[nump]['MaxSurvOmbr']:
+            lsApexStop.append([nump,nsh,rank,2, I_I0, duromb+STEPS,duromb,rankp])
+            lsApexAll.append([nump,nsh,rank,2, I_I0, duromb+STEPS,duromb,rankp])
+            produce GetPos(X0,Y0,Z0,nump)A2(nump,nsh,0,age, duromb+STEPS, rank, rankp, phyllotax)
+        else:#apex detruit au dela de MaxSurvOmbr
+            produce * 
+    else:#age avance car pas encore atteint de phyllochron   
+        lsApex.append([nump,nsh,rank,2,I_I0,duromb,rankp])
+        lsApexAll.append([nump,nsh,rank,2,I_I0,duromb,rankp])
+        invar['NBapexAct'][nump]+=1
+        
+        produce GetPos(X0,Y0,Z0,nump)A2(nump,nsh,statut,age+STEPS, 0, rank, rankp, phyllotax) 
+
+
+
+
+SHP(nump,nsh, azi,elv0,posi,nbp,par):
+     if nsh in invar['lsApexMort'][nump]:
+        produce * #pour nettoyer lstring si tige morte
+     else:
+        vox = riri.WhichVoxel(carto[nump], origin_grid, na, dxyz)
+        newpar = res_trans[-1][vox[1]][vox[0]]/surf_refVOX
+        produce SHP(nump,nsh, azi,elv0,posi, nbp+1, newpar)
+#??erreur nbp (nb phytomere devrait dependre meme regle que phyllochrone! (bon seulement pour cet exemple)
+
+GetPos(X0,Y0,Z0,nump): #Rq: le GetPos doit etre dans les regle de production (pas interpretation pour que coupe soit effective)
+    if Z0>Hcut and isTTcut == True:
+        produce Cut()
+    
+    #effet gel
+    if Z0>=0. and invar['isGelDam'][nump]==1: #coupe tout au dessus du collet:
+        produce Cut()
+
+
+
+
+
+GetPos(X0,Y0,Z0,nump2)GetUp(V1,V2,V3)Lf(nump,nsh,age,azi,rank,rankp,l,tt_omb,Lcut,statut,ordre,noise) :
+    global  SurfprofilPlant, ls_ftswStress, lsOrgans, I_I0profilLfPlant, ls_pointes1 #SurfPlante, PARaPlante, PARiPlante, Hplante, Dplante,
+    STEPS = invar['Udev'][nump]#invar['dTT'][nump]
+    
+    
+    #mise a jour du diametre plante max
+    dX, dY = X0-carto[nump][0],Y0-carto[nump][1]
+    dist2 =  dX*dX+dY*dY
+    if dist2 > invar['Dplante'][nump]**2:
+        invar['Dplante'][nump] = sqrt(dist2)
+    
+    #calul surface
+    surF = sh.calc_surF(ParamP[nump], rank, rankp, ordre, l-Lcut, type=ParamP[nump]['type']) #m2
+    
+    
+    
+    #gestion feuilles multiples: construction du ls_pts pour distrib surface
+    if int(ParamP[nump]['type'])==1 or int(ParamP[nump]['type'])==2:#legumineuse
+        rk = rank+rankp if ordre==2 else rank
+    elif int(ParamP[nump]['type'])==3:#lgraminee
+        rk = rank+rankp #utilise rankp pour teni compte effet tallage et coupe
+    
+    #print nsh, rk,rank, rankp, invar['rgeq'][nump], ParamP[nump]['profilLeafI_l'][rk], ParamP[nump]['profilLeafI_larg'][rk], ParamP[nump]['profilLeafI_l'][rk]*ParamP[nump]['profilLeafI_larg'][rk], surF, invar['SurfPlante']
+    
+    rk = min(rk, len(ParamP[nump]['profilLeafI_l'])-1) #au cas ou profil pas assez long
+    nf = ParamP[nump]['profilLeafI_nfol'][rk]
+    ls_pts = []
+    if nf > 3 or surF >= tresh_LA:#15cm2
+        cor_ordre = ParamP[nump]['ratioII'] if ordre==2 else 1.
+        #Long  = ParamP[nump]['profilLeafI_l'][rk]*l*cor_ordre
+        #Larg = ParamP[nump]['profilLeafI_larg'][rk]*l*cor_ordre
+        
+        if int(ParamP[nump]['type'])==1 or int(ParamP[nump]['type'])==2 : #legume or non fixing-legume
+            Long  = ParamP[nump]['profilLeafI_l'][rk]*l*cor_ordre
+            Larg = ParamP[nump]['profilLeafI_larg'][rk]*l*cor_ordre
+            ls_pts.append( o3d.leg_leaf_lucas(Long, Larg, gamma=ParamP[nump]['gammaFeuil'], nfol=nf, anginit=ParamP[nump]['IncPet'], geom=False))
+        elif int(ParamP[nump]['type'])==3:#grass
+            Long  = ParamP[nump]['profilLeafI_l'][rk]*(l-Lcut)*(l-Lcut)*cor_ordre #met tout l'effet sur Long
+            Larg = ParamP[nump]['profilLeafI_larg'][rk]*cor_ordre
+            #ls_pts.append( o3d.leg_grass(Long, Larg, angfol=-5., nfol=nf, anginit=ParamP[nump]['gammaFeuil'], geom=False))
+            #pointes, ls_ptsall , ls_cos, ls_sin = o3d.leg_grass_withoutgeom(Long, Larg, angfol=-5., nfol=nf, anginit=ParamP[nump]['gammaFeuil'])
+            #ls_pts.append(pointes)
+            pointesL = ls_pointes1[nump][0]*Long#*l #l deja dans Long
+            #pour repasser matrice en liste (for pas top)
+            lspts = []
+            for i in range(len(pointesL)):
+                lspts.append(pointesL[i])
+            ls_pts = [lspts]
+        
+        #orientation
+        #p1, lvec, rrec, r_azi, inclivec = o3d.conv_cyl(array([0.,0.,0.]), array([V1,V2,V3]), 1.)
+        #print(nsh,rank, r_azi,r_azi*180./pi,azi,azi%360., azi%360.-90.)
+        r_azi = (azi%360.-90.)*np.pi/180.#radians
+        for i in range(len(ls_pts[0])):
+            #pt = o3d.RotateAxis (ls_pts[0][i], r_azi, 0)#rotation a faire
+            dlp = abs(ls_pts[0][i][1])
+            pt = array([dlp*np.sin(r_azi), -dlp*np.cos(r_azi), ls_pts[0][i][2]]) #z inchange - applique rotation azi a x,y
+            #print(nsh,rank, i, ls_pts[0][i], pt, newpt)
+            ls_pts[0][i] = pt + array([X0,Y0,Z0]) #translation point ini feuille
+    
+    #mise a jour Hmax
+    if nf > 3 or surF >= tresh_LA:#15cm2
+        for i in range(len(ls_pts[0])):
+            if ls_pts[0][i][2]>invar['Hplante'][nump]:
+                invar['Hplante'][nump] = ls_pts[0][i][2]
+    else:
+        if Z0>invar['Hplante'][nump]:
+            invar['Hplante'][nump] = Z0
+    
+    
+    #gestion coupe
+    if Z0>Hcut and isTTcut==True:
+        invar['Hplante'][nump]=Hcut
+    
+    if int(ParamP[nump]['type'])==3 and isTTcut==True :#grass: 
+        #pour grass, coupe tt le bout de feuille qui avait pousse
+        reste = (Hcut-Z0)/ParamP[nump]['profilLeafI_l'][rk]
+        Lcutnew = max(l-reste, 0.0001) #Longueur normalisee
+    else:
+        Lcutnew = Lcut
+    
+    
+    #mise a jour stress
+    stressW = ls_ftswStress['WaterTreshExpSurf'][nump]
+    stressN = ls_NNIStress['NTreshExpSurf'][nump]
+    if opt_stressW == 0:
+        stressW = 1.
+    if opt_stressN == 0:
+        stressN = 1.
+    if opt_ReadstressN == 1.:
+        stressN = mng_j['ForceNNI']#0.2
+    if opt_ReadstressW == 1.:
+        stressW = mng_j['ForceFTSW']#0.2
+    
+    
+    #sen participe a surface et LAI (interception) mais pas au PARa (absorption)
+    if age> ParamP[nump]['spanMrt'] or tt_omb> ParamP[nump]['ombF_Ttresh']+ParamP[nump]['spanMrt']-ParamP[nump]['spanSen'] :
+        mfeuilmorte = surF*10000/ParamP[nump]['SLAmin'] #g
+        invar['dMSenFeuil'][nump] += mfeuilmorte
+        
+        produce *
+    else:
+        newage = age+STEPS
+        
+        #calcul des PARif
+        if nf > 3 or surF >= tresh_LA:#15cm2#  #feuilles multifoliee
+            ls_vox, ls_strate, ls_PARif = [], [], []
+            #ls_PARaF = []
+            surf_elementaire = surF / float(len(ls_pts[0]))
+            for i in range(len(ls_pts[0])):
+                #print ls_pts[i], array([X0,Y0,Z0])
+                vox = riri.WhichVoxel(ls_pts[0][i], origin_grid, na, dxyz)
+                ls_vox.append(vox)
+                ls_strate.append(vox[2])
+                ls_PARif.append(res_trans[vox[2]][vox[1]][vox[0]]/ surf_refVOX )
+                
+            
+            PARif = max(ls_PARif)#min ou moy?
+            strate = max(ls_strate)#?? pas correct
+            
+        else:
+            vox = riri.WhichVoxel(array([X0,Y0,Z0]), origin_grid, na, dxyz)
+            strate = vox[2] #starte z
+            PARif = res_trans[vox[2]][vox[1]][vox[0]]/ surf_refVOX #W.m-2 -> utilise 
+        
+        
+        I_I0 = PARif/meteo_j['I0']
+        classI_I0 = min(int(I_I0/deltaI_I0) , nbI_I0-1) #pour gerer cas du I_I0=1.
+        
+        
+        ###ajout dans ls_organs et profil I_I0: 1 seule feuille (tient pas compte des feuilles multiples)
+        if int(ParamP[nump]['type'])==1 or int(ParamP[nump]['type'])==2:#legumineuse
+            ranklong = rank+rankp if ordre==2 else rank
+        elif int(ParamP[nump]['type'])==3:#graminee
+            ranklong = rank+rankp #utilise rankp pour teni compte effet tallage et coupe
+        
+        ranklong = min(ranklong, len(ParamP[nump]['profilLeafI_l'])-1)#au cas ou profil trop long
+        cor_ordre=ParamP[nump]['ratioII'] if ordre==2 else 1.
+        if int(ParamP[nump]['type'])==1 or int(ParamP[nump]['type'])==2:#legumineuse
+            Longueur = ParamP[nump]['profilLeafI_l'][ranklong]*l*cor_ordre
+            Largeur = ParamP[nump]['profilLeafI_larg'][ranklong]*l*cor_ordre
+        elif int(ParamP[nump]['type'])==3:#graminee
+            Longueur = ParamP[nump]['profilLeafI_l'][ranklong]*(l-Lcut)*(l-Lcut)*cor_ordre
+            Largeur = ParamP[nump]['profilLeafI_larg'][ranklong]*cor_ordre
+        
+        lsOrgans.append([TT,'Lf',nump,nsh,rank,rankp,strate,surF,'PARaF',statut,newage,ordre,l,Longueur,DOY,cutNB,Largeur]) #decalage de un step pour l en exp
+        invar['SurfPlante'][nump].append(surF)
+        I_I0profilLfPlant[nump][classI_I0] += surF
+        
+        #print(nsh, invar['SurfPlante'][nump])
+        
+        #profil vertical de surface
+        if nf > 3 or surF >= tresh_LA:#15cm2#  #feuilles multifoliee
+            surf_elementaire = surF / float(len(ls_pts[0]))
+            for i in range(len(ls_pts[0])):
+                strate = ls_strate[i]
+                SurfprofilPlant[nump][strate] += surf_elementaire
+        else:
+            SurfprofilPlant[nump][strate] += surF
+        
+        
+        if age> ParamP[nump]['spanSen'] : 
+            if nf > 3 or surF >= tresh_LA:#15cm2#  #feuilles multifoliee 
+                surf_elementaire = surF / float(len(ls_pts[0]))
+                for i in range(len(ls_pts[0])):
+                    vox = ls_vox[i]
+                    m_lais_construct[ParamP[nump]['id_grid']][vox[2]][vox[1]][vox[0]] += surf_elementaire
+                    m_laiPlt[nump][vox[2]][vox[1]][vox[0]] += surf_elementaire
+                    lsFeuilBilanR.append([nump, nsh,rank,rankp,'sen', surf_elementaire,ParamP[nump]['id_grid'],ls_pts[0][i][0],ls_pts[0][i][1],ls_pts[0][i][2],vox[2],vox[1],vox[0],0,0])
+            else:
+                m_lais_construct[ParamP[nump]['id_grid']][vox[2]][vox[1]][vox[0]] += surF 
+                m_laiPlt[nump][vox[2]][vox[1]][vox[0]] += surF
+                lsFeuilBilanR.append([nump, nsh,rank,rankp, 'sen', surF,ParamP[nump]['id_grid'],X0,Y0,Z0,vox[2],vox[1],vox[0],0,0])
+            
+            produce GetPos(X0,Y0,Z0,nump)GetUp(V1,V2,V3)Lf(nump,nsh,newage,azi,rank,rankp,l,tt_omb,Lcutnew,'sen',ordre,noise)
+        elif tt_omb> ParamP[nump]['ombF_Ttresh']:
+            #print "ombre!"
+            if nf > 3 or surF >= tresh_LA:#15cm2#  #feuilles multifoliee 
+                surf_elementaire = surF / float(len(ls_pts[0]))
+                for i in range(len(ls_pts[0])):
+                    vox = ls_vox[i]
+                    m_lais_construct[ParamP[nump]['id_grid']][vox[2]][vox[1]][vox[0]] += surf_elementaire
+                    m_laiPlt[nump][vox[2]][vox[1]][vox[0]] += surf_elementaire
+                    lsFeuilBilanR.append([nump, nsh,rank,rankp, 'sen',surf_elementaire,ParamP[nump]['id_grid'],ls_pts[0][i][0],ls_pts[0][i][1],ls_pts[0][i][2],vox[2],vox[1],vox[0],0,0])
+            else:
+                m_lais_construct[ParamP[nump]['id_grid']][vox[2]][vox[1]][vox[0]] += surF 
+                m_laiPlt[nump][vox[2]][vox[1]][vox[0]] += surF
+                lsFeuilBilanR.append([nump, nsh,rank,rankp,'sen', surF,ParamP[nump]['id_grid'],X0,Y0,Z0,vox[2],vox[1],vox[0],0,0])
+            
+            produce GetPos(X0,Y0,Z0,nump)GetUp(V1,V2,V3)Lf(nump,nsh,newage,azi,rank,rankp,l,tt_omb+STEPS,Lcutnew,'sen',ordre,noise)
+        else:
+            adTTomb = STEPS if PARif <= ParamP[nump]['ombF_Ltresh'] else 0
+            
+            if statut == 'exp':
+                pot = sh.expansion(age+STEPS, ParamP[nump]['aF'], ParamP[nump]['delaiF']) - sh.expansion(age, ParamP[nump]['aF'], ParamP[nump]['delaiF'])
+                dl = pot*stressW*stressN
+                newsurF = sh.calc_surF(ParamP[nump], rank, rankp, ordre, (l-Lcut)+dl, type=ParamP[nump]['type'])
+                
+                
+                #print(nump, nsh,rank, age, newage, l, dl)# invar['Hplante'][nump], pot, dl, surF, stressN)
+                
+                if nf > 3 or surF >= tresh_LA:#15cm2#  #feuilles multifoliee 
+                    surf_elementaire = newsurF / float(len(ls_pts[0]))
+                    for i in range(len(ls_pts[0])):
+                        vox = ls_vox[i]
+                        m_lais_construct[ParamP[nump]['id_grid']][vox[2]][vox[1]][vox[0]] += surf_elementaire
+                        m_laiPlt[nump][vox[2]][vox[1]][vox[0]] += surf_elementaire
+                        lsFeuilBilanR.append([nump, nsh,rank,rankp,'exp', surf_elementaire,ParamP[nump]['id_grid'],ls_pts[0][i][0],ls_pts[0][i][1],ls_pts[0][i][2],vox[2],vox[1],vox[0],0,0])
+                else:
+                    m_lais_construct[ParamP[nump]['id_grid']][vox[2]][vox[1]][vox[0]] += newsurF
+                    m_laiPlt[nump][vox[2]][vox[1]][vox[0]] += newsurF
+                    lsFeuilBilanR.append([nump, nsh,rank,rankp,'exp', newsurF,ParamP[nump]['id_grid'],X0,Y0,Z0,vox[2],vox[1],vox[0],0,0])
+                
+                stat = 'mat'if pot<0.005 and age>ParamP[nump]['delaiF'] else 'exp'
+                produce GetPos(X0,Y0,Z0,nump)GetUp(V1,V2,V3)Lf(nump,nsh,newage,azi,rank,rankp,l+dl,tt_omb+adTTomb,Lcutnew,stat,ordre,noise)
+            elif statut == 'mat':
+                if nf > 3 or surF >= tresh_LA:#15cm2#  #feuilles multifoliee 
+                    surf_elementaire = surF / float(len(ls_pts[0]))
+                    for i in range(len(ls_pts[0])):
+                        vox = ls_vox[i]
+                        m_lais_construct[ParamP[nump]['id_grid']][vox[2]][vox[1]][vox[0]] += surf_elementaire
+                        m_laiPlt[nump][vox[2]][vox[1]][vox[0]] += surf_elementaire
+                        lsFeuilBilanR.append([nump, nsh,rank,rankp,'mat', surf_elementaire,ParamP[nump]['id_grid'],ls_pts[0][i][0],ls_pts[0][i][1],ls_pts[0][i][2],vox[2],vox[1],vox[0],0,0])
+                else:
+                    m_lais_construct[ParamP[nump]['id_grid']][vox[2]][vox[1]][vox[0]] += surF
+                    m_laiPlt[nump][vox[2]][vox[1]][vox[0]] += surF
+                    lsFeuilBilanR.append([nump, nsh,rank,rankp,'mat', surF,ParamP[nump]['id_grid'],X0,Y0,Z0,vox[2],vox[1],vox[0],0,0])
+                
+                produce GetPos(X0,Y0,Z0,nump)GetUp(V1,V2,V3)Lf(nump,nsh,newage,azi,rank,rankp,l,tt_omb+adTTomb,Lcutnew,statut,ordre,noise)
+
+
+Stp(nump,azi,l, statut) > Pet(nump1, nsh, age, azi1, l1, statut1)GetPos(X0,Y0,Z0,nump3)GetUp(V1,V2,V3)Lf(nump2,nsh2,age2,azi2,rank,rankp,l2,tt_omb,Lcut,statut2,ordre,noise):
+    STEPS = invar['Udev'][nump]#invar['dTT'][nump]
+    
+    stressW = ls_ftswStress['WaterTreshExpSurf'][nump]
+    stressN = ls_NNIStress['NTreshExpSurf'][nump]
+    if opt_stressW == 0:
+        stressW = 1.
+    if opt_stressN == 0:
+        stressN = 1.
+    if opt_ReadstressN == 1.:
+        stressN = mng_j['ForceNNI']#0.2
+    if opt_ReadstressW == 1.:
+        stressW = mng_j['ForceFTSW']#0.2
+    
+    if ParamP[nump]['gotStip']== 1. and age < ParamP[nump]['spanMrt']:#presence stipules
+        #strate = max(0, int(ceil((Z0+0.00001)/dz))-1)
+        vox = riri.WhichVoxel(array([X0,Y0,Z0]), origin_grid, na, dxyz)
+        strate = vox[2] #starte z
+        
+        surF = sh.calc_surS(ParamP[nump], rank, rankp, ordre, l) #m2
+        PARif = res_trans[vox[2]][vox[1]][vox[0]]/ surf_refVOX #W.m-2 -> utilise
+        I_I0 =  PARif/meteo_j['I0']
+        classI_I0 = min(int(I_I0/deltaI_I0) , nbI_I0-1) #pour gerer cas du I_I0=1.
+        
+        
+        lsOrgans.append([TT,'Stp',nump,nsh2,rank,rankp,strate,surF,'PARaF',statut,age2+STEPS,ordre,l,'NA',DOY,cutNB,'NA'])
+        SurfprofilPlant[nump][strate] += surF #suppose mis dans meme strate que feuille
+        I_I0profilLfPlant[nump][classI_I0] += surF
+        invar['SurfPlante'][nump].append(surF)
+        
+        
+        if statut == 'exp':
+            pot = sh.expansion(age2+STEPS, ParamP[nump]['aS'], ParamP[nump]['delaiS']) - sh.expansion(age2, ParamP[nump]['aS'], ParamP[nump]['delaiS'])
+            dl = pot*stressW*stressN
+            newsurF = sh.calc_surS(ParamP[nump], rank, rankp, ordre, l+dl)
+            m_lais_construct[ParamP[nump]['id_grid']][vox[2]][vox[1]][vox[0]] += newsurF
+            m_laiPlt[nump][vox[2]][vox[1]][vox[0]] += newsurF
+            lsFeuilBilanR.append([nump, nsh,rank,rankp,'exp', newsurF, ParamP[nump]['id_grid'],X0,Y0,Z0,vox[2],vox[1],vox[0],0,0])
+            
+            if pot<0.005 and age>ParamP[nump]['delaiS'] :
+                produce Stp(nump,azi,l+dl, 'mat')
+            else :
+                produce Stp(nump,azi,l+dl, 'exp')
+        else : #reste en 'mat'
+            m_lais_construct[ParamP[nump]['id_grid']][vox[2]][vox[1]][vox[0]] += surF
+            m_laiPlt[nump][vox[2]][vox[1]][vox[0]] += surF
+            lsFeuilBilanR.append([nump, nsh,rank,rankp,'mat', surF, ParamP[nump]['id_grid'],X0,Y0,Z0,vox[2],vox[1],vox[0],0,0])
+            
+            produce Stp(nump,azi,l, 'mat')
+    elif ParamP[nump]['gotStip']== 1. and age >= ParamP[nump]['spanMrt']: # stipule mort ou 'spanMrt' -> retire de la chaine et met ddans residus feuille
+        surF = sh.calc_surS(ParamP[nump], rank, rankp, ordre, l)#m2
+        mfeuilmorte = surF*10000/ParamP[nump]['SLAmin'] #g
+        invar['dMSenFeuil'][nump] += mfeuilmorte
+        produce *
+    else: 
+        produce *
+
+
+Pet(nump,nsh,age, phyllotax, l, statut) > GetPos(X0,Y0,Z0,nump3)GetUp(V1,V2,V3)Lf(nump2,nsh2,age2,azi,rank,rankp,l2,tt_omb,Lcut,statut2,ordre,noise):
+    global ls_ftswStress
+    STEPS = invar['Udev'][nump]#invar['dTT'][nump]
+    
+    newage = age+STEPS
+    lpet = sh.calc_Lpet(ParamP[nump], rank, rankp, ordre, l, type=ParamP[nump]['type'])#m
+    
+    vox = riri.WhichVoxel(array([X0,Y0,Z0]), origin_grid, na, dxyz)
+    PARif = res_trans[vox[2]][vox[1]][vox[0]]/ surf_refVOX #W.m-2 -> utilise
+    I_I0 =  PARif/meteo_j['I0']
+    classI_I0 = min(int(I_I0/deltaI_I0) , nbI_I0-1) #pour gerer cas du I_I0=1.
+    I_I0profilPetPlant[nump][classI_I0] += lpet
+    #photomorphogenese
+    
+    RFR=res_rfr[vox[2]][vox[1]][vox[0]]
+    RFR_effect=(ParamP[nump]['photomorphRFR_pets']*RFR)+ParamP[nump]['photomorphRFR_peti']
+    
+    durjour = meteo_j['durjour']#sh.DayLength (latitude,sh.DecliSun (DOY % 365))
+    PAReff = PARif * 24./durjour #courbe de reponse au PAR calle sur moyenne sur photoperiode
+    PAR_effect= sh.trilineaire(PAReff,ParamP[nump]['photomorphPAR_petini'],ParamP[nump]['photomorphPAR_petM'],ParamP[nump]['photomorphPAR_pett1'],ParamP[nump]['photomorphPAR_pett2'])
+    
+    if opt_photomorph ==1:
+        photomorph = RFR_effect*PAR_effect
+    else:
+        photomorph = 1.
+    
+    invar['phmgPet'][nump].append(photomorph)
+    invar['phmgPet_m'][nump].append(photomorph)
+    
+    lsOrgans.append([TT,'Pet',nump,nsh,rank,rankp,'NA','NA','NA',statut,newage,ordre,l,lpet,DOY,cutNB,'NA'])#decalage de un step pour l avec age en exp ou mort
+    
+    stressW = ls_ftswStress['WaterTreshExpSurf'][nump]
+    stressN = ls_NNIStress['NTreshExpSurf'][nump]
+    if opt_stressW == 0:
+        stressW = 1.
+    if opt_stressN == 0:
+        stressN = 1.
+    if opt_ReadstressN == 1.:
+        stressN = mng_j['ForceNNI']#0.2
+    if opt_ReadstressW == 1.:
+        stressW = mng_j['ForceFTSW']#0.2
+    
+    if age> ParamP[nump]['spanMrt'] or nsh in invar['lsApexMort'][nump]:#mort du module
+        mpetmort = lpet/ParamP[nump]['SPLmin'] #g
+        invar['dMSenTige'][nump] += mpetmort#g
+        produce *
+    
+    elif statut == 'exp':
+        pot = sh.expansion(newage, ParamP[nump]['aP'], ParamP[nump]['delaiP']) - sh.expansion(age, ParamP[nump]['aP'], ParamP[nump]['delaiP'])
+        if int(ParamP[nump]['type'])==3:#graminee
+            dl = pot #to avoid interaction with cut in grass
+        else:
+            dl = pot * stressW * stressN * photomorph
+        
+        if pot<0.005 and age>ParamP[nump]['delaiP']:#passe en 'mature'
+            produce Pet(nump,nsh,newage, phyllotax, l+dl, 'mat')
+        else: #reste en 'exp'
+            produce Pet(nump,nsh,newage, phyllotax, l+dl, statut)
+    else:#reste en 'mat'
+        produce Pet(nump,nsh,age+STEPS, phyllotax,l,statut)
+
+
+GetPos(X0,Y0,Z0,nump2)In(nump,nsh,age,rank,rankp, l, statut,ordre):
+    global ls_ftswStress, lsOrgans      
+    STEPS = invar['Udev'][nump]#invar['dTT'][nump]
+    
+    newage = age+STEPS
+    lent = sh.calc_Lent(ParamP[nump], rank, nsh, ordre, l)#m
+    #rq: ?? Lent seul organe a ne pas tenir compte de rankp pour ajuster profil selon topologie??
+    
+    vox = riri.WhichVoxel(array([X0,Y0,Z0]), origin_grid, na, dxyz)
+    PARif = res_trans[vox[2]][vox[1]][vox[0]]/ surf_refVOX #W.m-2 -> utilise
+    I_I0 =  PARif/meteo_j['I0']
+    classI_I0 = min(int(I_I0/deltaI_I0) , nbI_I0-1) #pour gerer cas du I_I0=1.    
+    
+    RFR=RFR=res_rfr[vox[2]][vox[1]][vox[0]]
+    RFR_effect=(ParamP[nump]['photomorphRFR_ints']*RFR)+ParamP[nump]['photomorphRFR_inti']
+    
+    durjour = meteo_j['durjour']#sh.DayLength (latitude,sh.DecliSun (DOY % 365))
+    PAReff = PARif * 24./durjour #courbe de reponse au PAR calle sur moyenne sur photoperiode
+    PAR_effect= sh.trilineaire(PAReff,ParamP[nump]['photomorphPAR_intini'],ParamP[nump]['photomorphPAR_intM'],ParamP[nump]['photomorphPAR_intt1'],ParamP[nump]['photomorphPAR_intt2'])
+    
+    if opt_photomorph ==1:
+        photomorph = RFR_effect*PAR_effect
+    else:
+        photomorph = 1.
+    
+    invar['phmgEntr'][nump].append(photomorph)
+    invar['phmgEntr_m'][nump].append(photomorph)
+    
+    lsOrgans.append([TT,'In',nump,nsh,rank,rankp,'NA','NA','NA',statut,newage,ordre, l,lent,DOY,cutNB,'NA']) #decalage de un step pour l et age en exp!
+    invar['NBphyto'][nump] += 1 #comptage du phytomere 
+    
+    
+    stressW = ls_ftswStress['WaterTreshExpSurf'][nump]
+    stressN = ls_NNIStress['NTreshExpSurf'][nump]
+    if opt_stressW == 0:
+        stressW = 1.
+    if opt_stressN == 0:
+        stressN = 1.
+    if opt_ReadstressN == 1.:
+        stressN = mng_j['ForceNNI']#0.2
+    if opt_ReadstressW == 1.:
+        stressW = mng_j['ForceFTSW']#0.2
+    
+    
+    if nsh in invar['lsApexMort'][nump]: #Meurt si tige meurt meurt
+        minmort = lent/ParamP[nump]['SNLmin'] #g
+        invar['dMSenTige'][nump] += minmort
+        produce *
+    elif statut == 'exp':
+        pot = sh.expansion(age+STEPS, ParamP[nump]['aE'], ParamP[nump]['delaiE']) - sh.expansion(age, ParamP[nump]['aE'], ParamP[nump]['delaiE'])
+        dl = pot * stressW * stressN * photomorph
+        
+        if pot<0.005 and age>ParamP[nump]['delaiE']:#passe en 'mature'
+            produce GetPos(X0,Y0,Z0,nump)In(nump,nsh,newage,rank,rankp, l+dl, 'mat',ordre)
+        else: #reste en 'exp'
+            produce GetPos(X0,Y0,Z0,nump)In(nump,nsh,newage,rank,rankp, l+dl, statut,ordre)
+    else: #reste en 'mat'
+        produce GetPos(X0,Y0,Z0,nump)In(nump,nsh,age+STEPS,rank,rankp, l, statut,ordre)
+
+
+D(nump,nsh, statut,age,posi,parent):
+    STEPS = invar['Udev'][nump]#invar['dTT'][nump]
+    invar['NBD1'][nump]+=1
+    nbExp_Prev = outvar['NBBexp'][-1][0][nump+2]+1 #nb bourgeons type exp juste avant
+    
+    
+    if parent in invar['lsApexMort'][nump]: #Meurt si parent meurt
+        #invar['lsApexMort'][nump].remove(parent) #l'enleve pas de la liste car sinon pas visible pour autres organes
+        invar['countShExp'][nump] -= 1
+        produce *
+    elif not parent in invar['lsAPrev'][nump] :#and statut==0: #sort de dormance si tige parente coupee
+        NIparent = max(invar_sc['sh']['MaxNI'][str(nump)+'_'+str(parent)])
+        deltaBud = sh.MaturBud(ParamP[nump]['delaiMaturBud'], NIparent)
+        
+        newage = deltaBud*ParamP[nump]['phyllochron'] + age%ParamP[nump]['phyllochron']# + STEPS  # #rajoute pas le steps car compare a zero apres
+        new_nrhiz = ls_seeds[nump].randgen.binomial(ParamP[nump]['DistLRhizn'], ParamP[nump]['DistLRhizp'])#2#0
+        newazi = ls_seeds[nump].randgen.uniform(0.,360.)
+        
+        #print 'D', nsh, parent, NIparent, deltaBud, newage
+        
+        produce @M(posi[0],posi[1],posi[2])SetHead()/(newazi)&(90)B(nump, nsh, newage, posi, new_nrhiz,newazi, 0,'regular') #un bourgeon ave un nsh qui ne rajoute pas de nvelle tige
+    else:
+        produce D(nump,nsh, statut,age+STEPS,posi,parent)
+
+
+D2(nump, nsh, age, rankp, phyllotax,shoottype):
+    STEPS = invar['Udev'][nump]#invar['dTT'][nump]
+    
+    if nsh in invar['lsApexMort'][nump] or shoottype=="primary": #Meurt si tige porteuse meurt #disparait si il y a aussi un D avec lequel D2 fait "double emploi"
+        produce *
+    elif age <= ParamP[nump]['delai_deb']-ParamP[nump]['phyllochronII']:
+        #print("agetropjeune",age)
+        produce D2(nump,nsh,age+STEPS,rankp, phyllotax,shoottype)
+    elif int(ParamP[nump]['ActiveBranch'])==True:
+        init_age = age-(ParamP[nump]['delai_deb']-ParamP[nump]['phyllochronII'])
+        #print("agedepasse",init_age, age)
+        elv0 = 45
+        if rankp%2==0:
+            produce +(90-elv0)GetPos(0,0,0,nump)A2(nump, nsh, 1, init_age, 0, 0, rankp, phyllotax+30)
+        else:
+            produce -(90-elv0)GetPos(0,0,0,nump)A2(nump, nsh, 1, init_age, 0, 0, rankp, phyllotax+30)
+
+RA(nump, nsh, age, rankp, agecum, moduloH):
+    STEPSsol = invar['dTTsol'][nump]
+    
+    idax = str(nump)+'_'+str(nsh)+'_'+str(rankp)
+    
+    # quelle prof max de sol si il y a un obstarac?
+    if S.obstarac is None or type(S.obstarac != type(array([0.]))):
+        prof_obst = prof_sol_max
+    else:
+        #dans quel voxl de sol est la plante
+        vox = riri.WhichVoxel(array(carto[nump]), [0.,0.,0.], [len(lims_sol[0])-1, len(lims_sol[1])-1, len(lims_sol[2])-1], [S.dxyz[0][0]*100., S.dxyz[1][0]*100., S.dxyz[2][0]*100.])  
+        prof_obst =  -S.obstarac[vox[0], vox[1]]*100.
+        #print 'sol depth', prof_sol_max, vox, S.obstarac[vox[0], vox[1]]#, na, [len(lims_sol[0])-1, len(lims_sol[1])-1, len(lims_sol[2])-1], vox
+    
+    #stressHydrique
+    Horizmax = int(min([prof_sol_max, prof_obst])/dz_sol)-1
+    Horiz = min(int(moduloH/dz_sol), Horizmax)
+    stressH = sh.FTSW_resp(np.mean(S.ftsw_t[Horiz,:,:]), [ParamP[nump]['WaterTreshElRootss'], ParamP[nump]['WaterTreshElRootsd']])
+    stressHLim = 0.05 #limite de croissance (a calculer dans ParamP)
+    
+    #MAJ de RDepth
+    if moduloH>invar['RDepth'][nump]:
+        invar['RDepth'][nump]=moduloH
+        #change depth
+        invar['ChangeDepth'][nump] = 1
+    
+    #ajout d'un cyclindre dans syst racinaire pour racine primaire/pivot
+    if int(ParamP[nump]['type'])==1 or int(ParamP[nump]['type'])==2 : #legume
+        larg_ = 0.01
+    elif int(ParamP[nump]['type'])==3 : #fascilule: grass
+        idI = rt.idLong(moduloH+0.001, ParamP[nump]['profilRoot'])#rpy.r.idLong(l, ParamP[nump]['profilRoot'])
+        
+        #read_line = rt.getLarg(moduloH+0.001, ParamP[nump]['profilRoot'])
+        #print('read_larg', read_line)
+        #print('read_largy', read_line.loc["y"])
+        larg_ = max(0.01, ParamP[nump]['profilRoot']['y'][idI])#read_line.loc["y"])#['y'][id[0]]#['y'][id]
+        
+    
+    ls_systrac[nump].append([carto[nump][0],carto[nump][1],0.,larg_, max(moduloH,0.01)])
+    
+    #ajout dans ls_organs
+    lsOrgans.append([TT,'Piv',nump,nsh,rankp,0,'NA','NA','NA','NA',agecum+STEPSsol,1,0,moduloH,DOY,cutNB,'NA'])
+    
+    
+    #calcul ratio QD instantane
+    if(agecum<ParamP[nump]['DurGraine']):
+        ratio=1.
+    else:
+        ratio = rt.get_QDCmoy(invar_sc['ax']['QDCRac'], idax)
+        #print('autonomy', idax)
+    
+    #seuil pour emission d'un nouveau root segment
+    tresh = ParamP[nump]['Relongation_duration0']/max(0.0001, ratio)#effet lineaire sur profondeur: OK meme pour tropisme grass 
+    #print moduloH, moduloH%dz_sol, prof_sol_max
+    if stressH < stressHLim :
+        #arret en sol sec
+        produce RA(nump, nsh, age, rankp, agecum, moduloH) #stop = change pas : tout ou rien attends eau
+    elif age>tresh and moduloH%dz_sol==0. and moduloH<min([prof_sol_max, prof_obst]) and stressH >= stressHLim:
+        #print moduloH, dz_sol, moduloH%dz_sol, int(moduloH/dz_sol)
+        
+        #diampiv = rt.cal_DiamPiv(ParamP, invar_sc, nump, idax, moduloH)
+        #if diampiv > invar['ChangeRoot'][nump]:
+        #    invar['ChangeRoot'][nump] = diampiv
+        
+        produce RLB(nump,nsh,0,rankp, int(moduloH/dz_sol))RS(nump,nsh, rankp,moduloH)RA(nump,nsh, age%tresh+STEPSsol, rankp, agecum+STEPSsol, moduloH+ParamP[nump]['LRS'])
+    elif age>tresh and moduloH<min([prof_sol_max, prof_obst]) and stressH >= stressHLim:
+        
+        #diampiv = rt.cal_DiamPiv(ParamP, invar_sc, nump, idax, moduloH)
+        #if diampiv > invar['ChangeRoot'][nump]:
+        #    invar['ChangeRoot'][nump] = diampiv
+        
+        produce RS(nump, nsh, rankp, moduloH)RA(nump, nsh, age%tresh+STEPSsol, rankp, agecum+STEPSsol,moduloH+ParamP[nump]['LRS'])
+    else:
+        produce RA(nump,nsh, age+STEPSsol, rankp, agecum+STEPSsol,moduloH)
+
+
+RLB(nump,nsh,age,rankp, Horiz):
+    STEPSsol = invar['dTTsol'][nump]
+    idax = str(nump)+'_'+str(nsh)+'_'+str(rankp)
+    
+    #calcul ratio QD instantane
+    ratio = rt.get_QDCmoy(invar_sc['ax']['QDCRac'], idax)
+    
+    tresh=ParamP[nump]['delai_RLAP']/max(0.0001, ratio)
+    
+    if age>tresh:
+        #invar['ChangeRoot'][nump] += 1
+        dl = 0.01
+        if dl > invar['ChangeRoot'][nump]:
+            invar['ChangeRoot'][nump] = dl
+        
+        produce [GetPos(0.,0.,0.,nump)RLAP(nump,nsh,age%tresh+STEPSsol, rankp, dl, Horiz, 0.1, 0.1, 0.)]
+    else:
+        produce RLB(nump,nsh,age+STEPSsol,rankp, Horiz)
+
+
+GetPos(X0,Y0,Z0,nump2)RLAP(nump,nsh,age,rankp,l, Horiz,largVol, longVol, cumdl):
+    global dllimmin
+    
+    STEPSsol = invar['dTTsol'][nump]
+    idax = str(nump)+'_'+str(nsh)+'_'+str(rankp)
+    
+    #calcul ratio QD instantane
+    ratioC = rt.get_QDCmoy(invar_sc['ax']['QDCRac'], idax) 
+    
+    
+    #stressHydrique
+    stressH = sh.FTSW_resp(np.mean(S.ftsw_t[Horiz,:,:]), [ParamP[nump]['WaterTreshElRootss'], ParamP[nump]['WaterTreshElRootsd']])
+    
+    #ajout pondere pour calcul de stress H racinaire global
+    invar_sc['ax']['StressHRac'] = IOxls.add_dic({idax:stressH*l}, invar_sc['ax']['StressHRac'])
+    invar_sc['ax']['PonderStressHRac'] = IOxls.add_dic({idax:l}, invar_sc['ax']['PonderStressHRac'])
+    
+    #print idax, stressH, invar_sc['ax']['StressHRac'][idax] / invar_sc['ax']['PonderStressHRac'][idax]
+    
+    dl = (STEPSsol/ParamP[nump]['Relongation_durationII'])*ratioC*stressH
+    #print dl, invar_sc['ax']['QDCRac'], invar_sc['ax']['AgePiv']#invar_sc['ax']['OfrCRac']#ratioC, stressH
+    # nbplantes, invar_sc['ax']['AgePiv'], invar_sc['plt']['PARaF'], invar_sc['ax']['PARaF']
+    #RprospectProfil[nump][Horiz] = l+dl
+    
+    #dllim = 1. # cm : limite pour recalculer enveloppes
+    if cumdl <= dllimmin:
+        #continue cumuler cumdl
+        cumdl += dl
+        #valeur enveloppe restent identiques
+        larg = largVol
+        long = longVol
+        ls_systrac[nump].append([X0,Y0,-Z0,larg,long])
+        
+    else:
+        #remet a zero cumdl
+        cumdl =  cumdl - dllimmin
+        # met a jour les tailles des enveloppes
+        
+        #calculation new enveloppe II
+        delatdI = 0.
+        if int(ParamP[nump]['type'])==3 : #fascilule: grass
+            moduloH = Horiz*dz_sol
+            idI = rt.idLong(moduloH+0.001, ParamP[nump]['profilRoot'])
+            largI = ParamP[nump]['profilRoot']['y'][idI]
+            delatdI = max(0.1, largI)
+        
+        id = rt.idLong(l, ParamP[nump]['profilRoot'])
+        larg = ParamP[nump]['profilRoot']['y'][id] + delatdI
+        long = min(max(dz_sol ,ParamP[nump]['profilRoot']['x'][id]), prof_sol_max+Z0)
+        ls_systrac[nump].append([X0,Y0,-Z0,larg,long])
+    
+    
+    
+    #print('dl', dl, cumdl, cumdl > dllim)
+    
+    ##calculation new enveloppe II
+    #delatdI = 0.
+    #if int(ParamP[nump]['type'])==3 : #fascilule: grass
+    #    moduloH = Horiz*dz_sol
+    #    idI = rt.idLong(moduloH+0.001, ParamP[nump]['profilRoot'])#rpy.r.idLong(l, ParamP[nump]['profilRoot'])
+    #    largI = ParamP[nump]['profilRoot']['y'][idI]#['y'][id[0]]#['y'][id]
+    #    #largI = rt.getLarg(moduloH+0.001, ParamP[nump]['profilRoot']).loc["y"]
+    #    delatdI = max(0.1, largI)
+    #
+    #id = rt.idLong(l, ParamP[nump]['profilRoot'])#rpy.r.idLong(l, ParamP[nump]['profilRoot'])
+    #larg = ParamP[nump]['profilRoot']['y'][id] + delatdI#['y'][id[0]]#['y'][id]
+    ##idline = rt.getLarg(l, ParamP[nump]['profilRoot'])
+    ##larg = idline.loc["y"] + delatdI
+    #long = min(max(dz_sol ,ParamP[nump]['profilRoot']['x'][id]), prof_sol_max+Z0)#idline.loc["x"]), prof_sol_max+Z0)#
+    #ls_systrac[nump].append([X0,Y0,-Z0,larg,long])
+    
+    
+    if age<=(ParamP[nump]['GDs1']+ParamP[nump]['GDs2'])/2:#durre expansion enveloppe secondaire determinee par Dmax et D2 -> devrait utiliser varD pour laterales les plus larges
+        if dl > invar['ChangeRoot'][nump]:
+            invar['ChangeRoot'][nump] = dl
+        
+        produce GetPos(X0,Y0,Z0,nump)RLAP(nump,nsh,age+STEPSsol,rankp, l+dl, Horiz, larg, long, cumdl)
+    else:
+        produce GetPos(X0,Y0,Z0,nump)RLAP(nump,nsh,age+STEPSsol,rankp, l, Horiz, larg, long, cumdl)
+    #rq: croissance indeterminee! -> tient pas compte de GDs
+
+
+
+[GetPos(X0,Y0,Z0,nump2)RB(nump,nsh,age,rankp,statut)]:
+    global S
+    STEPSsol = invar['dTTsol'][nump]
+    
+    if int(ParamP[nump]['type'])==3 and rankp!=0: #fascilule - grass -> une seule enveloppe I par talle
+        allowed=0#stoppe les I qui ne sont pas celle du 1er noeud
+    else:
+        allowed=1
+    
+    Horiz=0
+    if Z0 > ParamP[nump]['HeightTreshAdvRoots'] or allowed==0: #supprime bud si au dessus d'une hauteur seuil
+        produce *
+    elif age>ParamP[nump]['delai_AdvRoots'] and statut==0:
+        pb = ls_seeds[nump].randgen.uniform(0.,1.)
+        if pb<ParamP[nump]['ProbaMaxAdvRoots'] :
+            if np.mean(S.ftsw_t[Horiz,:,:]) > ParamP[nump]['WaterTreshAdvRoots']:
+                produce [;(0)SetHead(0,0,-1, -1,0,0)RA(nump,nsh,-1,rankp,0,0)]
+            else:
+                produce [GetPos(X0,Y0,Z0,nump)RB(nump,nsh,age+STEPSsol,rankp,1)] #statut
+        else: #supprime bud si sous proba seuil
+            produce *
+    elif statut==1 :#en attente bloque par stress hydrique
+        if age>ParamP[nump]['delai_AdvRoots']+ParamP[nump]['fenetre_AdvRoots']:
+            produce *
+        else:
+            if np.mean(S.ftsw_t[Horiz,:,:]) > ParamP[nump]['WaterTreshAdvRoots']:
+                produce [;(0)SetHead(0,0,-1, -1,0,0)RA(nump,nsh,-1,rankp,0,0)]
+            else:
+                produce [GetPos(X0,Y0,Z0,nump)RB(nump,nsh,age+STEPSsol,rankp,statut)]
+    else:#statut 0 en attente du delai de debourrement 'delai_AdvRoots'
+        produce [GetPos(X0,Y0,Z0,nump)RB(nump,nsh,age+STEPSsol,rankp,statut)]
+
+[] --> * #pour nettoyer les bracket des D() morts
+[Pet(nump, nsh, age, azi, l, statut)] --> * #pour nettoyer les restes de coupe qui on enelver feuille -> ajouter a residus!
+
+
+sol(sol_obj, nbcol):
+    if nbcol>0:
+        nproduce [solxy(sol_obj, nbcol-1)]sol(sol_obj, nbcol-1)
+    else:
+        produce *
+
+attente(n):
+    global S, discret_solXY
+    if n>0:
+        produce attente(n-1)
+    else:
+        produce pattern(0)sol(S, discret_solXY[1])
+
+
+interpretation:
+SHP(nump,nsh,azi, elv0,posi,nbp,par):
+    if elv0 < ParamP[nump]['elvtresh'] and par>=meteo_j['I0']*ParamP[nump]['par_tresh']:#pour moduler incli0 par longueur/incli en plante isolee
+        Lsh = ParamP[nump]['Len']*nbp
+        Hsh = Lsh*np.sin(elv0*np.pi/180.)
+        corr_elv = max(0,(ParamP[nump]['Lmaxeffet']-Hsh))/ParamP[nump]['Lmaxeffet'] 
+    elif elv0 < 60 and par<meteo_j['I0']*ParamP[nump]['par_tresh']: #pour moduler incli competition forte/ a revoir au niveau de la loi de ditrib ou de elasticite
+        corr_elv =1.#1.3
+    else:
+        corr_elv =1.
+        
+    produce &(-elv0*corr_elv)
+
+
+In(nump,nsh,age,rank,rankp, l, statut,ordre):
+    lent = sh.calc_Lent(ParamP[nump], rank, nsh, ordre, l)*100. #cm
+    if ordre==2:
+        color=2
+    else:
+        color=3
+    if ordre==1 and nsh==0:#tige seminale
+        color=2
+    
+    diamT = 0.3
+    diamT = max([diamT/3., diamT*l]) #prour grossir diametre progressivement
+    
+    if visu_shoot==1:
+        #produce ;(2)@Tp([0,0,1])Ts(lent*ParamP[nump]['elasticity'])F(lent,0.3)
+        produce ;(color)@Tp([0,0,1])@Ts(min(1,lent*ParamP[nump]['elasticity']))F(lent, diamT)# modif lucas : min() car avait de drole de comportement sans ca a certaines valeurs
+    else:
+        produce ;(color)@Tp([0,0,1])@Ts(min(1,lent*ParamP[nump]['elasticity']))f(lent, diamT)# modif lucas : min() car avait de drole de comportement sans ca a certaines valeurs
+
+A(nump,nsh,statut,age, duromb, rank, rgeq,phyllotax):
+    if visu_shoot==1:
+        if statut ==1:
+            produce ;(3)Sphere(0.4)
+        else:
+            produce ;(4)Sphere(0.4)
+
+A2(nump, nsh, statut, age, duromb,rank, rankp, phyllotax):
+    if visu_shoot==1:
+        if statut ==1:
+            produce ;(1)Sphere(0.3)
+        else:
+            produce ;(4)Sphere(0.3)
+
+
+#D(nump,statut,posi) --> @M(posi[0],posi[1],posi[2])#;(1)Sphere(0.2)#les voit pas
+
+
+Pet(nump, nsh, age, azi,l1, statut1) > GetPos(X0,Y0,Z0,nump3)GetUp(V1,V2,V3)Lf(nump2,nsh2,age2,azi2,rank,rankp,l2,tt_omb,Lcut,statut2,ordre,noise):
+    lpet = sh.calc_Lpet(ParamP[nump], rank, rankp, ordre, l1, type=ParamP[nump]['type'])*100.#cm
+    IncPet = ParamP[nump]['IncPet']
+    if visu_shoot==1:
+        produce SetHead(0,0,1, 1,0,0)/(azi%360)Up(IncPet)_(0.1)F(lpet,0.1)SetHead(0,0,1, 1,0,0)/(azi%360-90)
+        #produce SetHead(0,0,1, 1,0,0)/(azi%360)Up(IncPet);(2)F(0.00001,0.1)F(lpet,0.1)SetHead(0,0,1, 1,0,0)/(azi%360-90)  
+    else:
+        produce SetHead(0,0,1, 1,0,0)/(azi%360)Up(IncPet)_(0.1)f(lpet,0.1)SetHead(0,0,1, 1,0,0)/(azi%360-90)
+
+
+Lf(nump, nsh, age, azi,rank, rankp, l, tt_omb, Lcut,statut,ordre,noise):
+    if visu_shoot==1 or visu_leaf==1:
+        cor_ordre = ParamP[nump]['ratioII'] if ordre==2 else 1.
+        if int(ParamP[nump]['type'])==1 or int(ParamP[nump]['type'])==2:#legumineuse
+            rk = rank+rankp if ordre==2 else rank
+            rk = min(rk, len(ParamP[nump]['profilLeafI_l'])-1) #au cas ou profil pas assez long
+            Long  = ParamP[nump]['profilLeafI_l'][rk]*l*cor_ordre
+            Larg = ParamP[nump]['profilLeafI_larg'][rk]*l*cor_ordre
+        elif int(ParamP[nump]['type'])==3:#lgraminee
+            rk = rank+rankp #utilise rankp pour tenir compte effet tallage et coupe
+            rk = min(rk, len(ParamP[nump]['profilLeafI_l'])-1) #au cas ou profil pas assez long
+            Long  = ParamP[nump]['profilLeafI_l'][rk]*(l-Lcut)*(l-Lcut)*cor_ordre
+            Larg = ParamP[nump]['profilLeafI_larg'][rk]*cor_ordre
+        
+        nf = ParamP[nump]['profilLeafI_nfol'][rk]
+        if statut == 'exp' or statut == 'mat':
+            col=2#2
+        elif statut == 'sen':
+            col = 1
+        
+        if ordre ==2:
+            col = 3#2
+        
+        #insere pour mixtures
+        #if int(ParamP[nump]['type'])==1:
+        #    col=2
+        #else:
+        #    col=6
+        
+        #insere pour couleur melanges de 2 a 6 Sp
+        if ParamP[nump]['name'] == ls_Spe[0]:
+            col=2
+        if len(ls_Spe)>1:
+            if ParamP[nump]['name'] == ls_Spe[1]:
+              col=6
+            if len(ls_Spe)>2:
+                if ParamP[nump]['name'] == ls_Spe[2]:
+                  col=5
+                if len(ls_Spe)>3:
+                    if ParamP[nump]['name'] == ls_Spe[3]:
+                      col=3
+                    if len(ls_Spe)>4:
+                        if ParamP[nump]['name'] == ls_Spe[4]:
+                          col=1
+                        if len(ls_Spe)>5:
+                          if ParamP[nump]['name'] == ls_Spe[5]:
+                            col=7
+        
+        #insere pour gradient de distrib: gradient selon valeur d'un parametre
+        if opt_sd==1 or opt_sd==2:
+            parname = parnameIV_col#'Lfeuille'#'Len'#
+            parval = ParamP[nump][parname] #test_retard[nump]#
+            vals = IOxls.get_lsparami(ParamP, parname) #test_retard#
+            col = 30 + int(7* (parval - min(vals)) / (max(vals)+10E-12 -  min(vals)))
+        
+        #choix du geom
+        if int(ParamP[nump]['type'])==1 or int(ParamP[nump]['type'])==2 : #legume or non fixing-legume
+            if opt_Trud == 1: #corrige leafshape effect pour feuille detaillee de legumineuse
+                cor_lF = sqrt(ParamP[nump]['leafshape'] / 0.5)
+                Long = Long * (1/cor_lF)
+                Larg  = Larg * (1/cor_lF)
+            
+            geom = o3d.leg_leaf_lucas(Long, Larg, gamma=ParamP[nump]['gammaFeuil']+noise[1], nfol=nf, anginit=ParamP[nump]['IncPet']+noise[0], opt_Trud=opt_Trud)
+            #print o3d.leg_leaf_lucas(Long, Larg, gamma=ParamP[nump]['gammaFeuil'], nfol=nf, anginit=ParamP[nump]['IncPet'], geom=False)
+            #geom = o3d.mesh_leaflet(Long, Larg,alpha=15, n=8)
+            
+        elif int(ParamP[nump]['type'])==3:#grass
+            geom = o3d.leg_grass(Long, Larg, angfol=-5., nfol=nf, anginit=ParamP[nump]['gammaFeuil'], geom=True)
+            geom = o3d.leg_grass(Long, Larg, angfol=-5., nfol=nf, anginit=ParamP[nump]['gammaFeuil'], geom=True)
+            #courbure de limbe en dur (angfol) -> a passer en paramtre?
+        
+        produce ;(col)@g(geom)
+
+
+Stp(nump, azi,l, statut)> Pet(nump1, nsh, age, azi1, l1, statut1)GetPos(X0_,Y0_,Z0_,nump3)GetUp(V1,V2,V3)Lf(nump2,nsh2,age2,azi2,rank,rankp,l2,tt_omb,Lcut,statut2,ordre,noise):
+    if visu_shoot==1 or visu_leaf==1: 
+        if ParamP[nump]['gotStip']== 1.:
+            cor_ordre = ParamP[nump]['ratioII'] if ordre==2 else 1.
+            rk = rank+rankp if ordre==2 else rank
+            rk = min(rk, len(ParamP[nump]['profilStipI_l'])-1) #au cas ou profil pas assez long
+            Long = l*ParamP[nump]['profilStipI_l'][rk]*cor_ordre
+            Larg = l*ParamP[nump]['profilStipI_larg'][rk]*cor_ordre
+            stip = o3d.geomstip(Long, Larg,alpha=90,gamma=ParamP[nump]['gammaFeuil'])
+            col = 5#0#2#
+            produce SetHead(0,0,1, 1,0,0)/(azi%360-90);(col)@g(stip)
+            #y a des implicites pour les angles
+
+
+Coll(posi) --> @M(posi[0],posi[1],posi[2])[;(0)SetHead(0,0,-1, -1,0,0) #! contient ouverture de [ du systeme racinaire
+
+RA(nump,nsh,age, rankp,agecum,moduloH): 
+    if visu_root==1:
+        produce ;(3)Sphere(0.4)
+
+RS(nump, nsh, rankp, moduloH):
+    
+    idax = str(nump)+'_'+str(nsh)+'_'+str(rankp)
+    diampiv = rt.cal_DiamPiv(ParamP, invar_sc, nump, idax, moduloH)
+    
+    if visu_root==1:
+        produce ;(1)_(diampiv)F(ParamP[nump]['LRS'])
+    else:
+        produce ;(1)_(diampiv)f(ParamP[nump]['LRS'])
+
+RLB(nump,nsh,age,rankp, Horiz): 
+    if visu_root==1:
+        produce ;(0)Sphere(0.4)
+
+RLAP(nump,nsh,age,rankp, l, Horiz, largVol, longVol, cumdl): 
+    
+    if visu_root==1:
+        produce ;(0)_(largVol)F(longVol)
+    else:
+        produce ;(0)_(largVol)f(longVol)
+
+solxy(sol_obj, idcol):
+    if visu_sol == 1:
+        global dz_sol, ncouches_sol, discret_solXY
+        #print np.mean(sol_obj.HRp(), axis=1)[:,0]#np.mean(np.mean(sol_obj.HRp(), axis=0), axis=0)
+        Nmin_xy = np.mean(sol_obj.m_NO3, axis=1)#np.mean(sol_obj.m_NO3+sol_obj.m_NH4)/(sol_obj.m_soil_vol*sol_obj.m_DA)*1000, axis=1)
+        norm_Nmin_xy = Nmin_xy/Nmin_xy.max()
+        norm_Nmin_xy = norm_Nmin_xy[:,idcol]
+        
+        ftsw_xy = np.mean(sol_obj.ftsw_t, axis=1)[:,idcol]
+        nbcol = discret_solXY[1]
+        larg_box = 30.
+        
+        #print norm_Nmin_xy #ftsw_xy
+        for i in range(ncouches_sol):
+            z = -i*dz_sol
+            values = ftsw_xy#norm_Nmin_xy#   A changer pour voir variable de sortie souhaitee
+            
+            #ftsw = max(0., np.mean(sol_obj.ftsw_t[i,:,:]))
+            ftsw = max(0, values[i])
+            col = 16 + int(ceil((1-ftsw)/0.1))
+            #nproduce ;(col)@M(-50,0,z-dz_sol)@g(Box(1,30,dz_sol))
+            nproduce ;(col)@M(-50,float(idcol)*2*larg_box/float(nbcol),z-dz_sol)@g(Box(1,larg_box/float(nbcol),dz_sol))
+
+
+
+sol(sol_obj, nbcol):
+    if visu_sol == 1:
+        #l'affiche au premier step pour bien definir champs de la camera
+        global dz_sol, ncouches_sol
+        #print np.mean(sol_obj.HRp(), axis=1)[:,0]#np.mean(np.mean(sol_obj.HRp(), axis=0), axis=0)
+        for i in range(ncouches_sol):
+            z = -i*dz_sol
+            ftsw = max(0., np.mean(sol_obj.ftsw_t[i,:,:]))
+            #ftsw = max(0, ftsw_xy[i])
+            col = 16 + int(ceil((1-ftsw)/0.1))
+            nproduce ;(col)@M(-53,0,z-dz_sol)@g(Box(1,30,dz_sol))
+            #nproduce ;(col)@M(-50,float(idcol)*30./float(nbcol),z-dz_sol)@g(Box(1,30./float(nbcol),dz_sol))
+
+
+
+
+#aer:
+#    global res_abs_i, dxyz, Hmaxcouv, Lsol, largsol
+#    if(getIterationNb()>2):
+#        for ty in range(5,20):
+#          for tx in range(5,20):
+#            for i in range(50):
+#              z = 50*dxyz[2]-(i*dxyz[2])
+#              x = tx*(dxyz[0])
+#              y= ty*(dxyz[1])
+#              xx0=-(dxyz[0]*Lsol/2)+dxyz[0]/2
+#              yy0=-(dxyz[1]*largsol/2)+dxyz[1]/2
+#              ftsw = max(0., res_abs_i[0][i][tx][ty])
+#              col = 18 - int(ceil((ftsw)/0.025))
+#              nproduce ;(col)@M(yy0+y,xx0+x,z+dxyz[0])@g(Box(dxyz[1]/2,1,dxyz[2]))
+
+
+pattern(0):
+    if visu_solsurf == 1:
+        produce ;(1)@M((pattern8[1][0]+pattern8[0][0])/2.,(pattern8[1][1]+pattern8[0][1])/2.,0)@g(Box((pattern8[1][0]-pattern8[0][0])/2.,(pattern8[1][1]-pattern8[0][1])/2.,0.1))
+
+
+attente(n):
+    if visu_sol == 1:
+        produce ;(1)@M(-53,0,0)@g(Box(1,30,150)) #pour creer fenetre de taille correcte
+
+
+endlsystem
+###### INITIALISATION ######
+
+__lpy_code_version__ = 1.1
+
+def __initialiseContext__(context):
+	import openalea.plantgl.all as pgl
+	Color_0 = pgl.Material("Color_0" , ambient = (221,221,221) , diffuse = 0.723982 , )
+	Color_0.name = "Color_0"
+	context.turtle.setMaterial(0,Color_0)
+	Color_4 = pgl.Material("Color_4" , ambient = (10,14,241) , diffuse = 0.746888 , )
+	Color_4.name = "Color_4"
+	context.turtle.setMaterial(4,Color_4)
+	Color_16 = pgl.Material("Color_16" , ambient = (0,0,234) , diffuse = 0.641026 , transparency = 0.5 , )
+	Color_16.name = "Color_16"
+	context.turtle.setMaterial(16,Color_16)
+	Color_17 = pgl.Material("Color_17" , ambient = (63,63,239) , diffuse = 0.573906 , transparency = 0.4825 , )
+	Color_17.name = "Color_17"
+	context.turtle.setMaterial(17,Color_17)
+	Color_18 = pgl.Material("Color_18" , ambient = (127,127,244) , diffuse = 0.506787 , transparency = 0.465 , )
+	Color_18.name = "Color_18"
+	context.turtle.setMaterial(18,Color_18)
+	Color_19 = pgl.Material("Color_19" , ambient = (191,191,249) , diffuse = 0.439668 , transparency = 0.4475 , )
+	Color_19.name = "Color_19"
+	context.turtle.setMaterial(19,Color_19)
+	Color_20 = pgl.Material("Color_20" , ambient = (255,255,255) , diffuse = 0.372549 , transparency = 0.43 , )
+	Color_20.name = "Color_20"
+	context.turtle.setMaterial(20,Color_20)
+	Color_21 = pgl.Material("Color_21" , ambient = (248,212,212) , diffuse = 0.433345 , transparency = 0.416667 , )
+	Color_21.name = "Color_21"
+	context.turtle.setMaterial(21,Color_21)
+	Color_22 = pgl.Material("Color_22" , ambient = (242,170,170) , diffuse = 0.494142 , transparency = 0.403333 , )
+	Color_22.name = "Color_22"
+	context.turtle.setMaterial(22,Color_22)
+	Color_23 = pgl.Material("Color_23" , ambient = (236,127,127) , diffuse = 0.554938 , transparency = 0.39 , )
+	Color_23.name = "Color_23"
+	context.turtle.setMaterial(23,Color_23)
+	Color_24 = pgl.Material("Color_24" , ambient = (229,85,85) , diffuse = 0.615734 , transparency = 0.376667 , )
+	Color_24.name = "Color_24"
+	context.turtle.setMaterial(24,Color_24)
+	Color_25 = pgl.Material("Color_25" , ambient = (223,42,42) , diffuse = 0.676531 , transparency = 0.363333 , )
+	Color_25.name = "Color_25"
+	context.turtle.setMaterial(25,Color_25)
+	Color_26 = pgl.Material("Color_26" , ambient = (217,0,0) , diffuse = 0.737327 , transparency = 0.35 , )
+	Color_26.name = "Color_26"
+	context.turtle.setMaterial(26,Color_26)
+	Color_30 = pgl.Material("Color_30" , ambient = (12,16,234) , diffuse = 0.683761 , )
+	Color_30.name = "Color_30"
+	context.turtle.setMaterial(30,Color_30)
+	Color_31 = pgl.Material("Color_31" , ambient = (37,11,232) , diffuse = 0.689337 , )
+	Color_31.name = "Color_31"
+	context.turtle.setMaterial(31,Color_31)
+	Color_32 = pgl.Material("Color_32" , ambient = (65,11,230) , diffuse = 0.694913 , )
+	Color_32.name = "Color_32"
+	context.turtle.setMaterial(32,Color_32)
+	Color_33 = pgl.Material("Color_33" , ambient = (94,10,228) , diffuse = 0.700489 , )
+	Color_33.name = "Color_33"
+	context.turtle.setMaterial(33,Color_33)
+	Color_34 = pgl.Material("Color_34" , ambient = (122,10,226) , diffuse = 0.706065 , )
+	Color_34.name = "Color_34"
+	context.turtle.setMaterial(34,Color_34)
+	Color_35 = pgl.Material("Color_35" , ambient = (149,10,225) , diffuse = 0.711641 , )
+	Color_35.name = "Color_35"
+	context.turtle.setMaterial(35,Color_35)
+	Color_36 = pgl.Material("Color_36" , ambient = (176,9,223) , diffuse = 0.717217 , )
+	Color_36.name = "Color_36"
+	context.turtle.setMaterial(36,Color_36)
+	Color_37 = pgl.Material("Color_37" , ambient = (203,9,221) , diffuse = 0.722793 , )
+	Color_37.name = "Color_37"
+	context.turtle.setMaterial(37,Color_37)

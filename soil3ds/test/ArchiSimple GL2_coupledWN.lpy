@@ -1,0 +1,1052 @@
+## Archisimple en L-py (These Vincent Migault)
+## Adaptation These Lucas Faverjon (Faverson et al., 2019- Plant and Soil)
+## Couplage soil3ds GL et wrapper (fonctionne dans environnement conda 'impulse' + xlrd)
+## couplage pour 1 seule entite de racine (1 plante ou toutes les plantes ensemble)
+
+
+from openalea.plantgl.all import * 
+from openalea.mtg.io import *
+from openalea.mtg.aml import *
+import random
+from math import *
+import numpy as np
+from openalea.mtg.mtg import *
+import time as t
+import sys
+import csv
+import os
+import pandas as pd
+
+from soil3ds import soil_moduleN as solN
+from soil3ds.test.test_init_soil import init_sol_test
+from soil3ds import IOxls
+from soil3ds import IOtable
+
+## import de l'interface sol impulse
+from soil3ds import soil_wrapper as soil_interface #anciennement dans impulse
+#import impulse.soil.soil as soil_interface
+
+
+try:
+    import soil3ds
+    path_ = os.path.dirname(os.path.abspath(soil3ds.__file__))#local absolute path of soil3ds
+except:
+    path_ = r'C:\devel\soil3ds\soil3ds'#
+
+
+
+################
+# Options de simulation 
+################
+
+opt_visu_scale = 1#0# to visualise a scaling box in the scene
+opt_visu_grid = 1#0 # to visualise soil grid (redondant PLOT_PROPERTY = -1)
+opt_external_coupling = 0 #1 to bypass coupling with environmental model
+opt_plot_fin = 0 #1
+opt_verbose = 1 #pour desactiver les print
+opt_residu = 0 #residue mineralisation
+opt_Nuptake = 1 #'LocalTransporter' for N uptake
+
+PLOT_PROPERTY = 'ftsw_t'#'m_NO3'#'root_length' # (-1 pour pas de grille sol)
+
+
+
+################
+# input files
+################
+
+
+#path_leg = r'C:\devel\soil3ds\soil3ds\test\inputs'#r'C:\devel\racine vincent'
+path_leg = os.path.join(path_, 'test','inputs')
+sys.path.insert(0, path_leg)
+
+path_plante = os.path.join(path_leg,'param_root.xls')
+ongletP = 'sevanskij'#'leo'#'canto'#'formica'#'timbale'#'giga'#'canto'#'kayanne'#
+ParamP = IOxls.read_plant_param(path_plante, ongletP)
+
+
+#fichier_sol=open(r'C:\devel\archisimple_lpy\GL sur pc serge\sol2.txt',"rb")#r'C:\devel\racine vincent\sol2.txt'#
+path_sol_vincent = os.path.join(path_leg,'sol2.txt')
+
+
+path_offre=os.path.join(path_leg,"moyenne.csv") #"moyenne"-> pour allocation moyenne independante des especes
+df = pd.read_csv(path_offre, sep=';')
+#df = pd.read_csv(r'H:\Travail\devel\backup new\archisimple_lpy\GL sur pc serge\offremleg15\moyenne_.csv', sep=';')
+
+# lecture offre C racine
+TT = list(df[df.V1=="TT"]["moyenne"])
+MSRacFine = list(df[df.V1=="MS_rac_fine"]["moyenne"])
+#TT = map(float, IOtable.extract_dataframe(taboffre, taboffre.keys(), 'V1', val='TT')[taboffre.keys()[2]])#taboffre.keys()[2]#0 pour WC
+#MSRacFine = map(float, IOtable.extract_dataframe(taboffre, taboffre.keys(), 'V1', val='MS_rac_fine')[taboffre.keys()[2]])#taboffre.keys()[2]
+#print(MSRacFine)
+
+
+#fichier_volrac=open(r'C:\devel\archisimple_lpy\GL sur pc serge\volrac.txt',"rb")#r'C:\devel\racine vincent\volrac.txt'#
+#path_volrac_vincent = os.path.join(path_leg,'volrac.txt')
+
+#print str(taboffre.keys()[2])=='leo' #,TT, MSRacFine
+#bug pour giga car cle dans taboffr pas ds le meme sens??
+
+#recup dTT et dMS_rac_fine -> faire simul jusqu'a TT = 500
+# sorti de fichier image?
+
+
+# Meteo et management constante
+nb_jours=100
+Et0 = [0.1]*nb_jours #ETP (mm)
+Rain = [0.]*nb_jours
+Tsol = [25.]*nb_jours #degresC
+Irrig = [0.]*nb_jours #0.2.
+FertNO3 = [0.]*nb_jours #kg N.ha-1
+FertNH4 = [0.]*nb_jours #kg N.ha-1
+epsi = [0.9999]*nb_jours #efficience d'interceptio plante ; 1: voit que effet transpi
+
+IDj = 0 #ID du jour
+
+
+
+################
+# Initialisation 
+################
+
+TPS=0 #temps en degres jours depuis initi
+nbSTEPS=300 #P_duree #degres jours
+dt=1 #degre jour par step
+timing = 0 #pour duree sim en s
+
+TTdays = range(1,350,10) # TT des changements de jour auquel faire le calcul de bilan hydrique / Sol
+decalj=3  # decalage en jour dans TT pour prendre le premier jour
+Rseed = 0
+
+#pattern8 = [[-50.,-50.], [50.,50.]] #cm
+pattern8 = [[-15.,-15.], [15.,15.]] # cm
+dz=3.# 5. # coucle sol, cm
+size=[10,10,30] #discretisation
+properties_3ds = ['asw_t', 'tsw_t', 'Corg', 'Norg', 'm_NO3', 'm_NH4', 'm_soil_vol', 'm_Tsol', 'm_DA', 'ftsw_t']
+stateEV = [0.,0.,0.]
+
+
+carto = [[0.,0.,0.]] #[[0.,0.,0.], [50.,50.,0.]] #carto [x,y,z] des positions plantes (en mm!)
+#Nb_plt = len(carto)
+# pour le moment 1 seul plante -> prevoir couplage de plusieurs plantes? -> impliqure remplir plusieurs grilles de densite?
+# pour le moment couplage sol se fait avec 1 seul entite de densite de racine et epsi
+# ! remplissage grille densite dans le L-system (pas ds end each) -> requiert objet sol dedans
+
+
+def initiatisation_soil_default(pattern8, dz, size, stateEV, properties_3ds):
+  #properties_3ds = ['asw_t', 'tsw_t', 'Corg', 'Norg', 'm_NO3', 'm_NH4', 'm_soil_vol', 'm_Tsol', 'm_DA', 'ftsw_t']
+  # signification des properties:
+  # asw_t : quantite d'eau libre pour plante dans le voxel au temps t (mm)
+  # tsw_t : quantite d'eau totale dans le voxel au temps t (mm)
+  # ftsw_t : fraction d'eau ranspirable = asw_t/tsw_t
+  # m_soil_vol : volume des voxels (m3)
+  # m_DA : densite apparente du sol par voxel (g.cm-3)
+  # m_Tsol: Temperature sol (degreC - entree actuellement forcee par meteo)
+  # Corg: (kg C dans le voxel)
+  # Norg: (kg N dans le voxel)
+  # m_NH4: (kg N NH4 dans le voxel)
+  # m_NO3: (kg N NO3 dans le voxel)
+  
+  # lecture parametre N par defaut
+  par_SN = solN.default_parSN()
+  
+  ## creation d'un objet sol 3ds par defaut (S)
+  S = init_sol_test(pattern8, dz, size)
+  #print('surfsol',S.surfsolref) #-> c'est bien un objet sol de la bonne surface qui est cree 
+  
+  #instancie un odjet sol 3D d'interface vide (intsoil) a partir de l'objet sol 3ds (S)
+  size_ = S.size[1:]+S.size[0:1] #passe z,x,y en xyz
+  dxyz_ = [S.dxyz[0][0], S.dxyz[1][0], S.dxyz[2][0]]
+  origin = S.origin
+  # Par default, les dimensions sont exprimes en m. Il faut les convertir en cm pour le wrapper Soil3D
+  dxyz_ = [v*100 for v in dxyz_] # conversion cm
+  origin = [v*100 for v in origin] # conversion cm
+  
+  
+  # creation wrapper sol
+  intsoil = soil_interface.Soil3D_wrapper(origin, size_, dxyz_)
+  intsoil.add_property('root_length',0)
+  
+  #mise a jour de ttes les proprietes de sol dans l'interface sol
+  intsoil.set_3ds_properties(S, properties_3ds)
+  #print origin, size_, dxyz_
+  
+  return S, stateEV, intsoil, par_SN
+
+
+
+
+# Sol original de vincent : utilise en dur pour gravitropisme et croissance racine avec info supplementaires (resist meca...)
+
+fichier_sol=open(path_sol_vincent,"r")#"rb", encoding=<theencodingofthefile>)
+tableau_sol=csv.reader(fichier_sol,delimiter='	')
+SolV=[]
+j=0
+for x in tableau_sol:
+  if j==0:
+    j=1
+  else:
+    SolV.append(x)
+fichier_sol.close()
+
+#contient
+#/* Coefficient de croissance, compris entre 0 et 1 */
+#/* Coefficient multiplicateur de distance inter-ramif  */
+#/* Intensite de la contrainte mecanique */
+#/* Orientation de la contrainte mécanique (O iso, ou 1 vert) */
+
+# to do: passer ces infos dans intsol pour simplifier l'exemple !!
+#print('Sol:', SolV)
+# ['1', '1', '0.02', '0'] dans tous les horizons
+
+
+
+#### Parametre plante pour uptake d'N #####
+ParamPN = [solN.default_paramp()]
+ls_N = [1.] #liste inn plante -> fixe
+
+
+#### Parametre L-system Vincent #####
+
+#P_duree=300
+
+NBPASMAX=151 #/* Nombre maximal de pas de temps */
+NBHORMAX=60 #/* Nombre maximal d'horizons de sol */
+MAXLINE=150  #/* Longueur maxi de la ligne dans fichiers texte */
+NBCASEMAX=301  #/* Nombre maximal de cases de sol en X, Y et Z */
+
+epsilon=1.0e-10 #/* Petite valeur, proche de 0 */
+epaissHor=50.0  #/* Epaisseur horizons de sol (en mm) */
+longSegNorm=1.9  #/* Longueur habituelle des segments formés (mm) */
+longSegMin=2.0  #/* Longueur minimale des segments formés, quand faible croissance (mm) */
+dureeSansCreation=3 #/* Durée maximale sans création de noeud, quand faible croissance (jour) */
+mailleMin=6.0  #/* Valeur de la maille minimale de sol (mm) */
+d1=3.0   #/* Première valeur de distance (mm) */
+d2=30.0  #/* Deuxième valeur de distance (plus grande) (mm) */
+
+NBbranchement=0
+
+
+
+#// Caractérisation de l'émission des primaires
+P_vitEmissionPrim= ParamP['ER']#13 #/* Vitesse d'émission des primaires (en jour-1) */
+P_nbMaxPrim= ParamP['NBmaxPrim']#200 #/* Nombre maximal de racines primaires */
+
+P_angInitMoyVertPrim=0.#0.7854 #/* Angle d'insertion moyen par rapport à la verticale pour les primaires */
+P_angInitETVertPrim=0.15 #0.55#0.35  #/* écart-type de l'angle d'insertion des primaires */
+
+#// Caractérisation de l'émission des tardives
+#P_ageEmissionTard=200.0 #/* âge de commencement de l'émission des racines tardives */
+#P_vitEmissionTard=0 #/* Vitesse d'émission des tardives (en jour-1) */
+#P_dBaseMaxTard=10.0 #/* Distance à la base maximale pour les tardives (mm) */
+#P_propDiamTard=0.70 #/* Proportion du diamètre des tardives (par rapport aux primaires) */
+#P_nbMaxTard=0 #/* Nombre maximal de racines tardives */
+
+#P_angInitMoyVertTard=1.57 #/* Angle d'insertion moyen par rapport à la verticale pour les tardives */
+#P_angInitETVertTard=0.02  #/* écart-type de l'angle d'insertion des tardives */
+
+#// Probabilité journalière d'arrêt de la croissance
+P_probaMaxArret=1  #/* Probabilité journalière d'arrêt maximale, pour un diamètre nul */
+P_probaEffetDiam=0.00000004  #/* Effet de décroissance de la probabilité, en lien avec diamètre apical (mm-1) */
+
+#// Croissance radiale
+P_coeffCroissRad=0.0 #// coefficient de croissance radiale
+
+#// Allongement (croissance axiale)
+P_diamMin= ParamP['Dmin']*10#0.07  #/* Diamètre minimal en deça duquel il n'y a pas de croissance (mm) */
+P_diamMax= ParamP['Dmax']*10#0.6   #/* Diamètre maximal donné aux racines primaires (mm) */
+P_penteVitDiam=ParamP['ELmax']*10#2.0#30.0 #/* pente de la relation entre vitesse de croissance et diamètre (mm.mm.jour-1) */unite??
+P_SC=1.#0.5  # coefficient de satisfaction en carbone (ratio entre la demande et l offre en biomasse)
+P_tendanceDirTropisme=1  #/* Type de tropisme (0: plagio; -1: geo-; +1: geo+; 2: exo */
+P_intensiteTropisme= ParamP['g_root']*10#0.001199#0.05#0.01 #/* Coefficient multiplié par le diamètre pour chaque racine */
+
+#// Ramification
+P_ageMaturitePointe= ParamP['DistRA']*10/(P_penteVitDiam*(P_diamMax-P_diamMin)) #80 #/* âge de maturité des méristèmes (jours) */
+P_distRamif= ParamP['IBD']*10#2.5 #/* distance inter-ramification (mm) */
+P_propDiamRamif= ParamP['DIDm']#0.25 #/* proportion de diamètre des filles par rapport à leur mère */
+P_coeffVarDiamRamif= ParamP['varD']#0.25 #/* coefficient de variation du diamètre des ramifs */
+P_angLat= ParamP['ELV0']*3.14/180.#1.3 #/* angle d'insertion des racines latérales */
+
+# Variation de diametre
+P_Vmax=0.01
+P_Vmin=-0.01
+P_Dmax=ParamP['Dmax']*10#0.8
+
+
+
+
+#// Mortalite
+RTDmoy = 0.0534# valeur moy des 6 especes (pour test)
+P_RootMasseVolumique= ParamP['RTD']/1000#RTDmoy/1000##(g.mm-3)#0.142 #/* Tissue mass density, ou masse volumique */
+P_penteDureeVieDiamTMD=300.0 #/* pente de la relation durée de vie versus diamètre et TMD */
+P_TMD = 3000. #150j*20degre
+P_GDs = 3000. #150j*20degre
+
+ordreMax = 4 #GL: ordre max ou representer les racines
+
+
+
+#anisotropisme=0 # en attendant le sol
+
+maille=mailleMin #/* Valeur initialisee de la maille de sol */
+volElemSol=0  #/* Volume élémentaire de sol associé à la maille (mm3) */
+
+
+num_pointe=0
+num_primordium=0
+
+
+
+#### preparation des sorties
+cumlen = [0,0,0,0,0,0,0,0]
+nbpte = [0,0,0,0,0,0,0,0]
+profmax = 0.
+out = []
+
+########################################
+# Log modilf GL
+# 
+# - ajoute un argument Dmax_i aux objets pte et primord -> pour stocker valeur tirée inititale
+# - utilise Dmax_i comme valeur max de diametre de chaque racine (pas Dmax global)
+# - lecture des parametres dans un fichier externe excell:param_root.xls
+# - ajoute argument ordre de ramification aux objets pte, primord et segment
+# - prepapre une variable de sortie cumlen pour les cumuls de longueur de segment par ordre: cumlen
+# - reunit ttes les sorties dans tableau out
+# - introduit possibilite d'imposer un 'ordreMax' de ramification: pour contourner pb memoire
+# - raclcule une offre en C journaliere pour les racines fines a partir d'un fichier d'entree -> la rapporte par degre jour
+# - passe P_SC en varaible ajustee entre 0 et 1 selon ratio offre demande
+# - ajout d'un Rseed pour controler les memes graines aleatoires
+# - ajout collet(n) et bracket pour gerer plusieurs systems racinaires
+# - ajout fonction initialisation soil et opt_external_coupling
+# 
+# ! unites affichees en commentaire sont pas bonnes!: longueur/diametre: tout en mm!!; pas de temps = degre.jour!
+
+# modify segment object to know its position with two ?P before and after
+# import soil module and impulse soil interface
+#  compute root soil length per voxel at each step
+#  compute soil water balance every step using the frid
+# visualise densite/ftsw_t output
+#ne faire le water balance que tous les n stpes!!!!
+
+
+
+# A faire: finir de reporter valeur de parametre (, g..)
+
+#pb: vitesse d'elongation colle pas avec vitesse d'elongation potentielle (ratio 0.41)
+#+ longueur cumulee des segments primaire colle pas avec profondeur d'enracinnement?? (meme ratio: 0.42)??
+# pb d'affichage / profondeur mais sinon affichage coherent avec echelle 1m introduite (pour differentes especes)
+
+## ajouter offre et ratio statifaction offreC dans les sorties
+# test de differents pas de temp dt donne sorties differents (pas de temps qui 'sautent'?
+# lie a certain element lies a TPS (en jours) et autres a dt??
+#Y en tout cas: allongement primaire reste cst (36mm/jour alors que dTT varie!! -> pb!)  -> pas de temps du model doit reester e, degrejours
+# pourrait ajouter un control de la production de primordium par rapport source puit (seuil en dessous duquel plus de fille) -> demander loic
+
+
+
+def Which_idjour(TT, monTT, decalj):
+  " retouve l'id du jour avec le TT monTT"
+  id = decalj
+  for i in range (decalj, len(TT)):
+    if monTT>TT[i] and monTT<=TT[i+1]:
+      id=i
+  
+  return id
+
+def Offrj(TT,MSRacFine, idj):
+  " calcul du ratio dMSracine sur dTT du jour"
+  dTT= TT[idj] - TT[idj-1] #delta temps thermique journalier
+  dOffr = max (0., MSRacFine[idj] - MSRacFine[idj-1]) #delta offre en C journalier
+  return dOffr/dTT #offre en C par degrejour du jour en question
+
+
+#print 'idj', Which_idjour(TT, 100, decalj), 'ofr', Offrj(TT,MSRacFine, Which_idjour(TT, 100, decalj))
+
+
+def Gravitropisme(vertex,segment,profondeur,elong,init):#age,ordre,Turtle):
+  global AngleMaxInit,mtg
+  
+  Tortue=mtg.property('pte').get(vertex).Tortue
+  if (Order(vertex)==0 and segment==0 and init==1):# idem a (age==0 and ordre==0) signifie 1ere croissance de la racine
+    alpha=random.normalvariate(P_angInitMoyVertPrim,P_angInitETVertPrim)
+    while abs(alpha)>pi/2 and abs(alpha)<0:
+      alpha=random.normalvariate(P_angInitMoyVertPrim,P_angInitETVertPrim)
+    beta=random.random()*2*pi 
+  
+  elif (segment==0 and init==1):# idem a age=0 signifie 1ere croissance d'une laterale
+    alpha=P_angLat
+    beta=random.random()*2*pi
+  
+  else:  
+    
+    #### vect direction pointe ####
+    tortue=np.array([Tortue[:,0]])/np.linalg.norm(Tortue[:,0])
+    
+    #### vect gravitropisme ####
+    G=np.array([0,0,-P_intensiteTropisme*elong*mtg.property('pte').get(vertex).diametre])
+    
+    #### vect meca  ###
+    
+    #Dx=random.random()*2-1
+    #sign=(floor(random.random()*2))*2-1
+    #Dy=sign*sin(acos(Dx))
+    #Meca=0.5*(Dx*np.array([Tortue[:,1]]/np.linalg.norm(Tortue[:,1]))+Dy*np.array([Tortue[:,2]]/np.linalg.norm(Tortue[:,2])))
+    
+    
+    cont=float(SolV[Couche(profondeur)][2])
+    if SolV[Couche(profondeur)][3]==1:##(oCMecaSol(sol,profondeur)==1)  /* Contrainte anisotrope verticale */
+      ## on est dans le cas ou le sol est composé de nombreux tunnel verticaux de vers de terre qui entraine une orientation assez verticale des racines 
+      teta=15*pi/180
+      ang_insertion=random.random()*2*teta-teta
+      ang_radial=random.random()*2*pi
+      RotLeft=np.array([[1,0,0],[0,cos(ang_radial),-sin(ang_radial)],[0,sin(ang_radial),cos(ang_radial)]])
+      RotUp=np.array([[cos(ang_insertion),sin(ang_insertion),0],[-sin(ang_insertion),cos(ang_insertion),0],[0,0,1]])
+      Rot=np.dot(Tortue,RotLeft)
+      Meca=np.dot(Rot,RotUp)/np.linalg.norm(Meca[:,0])*elong *cont
+    else:
+      ang_insertion=random.random()*pi-pi/2
+      ang_radial=random.random()*2*pi
+      RotLeft=np.array([[1,0,0],[0,cos(ang_radial),-sin(ang_radial)],[0,sin(ang_radial),cos(ang_radial)]])
+      RotUp=np.array([[cos(ang_insertion),sin(ang_insertion),0],[-sin(ang_insertion),cos(ang_insertion),0],[0,0,1]])
+      Rot=np.dot(Tortue,RotLeft)
+      Meca=np.dot(Rot,RotUp)
+      Meca=Meca[:,0]/np.linalg.norm(Meca[:,0])
+      Meca=Meca*elong*cont
+    ### vect final ###
+    newtortue=tortue+G+Meca
+    newtortue=newtortue/np.linalg.norm(newtortue)
+    A=np.array([0.,0.,0.])
+    for i in range(3):
+      a=np.array([Tortue[0,:],Tortue[1,:],Tortue[2,:]])
+      a[:,i]=newtortue
+      A[i]=np.linalg.det(a)/float(np.linalg.det(Tortue))
+    
+    A=A/np.linalg.norm(A)
+    alpha=acos(A[0])
+    beta=acos(-A[1]/sin(alpha))
+    
+    if ((A[2] <0 and -sin(alpha)*sin(beta)>0) or (A[2] >0 and -sin(alpha)*sin(beta)<0)) :
+      beta=-beta
+    
+    
+    
+  RotLeft=np.array([[1,0,0],[0,cos(beta),-sin(beta)],[0,sin(beta),cos(beta)]])
+  RotUp=np.array([[cos(alpha),sin(alpha),0],[-sin(alpha),cos(alpha),0],[0,0,1]])
+  Rot=np.dot(Tortue,RotLeft)
+  newTurtle=np.dot(Rot,RotUp)
+  #newTurtle[:,0]=newTurtle[:,0]/np.linalg.norm(newTurtle[:,0])
+  
+  pos=mtg.property('pte').get(vertex).posO
+  newpos=pos+newTurtle[:,0]*elong
+  return (newTurtle,newpos)
+
+
+def CroissanceRacine(X,profondeur):
+  c=Couche(profondeur)
+  return (X.diametre - P_diamMin)* dt * P_penteVitDiam * float(SolV[Couche(profondeur)][0])
+
+def tireDiamPointeFille(diametre_pere):
+  ##/* Tire le diamètre d'un méristème de ramification suivant celui du père
+  ##   pour la ramification séquentielle */
+  
+  moy=diametre_pere*P_propDiamRamif + (P_diamMin*(1.0-P_propDiamRamif))
+  et=moy*P_coeffVarDiamRamif
+  diamPFille=10.0  #// initialisation à une forte valeur
+  while (diamPFille>(1.1*diametre_pere)):
+     diamPFille=random.normalvariate(moy,et)
+  return diamPFille
+
+
+def axialtree2mtg2(tree, scale, scene, parameters):
+  
+  def scene_id(scene):
+    
+    d = {}
+    if scene:
+      for sh in scene:
+        d.setdefault(sh.id,[]).append(sh)
+    return d
+  def change_id(axial_id, mtg_id):
+    mtg.property('_axial_id')[mtg_id] = axial_id
+    if geoms:
+      if geoms.__contains__(axial_id):#geoms.has_key(axial_id):
+        for shape in geoms[axial_id]:
+          shape.id = mtg_id
+        mtg.property('geometry')[mtg_id]=geoms[axial_id]
+      else:
+        #print 'Be careful : no id ', axial_id
+        pass
+  
+  
+  geoms = scene_id(scene)
+  mtg = MTG()
+  if scene:
+    mtg.add_property('geometry')
+  
+  if parameters is None:
+    parameters = {}
+  for label in parameters:
+    for p in parameters[label]:
+      if p not in mtg.property_names():
+        mtg.add_property(p)
+  vid = mtg.root
+  current_vertex = vid
+  branching_stack = [vid]
+  
+  max_scale = max(iter(scale.values()))  
+  pending_edge=''  #edge type for the next edge to be created
+  indoor=0
+  #pending_edge=[]  ####
+  #for i in range(max_scale):#### 
+  #  pending_edge.append(0)####  
+  
+  for aid, modul in enumerate(tree):
+    label = modul.name
+    if label == 'IN':
+      indoor=1
+    elif label == '[':
+      if indoor==0:
+        branching_stack.append(vid)
+        pending_edge = '+'
+      else:
+        indoor=0        
+        branching_stack.append(vid)
+        pending_edge.append('')
+        continue
+    elif label == ']':
+      if indoor==0:
+        vid = branching_stack.pop()
+        current_vertex = vid
+        pending_edge = ''
+      else:
+        indoor=0
+        vid = branching_stack.pop()
+        current_vertex = vid
+        pending_edge.pop()
+        continue
+    elif (label not in scale) and (label not in parameters):
+      continue
+    else:
+      
+      _scale = scale[label]
+      _params = parameters.get(label, [])
+      params = {}
+      params['label'] = label
+      
+      for p in _params:
+        if modul.hasParameter(p):
+          params[p] = modul.getParameter(p)
+          
+      if mtg.scale(vid) == mtg.scale(current_vertex) == _scale:
+        if pending_edge == '+':
+          edge_type = '+'
+        else:
+          edge_type = '<'
+        params['edge_type'] = edge_type
+        vid = mtg.add_child(vid, **params)
+        current_vertex = vid
+        pending_edge = '' ####
+      elif mtg.scale(vid) < max_scale:
+        #print('ici2')
+        #print(label,mtg.scale(current_vertex),_scale)
+        assert mtg.scale(vid) == mtg.scale(current_vertex)
+        # Descend in scale for the first time
+        vid = mtg.add_component(vid, **params)
+        current_vertex = vid
+        pending_edge = '<'
+      elif mtg.scale(current_vertex) < _scale:
+        
+        assert mtg.scale(current_vertex) == _scale - 1
+        current_vertex = mtg.add_component(current_vertex, **params)
+        if mtg.scale(vid) == _scale:
+          if pending_edge == '+':
+            edge_type = '+'
+          else:
+            edge_type = '<'
+          params['edge_type'] = edge_type
+          
+          vid = mtg.add_child(vid,child=current_vertex,**params)
+          assert vid == current_vertex
+          pending_edge = ''
+      else:
+        #print('ici3')
+        while mtg.scale(current_vertex) >= _scale:
+          current_vertex = mtg.complex(current_vertex)
+        assert mtg.scale(current_vertex) == _scale - 1
+        current_vertex = mtg.add_component(current_vertex, **params)
+      if max_scale == _scale:
+        change_id(aid,current_vertex)
+  mtg = fat_mtg(mtg)
+  return mtg
+
+
+def Distance(v1,v2):  
+  dist=0
+  chemin=Path(v1,v2)
+  
+  chemin.append(v1)
+  for x in chemin:
+    if Class(x)=='s':
+      dist=dist+mtg.property('seg').get(x).longueur
+  return dist
+
+
+def Couche(profondeur):
+  hor=-floor(profondeur/epaissHor)
+  if hor>=NBHORMAX:
+    hor=NBHORMAX-1
+  if hor<0:
+    hor=0
+  
+  return int(hor)
+
+
+class pte:
+  def __init__(self, id_pointe=0, age=0, diametre=0., Dmax_i=0, distPrimInit=0., longueur=0.01, dateDerniereCreation=0, posO=np.array([0.,0.,0.]),Tortue=np.array([[0.,0.,-1],[0.,1,0],[-1.,0.,0.]]), arretee=False, senile=False,axe_mort=False,segment=0, ordre=1):
+    self.id_pointe=id_pointe
+    self.age=age
+    self.diametre=diametre
+    self.distPrimInit=distPrimInit
+    self.longueur=longueur
+    self.dateDerniereCreation=dateDerniereCreation
+    self.Tortue=Tortue
+    self.arretee=arretee
+    self.senile=senile
+    self.axe_mort=axe_mort
+    self.posO=posO
+    self.segment=segment
+    self.Dmax_i=Dmax_i
+    self.ordre=ordre
+
+class primord:
+  def __init__(self,id_primord,age,diametre,Dmax_i, Tortue=np.array([[0.,0.,-1],[0.,1,0],[-1.,0.,0.]]),avorte=False,id_pointe_axe=0,posO=np.array([0.,0.,0.]),ordre=1):
+    self.id_primord=id_primord
+    self.age=age
+    self.diametre=diametre
+    self.Tortue=Tortue
+    self.avorte=avorte
+    self.id_pointe_axe=id_pointe_axe
+    self.posO=posO
+    self.Dmax_i=Dmax_i
+    self.ordre=ordre
+
+class seg:
+  def __init__(self, jourForm,diametre,longueur=0.,id_pointe_axe=0,ordre=1):
+    self.jourForm=jourForm
+    self.diametre=diametre
+    self.longueur=longueur
+    self.id_pointe_axe=id_pointe_axe
+    self.ordre=ordre
+
+
+#########   definition horizon sol (version initiale Vincent )  #########
+
+#class Horizon:  #/* Horizon de sol */
+#  def __init__(self,croiss,ramif,iCMeca,oCMeca):
+#    self.croiss  #/* Coefficient de croissance, compris entre 0 et 1 */
+#    self.ramif  #/* Coefficient multiplicateur de distance inter-ramif  */
+#    self.iCMeca  #/* Intensité de la contrainte mécanique */
+#    self.oCMeca    #/* Orientation de la contrainte mécanique (O iso, ou 1 vert) */
+
+
+
+
+
+def Start():
+  global timing,branch,chemin_fichier, S, stateEV, intsoil, par_SN, dxyz_, origin, intsoil, properties_3ds
+  random.seed(Rseed)
+  
+  # initialisaion sol
+  S, stateEV, intsoil, par_SN =  initiatisation_soil_default(pattern8, dz, size, stateEV, properties_3ds)
+  
+  frameDisplay(True)
+  Viewer.frameGL.setBgColor(255,255,255)
+  #Viewer.camera.setOrthographic() 
+  #Viewer.camera.lookAt((-50,0,-20),(0,0,-20))
+  timing = t.time()
+
+
+def StartEach():
+  global intsoil
+  intsoil.add_property('root_length',0)
+  properties_3ds = ['asw_t', 'tsw_t', 'Corg', 'Norg', 'm_NO3', 'm_NH4', 'm_soil_vol', 'm_Tsol', 'm_DA', 'ftsw_t']
+  # signification des properties:
+  # asw_t : quantite d'eau libre pour plante dans le voxel au temps t (mm)
+  # tsw_t : quantite d'eau totale dans le voxel au temps t (mm)
+  # ftsw_t : fraction d'eau ranspirable = asw_t/tsw_t
+  # m_soil_vol : volume des voxels (m3)
+  # m_DA : densite apparente du sol par voxel (g.cm-3)
+  # m_Tsol: Temperature sol (degreC - entree actuellement forcee par meteo)
+  # Corg: (kg C dans le voxel)
+  # Norg: (kg N dans le voxel)
+  # m_NH4: (kg N NH4 dans le voxel)
+  # m_NO3: (kg N NO3 dans le voxel)
+  
+  #mise a jour de ttes les proprietes de sol dans l'interface sol
+  intsoil.set_3ds_properties(S, properties_3ds)
+
+
+
+
+def EndEach(lstring,lscene):
+  global mtg,TPS,id_site,branch,scales,parameters,pointes, branch,les_pointes,les_primordiums,cumlen,out,profmax,nbpte,TT,decalj,MSRacFine,P_SC, intsoil, S, stateEV,TTdays, IDj, Rain, Irrig, epsi, Et0, var_soil_coupling, var_CAlloc
+  
+  TPS=TPS+1
+  tempete=t.time()
+  mtg=axialtree2mtg2(lstring, scales, lscene, parameters)
+  Activate(mtg)
+  #branch.writerow([TPS,NBbranchement])
+  les_pointes=[[mtg.property('pte').get(x).id_pointe,x] for x in VtxList(3) if Class(x)=='p']
+  les_primordiums=[x for x in VtxList(3) if Class(x)=='P']
+  
+  
+  ##########
+  # step calcul offre/demande en C
+  ##########
+  
+  Demande_biomasse=0
+  for a in les_pointes:
+    vtx=a[1]
+    la_pte=mtg.property('pte').get(vtx)
+    elong=CroissanceRacine(la_pte,1)
+    Demande_biomasse+=P_RootMasseVolumique*(pi*(la_pte.diametre/2)*(la_pte.diametre/2)*elong)
+  
+  #print('Demande R en biomasse :',Demande_biomasse)
+  #print 'TPS :',TPS
+  
+  #,' Temps pas :',t.time()-timing2
+  #print 'temps pointe :', timing7 , '  temps primordium :',timing8,'  temps segments :',timing9,' temps endeach :',t.time()-tempete
+  #print 'temps sysRac :',timing10
+  
+  dOffr = Offrj(TT,MSRacFine, Which_idjour(TT, TPS, decalj)) #offre en C par degrejour du jour en question
+  #ratio de satisfaction pour faire le scaling de l'allocation (0-1)
+  P_SC = min(1., max(0. ,dOffr/Demande_biomasse)) #1 #si impose cste
+  
+  
+  
+  var_CAlloc = [Demande_biomasse, dOffr, P_SC] #point pour recup variables externe
+  var_soil_coupling = [TPS, IDj, TTdays, S, intsoil, stateEV, Et0, Tsol, Rain, Irrig, FertNO3, FertNH4, epsi, ParamPN, ls_N, opt_residu, opt_Nuptake] #point pour recup variables externe
+  
+  
+  ##########
+  # step soil avec meteo jour IDj (ajuster pour faire toutes les 10 iterations??)
+  ##########
+  
+  if TPS in TTdays:#fait step water balance pas tous les degres jours: uniquement 1 fois par jour (TT indiques dans TTdays)
+    if opt_external_coupling == 0:
+      
+      #lecture meteo
+      j=IDj #id du jour dans la liste meteo /mng
+      
+      #calcul grille densite racine globale (la plante ou toutes les plantes)
+      ls_roots = [soil_interface.soil3Dw2s3DSprop(intsoil, S, 'root_length')]
+      
+      
+      # update daily variables
+      ls_epsi = [epsi[j]]
+      meteo_j = {'Et0': Et0[j], 'Precip': Rain[j], 'Tsol': Tsol[j]}
+      mng_j = {'Irrig': Irrig[j], 'FertNO3':FertNO3[j], 'FertNH4':FertNH4[j]}
+      
+      # step water et N balance avec 1 seule entite (ls_roots et epsi)
+      tag_inputs_soil_step = [S, par_SN, meteo_j,  mng_j, ParamPN, ls_epsi, ls_roots, ls_N, opt_residu, opt_Nuptake] #input tag
+      res_soil_step = solN.step_bilanWN_solVGL(*tag_inputs_soil_step)
+      S, stateEV, ls_ftsw, ls_transp, ls_Act_Nuptake_plt, temps_sol = res_soil_step
+      
+      
+      if opt_verbose ==1:
+          print ('tp water balance:', TPS)
+      
+      # step de 1 jour
+      IDj = IDj+1
+  
+  
+  if opt_verbose == 1:
+    #print cumlen, 'offre: ', dOffr
+    try:
+      print('Demande R en biomasse :',Demande_biomasse, 'dOffr R en biomasse, P_SC :', dOffr, P_SC, 'FTSW', ls_ftsw)
+    except:
+      print('Demande R en biomasse :',Demande_biomasse, 'dOffr R en biomasse, P_SC :', dOffr, P_SC, 'FTSW', "-")
+  
+  
+  # fichier sortie
+  out.append([TPS,profmax,nbpte[2],Demande_biomasse,dOffr,P_SC,sum(cumlen)]+cumlen[1:])#ajouter offre_semande
+  
+  #remise a zero
+  cumlen = [0,0,0,0,0,0,0,0]
+  nbpte = [0,0,0,0,0,0,0,0]
+  
+  #frameDisplay(True)
+  #Viewer.display(lscene)
+  #Viewer.frameGL.setBgColor(255,255,255)
+  #Viewer.camera.setOrthographic()
+
+
+
+def End():
+  global timing,chemin_fichier,out, path_leg, ongletP, Rseed
+  #chemin_fichier.close()
+  print ('Execution time :',t.time()-timing)
+  print (intsoil.m['root_length'][:,:,0])
+  print (intsoil.m['ftsw_t'][:,:,0])
+  
+  #ecriture en sortie du profil racinaire
+  resrootpath = os.path.join(path_leg, 'toto_out_root_'+ongletP+"_seed"+str(Rseed)+'.csv')
+  f = open(resrootpath, 'w')
+  IOtable.ecriture_csv(out, f)
+  f.close()
+  
+  #visu fin
+  if opt_plot_fin == 1:
+    frameDisplay(True)
+    #Viewer.frameGL.setSize(2000,5000)
+    Viewer.frameGL.setBgColor(255,255,255)
+    #Viewer.camera.setOrthographic() 
+    
+    #Viewer.camera.lookAt#((7.5/100,-1666./100,-545/100),(384./100,0,-500/100))#((7.5,-1666.,-545),(384.,0,-500))#((-50,0,-20),(0,0,-20))
+    outimagepath =  os.path.join(path_leg, ongletP+"_seed"+str(Rseed)+"_"+str(getIterationNb())+".png")
+    Viewer.frameGL.saveImage(outimagepath)
+
+
+
+
+module SystemeRacinaire : scale=1
+module racine : scale=2
+module segment(seg) : scale=3
+module Primordium(primord): scale=3
+module pointe(pte) : scale=3
+
+
+#Declaration des module pour transformation en mtg (using axialtree2mtg)
+scales={}
+parameters={}
+
+scales['SystemeRacinaire']=1
+parameters['SystemeRacinaire']=[]
+scales['racine']=2
+parameters['racine']=[]
+scales['segment']=3
+parameters['segment']=['seg']
+scales['Primordium']=3
+parameters['Primordium']=['primord']
+scales['pointe']=3
+parameters['pointe']=['pte']
+
+
+
+
+Axiom: [wRuler()][Collet(0)SystemeRacinaire]Grid(0) #[wRuler()][Collet(0)SystemeRacinaire][Collet(1)SystemeRacinaire]Grid(0)
+
+derivation length: nbSTEPS
+production:
+
+SystemeRacinaire:
+  global TPS,num_pointe,timing10
+  nouvNbPrim=0
+  
+  if TPS>1:
+    nb_racine=len(VtxList(2))
+  else:
+    nb_racine=0  
+  #print(TPS%P_vitEmissionPrim,nb_racine,P_nbMaxPrim)
+  if TPS%P_vitEmissionPrim==0 and nb_racine<P_nbMaxPrim:
+    nouvNbPrim=1
+  
+  #nouvNbPrim=P_vitEmissionPrim*TPS
+  #if nouvNbPrim>=P_nbMaxPrim:
+  # nouvNbPrim=P_nbMaxPrim
+  
+  
+  
+  nouvPrim=nouvNbPrim-nb_racine
+  #print('nouvemiss',nouvPrim)
+  nproduce SystemeRacinaire
+  #for i in xrange(nouvPrim):
+  if nouvNbPrim==1:
+    num_pointe=num_pointe+1
+    Y=pte(id_pointe=num_pointe,age=0,diametre=P_diamMax,Dmax_i=P_diamMax,Tortue=np.array([[0.,0.,-1],[0.,1,0],[-1.,0.,0.]]))
+    nproduce SB()racine()Down(180)pointe(Y)EB()
+  produce
+
+
+
+pointe(X):
+  global mtg,num_primordium,timing7,les_pointes,profmax,nbpte, P_SC
+  X.age=X.age+dt
+  
+  for x in les_pointes:
+    if x[0]==X.id_pointe:
+      vertex_pointe=x[1]
+      break
+  
+  #vertex_axe=Axis(vertex_pointe)
+  
+  #if X.id_pointe==1:#racin seminale
+  #  print 'longueur: ', X.longueur, X.age, X.diametre, X.posO, CroissanceRacine(X,1)
+  
+  if X.arretee==False and X.senile==False and X.diametre>P_diamMin and X.ordre<=ordreMax:
+    
+    profondeur=X.posO[2]
+    elongation=CroissanceRacine(X,profondeur) * P_SC
+    X.longueur=X.longueur+elongation
+    
+    ## distance interafi modulee par sol!!!?
+    distInterRamif=P_distRamif * float(SolV[Couche(profondeur)][1])
+    
+    init=1
+    
+    
+    
+    if X.id_pointe==1:#racin seminale
+      #print 'longueur: ', X.longueur, X.age, X.diametre, X.posO, CroissanceRacine(X,1), elongation
+      if X.posO[2]<profmax:#mise a jour profondeur max
+          profmax = X.posO[2]
+    
+    
+    while X.longueur > distInterRamif:
+      (X.Tortue,X.posO)=Gravitropisme(vertex_pointe,X.segment,profondeur,longSegNorm,init)
+      if X.segment==0:
+        X.segment=1
+      Z=seg(TPS,X.diametre,distInterRamif,X.id_pointe,ordre=X.ordre)
+      nproduce SetHead(X.Tortue[0][0],X.Tortue[1][0],X.Tortue[2][0],X.Tortue[0][2],X.Tortue[1][2],X.Tortue[2][2])?P segment(Z) ?P
+      diam=tireDiamPointeFille(X.diametre)
+      num_primordium=num_primordium+1
+      param=primord(id_primord=num_primordium,age=0,diametre=diam,Dmax_i=diam,Tortue=X.Tortue,id_pointe_axe=X.id_pointe,posO=X.posO,ordre=X.ordre+1)
+      nproduce Primordium(param)
+      X.longueur=X.longueur-distInterRamif
+      init=0
+  
+  #if X.senile==False and TPS>10 and X.arretee==False:
+  #  
+  #  tirage=random.random()
+  #  probaArret=P_probaMaxArret*(1-exp(-P_probaEffetDiam*X.age/X.diametre))
+  #  if tirage < probaArret:
+  #    X.arretee=True      ### La croissance est arretée
+  #  
+  
+  
+  #if X.senile==False and TPS>10 and X.age > (P_penteDureeVieDiamTMD*X.diametre*P_TMD):
+  #  X.senile=True    ### la pointe devient sénile
+  
+  if X.arretee==False and TPS>10 and X.age > (X.diametre*X.diametre*P_GDs):
+    X.arretee=True    ### la pointe arretee
+  
+  ordre = int(X.ordre)
+  nbpte[ordre] += 1
+  
+  #if X.senile==True:  ## on teste si tout l'axe est mort
+  #  base_axe=vertex_axe[0]
+  #  les_pointes_axe=Extremities(base_axe)
+  #  X.axe_mort=True
+  #  for x in les_pointes_axes:
+  #    if mtg.property('pte').get(x).senile==False:
+  #      X.axe_mort=False
+  
+  
+  nproduce pointe(X)
+  
+  #X.diametre=min((1+(P_Vmax-P_Vmin)*P_SC+P_Vmin)*X.diametre,P_Dmax)
+  X.diametre=min((1+(P_Vmax-P_Vmin)*P_SC+P_Vmin)*X.diametre,X.Dmax_i)
+  if X.diametre<P_diamMin:
+    X.arretee=True
+  
+  produce
+
+
+
+Primordium(X):
+  global num_pointe,timing8,les_pointes,NBbranchement
+  
+  #for x in les_pointes:
+  #  if mtg.property('pte').get(x).id_pointe==X.id_pointe_axe:
+  #    vertex_pointe=x
+  #    break
+  
+  #if mtg.property('pte').get(vertex_pointe).axe_mort:
+  #  produce
+  #if X.avorte==True:
+  #  produce Primordium(X)
+  #elif X.diametre < P_diamMin:
+  #  X.avorte=True
+  #  produce Primordium(X)
+  if X.diametre < P_diamMin:
+    produce
+  elif X.age < P_ageMaturitePointe:
+    X.age=X.age+dt
+    produce Primordium(X)
+  else:
+    num_pointe=num_pointe+1
+    NBbranchement+=1
+    Y=pte(id_pointe=num_pointe,age=0,Tortue=X.Tortue,diametre=X.diametre,Dmax_i=X.Dmax_i,posO=X.posO,ordre=X.ordre)
+    produce SB() pointe(Y) EB() #bb
+
+
+#segment(X):
+#  global timing9,les_pointes
+#  
+#  for x in les_pointes:
+#    if mtg.property('pte').get(x).id_pointe==X.id_pointe_axe:
+#      vertex_pointe=x
+#      break
+# 
+#  if mtg.property('pte').get(vertex_pointe).axe_mort:
+#    nproduce
+#  else:
+#    nproduce segment(X)
+#  produce
+
+?P(p0) segment(X) ?P(p1):
+  ordre = int(X.ordre)
+  cumlen[ordre] += X.longueur
+  # a ajouter ici increment d'une grille de sol en longueur de racine (segment en mm)
+  intsoil.incValueAt('root_length',((p0+p1)/2)/10,  X.longueur/1000)# a passer mm en cm pour position grille! et en m pour longueur de racine #ici longueur cumulee par voxel pas densite -> OK pour ls_roots
+  #print 'cumlen', sum(cumlen)/10, ' soil len', np.sum(intsoil.m['root_length'])#donne bien la meme chose
+  
+
+
+Grid(n) --> Grid(n+1)
+
+
+interpretation:
+
+pointe(X):
+  nproduce StartGC()   SetColor(1)PglShape(Cone(X.diametre/2,X.longueur,True,16)) EndGC()
+
+segment(Z):
+  nproduce StartGC() SetWidth(Z.diametre*2)SetColor(7)F(Z.longueur)EndGC()
+
+
+Collet(n):
+   produce @M(carto[n][0], carto[n][1], carto[n][2])
+
+
+wRuler():
+   if opt_visu_scale == 1:
+     produce @M(750,0,-500)@g(Box(20,5,500))@M(0,0,0)
+
+
+Grid(n) :
+  if PLOT_PROPERTY !=-1 and n>2:
+    if PLOT_PROPERTY == 'root_length':
+      sc = intsoil.pgl_representation_property(property_name=PLOT_PROPERTY, sizeratio = 1, transparency = 0.5,  minvalue = 0.01/100, maxvalue = 1, cmview=True, scalefunc = lambda x : log(x +1), scaling = 10 )
+    elif PLOT_PROPERTY == 'ftsw_t':
+      filter = intsoil.m['root_length']>0.
+      #intsoil.add_property('tempo', filter.astype('float'))# filtre pour n'afficher que voxels avec racine -> marche 
+      intsoil.add_property('tempo', filter.astype('float') * (intsoil.m[PLOT_PROPERTY] + 0.02/1000000))#filtre pour n'afficher que voxels avec racine et vaiable -> marche avec un epsilon superieur a borne min
+      #sc = intsoil.pgl_representation_property(property_name=PLOT_PROPERTY, sizeratio = 1, transparency = 0.5,  cmview=True, scalefunc = lambda x : 1-x, scaling = 10 )
+      sc = intsoil.pgl_representation_property(property_name='tempo', sizeratio = 1, transparency = 0.5,  minvalue = 0.01/1000000, maxvalue = 1., cmview=True, scalefunc = lambda x : x, scaling = 10 )
+    else:
+      sc = intsoil.pgl_representation_property(property_name=PLOT_PROPERTY, sizeratio = 1, transparency = 0.5,  cmview=True, scalefunc = lambda x : 1-x, scaling = 10 )
+    if opt_visu_grid == 1: #comme PLOT_PROPERTY == -1
+      produce @g(sc)
+#A faire: filtre des ftsw ou autres variables uniquement sur celles avec des racines -> cree une variable tempo, mais pour le moment cases qui disparaissent?? (pas pour le filtre en revache qui fonctionne
+
+endlsystem
+###### INITIALISATION ######
+
+__lpy_code_version__ = 1.1
+
+def __initialiseContext__(context):
+	import openalea.plantgl.all as pgl
+	Color_7 = pgl.Material("Color_7" , ambient = (23,23,23) , diffuse = 1.21739 , specular = (13,13,13) , )
+	Color_7.name = "Color_7"
+	context.turtle.setMaterial(7,Color_7)
